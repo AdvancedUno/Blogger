@@ -76,20 +76,13 @@ def run_one(blog: dict, defaults: dict) -> tuple[bool, str]:
                      name, e, traceback.format_exc())
         return False, f"generator-unexpected: {e}"
 
-    # ----- 3. Publish (Playwright + Kakao login) ----------------------
+    # ----- 3. Publish (Playwright + storage_state 주입) ---------------
     try:
         url = publish_to_tistory(
             blog_name=blog["blog_name"],
             title=post.title,
             html_content=post.html,
             tags=list(blog.get("tags") or []),
-            kakao_email_env=blog.get(
-                "kakao_email_env", defaults.get("kakao_email_env", "KAKAO_EMAIL")
-            ),
-            kakao_password_env=blog.get(
-                "kakao_password_env",
-                defaults.get("kakao_password_env", "KAKAO_PASSWORD"),
-            ),
             headless=bool(defaults.get("headless", True)),
         )
         logger.info("[%s] Published OK -> %s", name, url)

@@ -1,34 +1,27 @@
 # =====================================================================
 # 다중 블로그 운영 설정 (Multi-Blog Profile Config)
 # =====================================================================
-# Tistory Open API 신규 발급이 중단되어, 본 시스템은 Playwright 로
-# Kakao 계정에 직접 로그인하여 글을 발행합니다.
+# 인증은 storage_state(state.json) 주입으로 처리합니다.
+#   - 로컬: 프로젝트 루트에 state.json 파일 배치 (.gitignore 처리됨)
+#   - CI:   TISTORY_STATE_JSON Secret → workflow 단계에서 state.json 으로 기록
 #
-# 각 블로그가 같은 Kakao 계정을 쓰면 default 의 env 한 쌍이면 충분하고,
-# 블로그별로 다른 Kakao 계정이 필요하면 per-blog 로 kakao_email_env /
-# kakao_password_env 를 따로 지정하세요.
+# state.json 경로를 바꾸려면 환경변수 TISTORY_STATE_PATH 로 오버라이드.
 # =====================================================================
 
 defaults:
   max_news_items: 6
   headless: true
-  # 모든 블로그가 공유하는 기본 Kakao 자격증명 환경변수 이름
-  kakao_email_env: "KAKAO_EMAIL"
-  kakao_password_env: "KAKAO_PASSWORD"
 
 blogs:
   - name: "Tech Blog"
-    blog_name: "your-tech-blog"           # Tistory 서브도메인 (your-tech-blog.tistory.com)
-    niche_keyword: "technology"            # 표지 이미지 키워드 (loremflickr)
+    blog_name: "your-tech-blog"           # 본인 Tistory 서브도메인으로 교체
+    niche_keyword: "technology"
     rss_query: "AI OR 반도체 OR 스타트업 OR IT트렌드"
     topic_label: "IT/테크"
     tags: ["IT", "테크", "AI", "기술트렌드", "스타트업"]
-    # 블로그별 다른 카카오 계정 사용 시 아래 두 줄 주석 해제
-    # kakao_email_env:    "KAKAO_EMAIL_TECH"
-    # kakao_password_env: "KAKAO_PASSWORD_TECH"
 
   - name: "Economy Blog"
-    blog_name: "your-econ-blog"
+    blog_name: "your-econ-blog"           # 본인 Tistory 서브도메인으로 교체
     niche_keyword: "finance"
     rss_query: "주식 OR 금리 OR 부동산 OR 환율 OR 투자"
     topic_label: "경제/투자"

@@ -13,7 +13,7 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 25     # Playwright 부팅 + 로그인 + 발행을 고려
+    timeout-minutes: 25
 
     steps:
       - name: Checkout repo
@@ -30,31 +30,29 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Playwright 가 쓰는 Chromium + 시스템 의존 라이브러리를 함께 설치.
-      # `--with-deps` 가 apt 패키지(libnss3, libatk 등)까지 깔아줍니다.
       - name: Install Playwright Chromium
         run: python -m playwright install --with-deps chromium
 
+      # TISTORY_STATE_JSON 시크릿 → 프로젝트 루트의 state.json 파일로 기록.
+      # printf 로 변수 치환 (heredoc 보다 특수문자에 안전).
+      - name: Write Tistory storage_state
+        env:
+          TISTORY_STATE_JSON: ${{ secrets.TISTORY_STATE_JSON }}
+        run: |
+          if [ -z "$TISTORY_STATE_JSON" ]; then
+            echo "::error::TISTORY_STATE_JSON secret is empty"
+            exit 1
+          fi
+          printf '%s' "$TISTORY_STATE_JSON" > state.json
+          echo "state.json bytes: $(wc -c < state.json)"
+
       - name: Run daily pipeline
         env:
-          # --- AI ---
-          GEMINI_API_KEY:        ${{ secrets.GEMINI_API_KEY }}
-          # 모델명을 env 로 오버라이드하고 싶으면 Secrets 에 추가 후 활성화:
-          # GEMINI_MODEL:        ${{ secrets.GEMINI_MODEL }}
-
-          # --- Kakao 계정 (Playwright 로그인용) ---
-          # 모든 블로그가 같은 Kakao 계정이면 이 한 쌍만 있으면 됩니다.
-          KAKAO_EMAIL:           ${{ secrets.KAKAO_EMAIL }}
-          KAKAO_PASSWORD:        ${{ secrets.KAKAO_PASSWORD }}
-
-          # 블로그별로 다른 카카오 계정을 쓰는 경우 추가:
-          # KAKAO_EMAIL_TECH:    ${{ secrets.KAKAO_EMAIL_TECH }}
-          # KAKAO_PASSWORD_TECH: ${{ secrets.KAKAO_PASSWORD_TECH }}
-          # KAKAO_EMAIL_ECON:    ${{ secrets.KAKAO_EMAIL_ECON }}
-          # KAKAO_PASSWORD_ECON: ${{ secrets.KAKAO_PASSWORD_ECON }}
+          GEMINI_API_KEY:       ${{ secrets.GEMINI_API_KEY }}
+          # GEMINI_MODEL:       ${{ secrets.GEMINI_MODEL }}   # 모델명 오버라이드 시
+          TISTORY_STATE_PATH:   state.json
         run: python main.py
 
-      # 실패 시 스크린샷 업로드 (publisher.py 가 artifacts/screenshots/ 에 저장)
       - name: Upload debug screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -63,3 +61,8 @@ jobs:
           path: artifacts/screenshots/
           if-no-files-found: ignore
           retention-days: 7
+
+      # 보안: 워크스페이스에 state.json 이 남지 않도록 명시적 삭제
+      - name: Cleanup state.json
+        if: always()
+        run: rm -f state.json
