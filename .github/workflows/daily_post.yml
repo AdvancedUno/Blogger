@@ -53,13 +53,15 @@ jobs:
           TISTORY_STATE_PATH:   state.json
         run: python main.py
 
-      - name: Upload debug screenshots
+      - name: Upload debug artifacts (screenshots + HTML dump)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: tistory-screenshots
-          path: artifacts/screenshots/
-          if-no-files-found: ignore
+          name: tistory-debug
+          path: |
+            artifacts/screenshots/**/*.png
+            artifacts/screenshots/**/*.html
+          if-no-files-found: warn
           retention-days: 7
 
       # 보안: 워크스페이스에 state.json 이 남지 않도록 명시적 삭제

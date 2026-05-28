@@ -83,6 +83,46 @@ def _try_click(page: Page, selectors: list[str], timeout: int = 4_000) -> bool:
     return False
 
 
+def _dump_debug(page: Page, tag: str) -> None:
+    """에디터 진입 실패 시 페이지 HTML + DOM 구조를 artifact 에 덤프."""
+    try:
+        SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
+        html_path = SCREENSHOTS_DIR / f"{int(time.time())}_{tag}.html"
+        html_path.write_text(page.content(), encoding="utf-8")
+        logger.info("Saved page HTML: %s", html_path)
+    except Exception as e:
+        logger.warning("HTML dump failed: %s", e)
+
+    try:
+        info = page.evaluate(
+            """
+            () => ({
+              url: location.href,
+              title: document.title,
+              inputs: Array.from(document.querySelectorAll('input'))
+                .slice(0, 40)
+                .map(i => ({
+                  type: i.type, id: i.id, name: i.name,
+                  placeholder: i.placeholder, visible: !!i.offsetParent
+                })),
+              textareas: Array.from(document.querySelectorAll('textarea'))
+                .slice(0, 20)
+                .map(t => ({
+                  id: t.id, name: t.name,
+                  placeholder: t.placeholder, visible: !!t.offsetParent
+                })),
+              iframes: Array.from(document.querySelectorAll('iframe'))
+                .map(f => ({ id: f.id, name: f.name, src: f.src })),
+              bodyTextSample: (document.body && document.body.innerText || '')
+                .substring(0, 600),
+            })
+            """
+        )
+        logger.info("DOM snapshot (%s): %s", tag, info)
+    except Exception as e:
+        logger.warning("DOM snapshot failed (%s): %s", tag, e)
+
+
 def _resolve_state_path() -> Path:
     """state.json 경로 결정 — 환경변수 TISTORY_STATE_PATH 우선."""
     raw = os.environ.get("TISTORY_STATE_PATH", DEFAULT_STATE_PATH)
@@ -133,6 +173,20 @@ def _check_session_alive(page: Page, blog_name: str) -> None:
 # ---------------------------------------------------------------------
 # Editor flow
 # ---------------------------------------------------------------------
+TITLE_SELECTOR = ", ".join([
+    '#post-title-input',
+    '#post-title-inp',
+    'input[name="title"]',
+    'textarea[name="title"]',
+    'textarea#post-title-input',
+    'textarea#post-title-inp',
+    'input[placeholder*="제목"]',
+    'textarea[placeholder*="제목"]',
+    '.post-title-input',
+    '[data-testid="post-title"]',
+])
+
+
 def _open_new_post(page: Page, blog_name: str) -> None:
     url = f"https://{blog_name}.tistory.com/manage/newpost/"
     logger.info("Open new-post editor: %s", url)
@@ -140,37 +194,40 @@ def _open_new_post(page: Page, blog_name: str) -> None:
 
     # 잠재적 client-side redirect 가 정리되도록 잠시 대기
     try:
-        page.wait_for_load_state("networkidle", timeout=10_000)
+        page.wait_for_load_state("networkidle", timeout=15_000)
     except PWTimeoutError:
         pass
 
     # 1) 도착한 URL 이 로그인 페이지면 즉시 SessionExpiredError
     _check_session_alive(page, blog_name)
 
-    # 2) "작성 중이던 글 / 임시저장 글 불러오기" 팝업 dismiss
+    # 2) "작성 중이던 글 / 임시저장 / 온보딩" 팝업 dismiss (광범위)
     _try_click(
         page,
         [
             'button:has-text("취소")',
             'button:has-text("새 글 작성")',
+            'button:has-text("아니요")',
+            'button:has-text("닫기")',
+            'button:has-text("확인")',
             'button.btn-cancel',
+            'a:has-text("새 글 작성")',
         ],
         timeout=4_000,
     )
 
-    # 3) 제목 입력 영역이 등장할 때까지 대기
+    # 3) 제목 입력 영역이 등장할 때까지 대기 (광범위 셀렉터)
     try:
-        page.wait_for_selector(
-            '#post-title-input, input[name="title"], textarea[name="title"]',
-            timeout=15_000,
-        )
+        page.wait_for_selector(TITLE_SELECTOR, timeout=20_000)
     except PWTimeoutError:
         # 늦은 client redirect 가능성 — 한 번 더 세션 검사
         _check_session_alive(page, blog_name)
         _screenshot(page, "editor_not_loaded")
+        _dump_debug(page, "editor_not_loaded")
         raise PublishError(
-            "에디터의 제목 입력 영역이 시간 내에 나타나지 않았습니다 "
-            "(셀렉터 점검 또는 티스토리 UI 변경 가능성)."
+            "에디터의 제목 입력 영역을 찾지 못했습니다. artifact 의 "
+            "*_editor_not_loaded.html 와 actions 로그의 DOM snapshot 을 보고 "
+            "TITLE_SELECTOR / iframe 구조를 점검하세요."
         )
 
 
@@ -206,11 +263,7 @@ def _switch_to_html_mode(page: Page) -> None:
 
 def _fill_title_and_content(page: Page, title: str, html: str) -> None:
     # 1) 제목
-    title_sel = (
-        '#post-title-input, input[name="title"], '
-        'textarea[name="title"], textarea#post-title-input'
-    )
-    page.locator(title_sel).first.fill(title)
+    page.locator(TITLE_SELECTOR).first.fill(title)
     logger.info("Title filled (%d chars)", len(title))
 
     # 2) 본문 — CodeMirror(v5/v6) → textarea → 키보드 순으로 fallback
