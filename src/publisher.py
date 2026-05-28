@@ -236,49 +236,70 @@ def _fill_title_and_content(page: Page, title: str, html: str) -> None:
     page.locator(TITLE_SELECTOR).first.fill(title)
     logger.info("Title filled (%d chars)", len(title))
 
-    # 2) 본문 — 활성 에디터에 주입.
-    #    우선순위: TinyMCE API → TinyMCE iframe → CodeMirror v5/v6 → textarea
-    #    주입 직후 그 에디터에서 다시 읽어 verified_len 을 돌려받아 실제 반영 검증.
+    # 2) 본문 — 활성 에디터에 주입 + 모든 mirror 경로/이벤트 강제 sync.
+    #   배경: Tistory submit 은 TinyMCE 가 mirror 하는 원본 textarea 또는
+    #   자체 state 에서 본문을 가져간다. setContent 만으로는 mirror sync 이벤트가
+    #   안 터지므로 ed.save() + fire('Change'/'Input'/...) + 외부 textarea 동기화까지
+    #   같이 수행.
     result = page.evaluate(
         """
         (html) => {
-          // 1) TinyMCE 공식 API (basic 모드의 기본 본문 에디터)
-          try {
-            const tm = window.tinymce;
-            if (tm) {
-              const ed = tm.activeEditor || (tm.editors && tm.editors[0]);
-              if (ed && typeof ed.setContent === 'function') {
-                ed.setContent(html);
-                const v = ed.getContent({ format: 'html' }) || '';
-                return { via: 'tinymce-api', verified_len: v.length };
+          // ---------- TinyMCE 경로 ----------
+          const tm = window.tinymce;
+          const ed = tm && (tm.activeEditor || (tm.editors && tm.editors[0]));
+          if (ed) {
+            ed.setContent(html);
+            // mirror textarea 로 강제 저장
+            try { ed.save && ed.save(); } catch (e) {}
+            try { ed.setDirty && ed.setDirty(true); } catch (e) {}
+            // TinyMCE 5/6 양쪽 이벤트 fire (Tistory 의 state 리스너 트리거 목적)
+            ['Change', 'Input', 'KeyUp', 'NodeChange', 'change', 'input']
+              .forEach(evt => {
+                try { ed.fire && ed.fire(evt); } catch (e) {}
+                try { ed.dispatch && ed.dispatch(evt); } catch (e) {}
+              });
+            // iframe body 에 input/change 이벤트
+            try {
+              const body = ed.getBody && ed.getBody();
+              if (body) {
+                body.dispatchEvent(new Event('input',  { bubbles: true }));
+                body.dispatchEvent(new Event('change', { bubbles: true }));
+                body.dispatchEvent(new Event('blur',   { bubbles: true }));
               }
-            }
-          } catch (e) { /* fall through */ }
-
-          // 2) TinyMCE iframe 의 body 에 직접 innerHTML 주입
-          const tinyFrame = document.querySelector(
-            'iframe.tox-edit-area__iframe, iframe[id$="_ifr"]'
-          );
-          if (tinyFrame && tinyFrame.contentDocument) {
-            const body = tinyFrame.contentDocument.body;
-            if (body) {
-              body.innerHTML = html;
-              return { via: 'tinymce-iframe', verified_len: body.innerHTML.length };
-            }
+            } catch (e) {}
+            // 연결된 원본 textarea (TinyMCE 가 mirror 하는 element) 에 직접 동기화
+            try {
+              const elem = ed.getElement && ed.getElement();
+              if (elem) {
+                elem.value = ed.getContent({ format: 'raw' }) || html;
+                elem.dispatchEvent(new Event('input',  { bubbles: true }));
+                elem.dispatchEvent(new Event('change', { bubbles: true }));
+              }
+            } catch (e) {}
+            // Tistory 의 별도 본문 mirror textarea 추정값들 모두 동기화
+            document.querySelectorAll('textarea').forEach(t => {
+              const k = ((t.name || '') + '|' + (t.id || '')).toLowerCase();
+              if (/content|body|html/.test(k)) {
+                t.value = html;
+                t.dispatchEvent(new Event('input',  { bubbles: true }));
+                t.dispatchEvent(new Event('change', { bubbles: true }));
+              }
+            });
+            const v = ed.getContent({ format: 'html' }) || '';
+            return { via: 'tinymce-api', verified_len: v.length };
           }
 
-          // 3) CodeMirror v5 (HTML / Markdown 모드)
-          const cm5host = document.querySelector('.CodeMirror');
-          if (cm5host && cm5host.CodeMirror) {
-            cm5host.CodeMirror.setValue(html);
-            const v = cm5host.CodeMirror.getValue() || '';
-            return { via: 'codemirror5', verified_len: v.length };
+          // ---------- CodeMirror v5 ----------
+          const cm5 = document.querySelector('.CodeMirror');
+          if (cm5 && cm5.CodeMirror) {
+            cm5.CodeMirror.setValue(html);
+            return { via: 'codemirror5',
+                     verified_len: (cm5.CodeMirror.getValue() || '').length };
           }
-
-          // 4) CodeMirror v6
-          const cm6host = document.querySelector('.cm-editor');
-          if (cm6host) {
-            const view = cm6host.cmView && cm6host.cmView.view;
+          // ---------- CodeMirror v6 ----------
+          const cm6 = document.querySelector('.cm-editor');
+          if (cm6) {
+            const view = cm6.cmView && cm6.cmView.view;
             if (view) {
               view.dispatch({
                 changes: { from: 0, to: view.state.doc.length, insert: html }
@@ -286,8 +307,7 @@ def _fill_title_and_content(page: Page, title: str, html: str) -> None:
               return { via: 'codemirror6', verified_len: view.state.doc.length };
             }
           }
-
-          // 5) 일반 textarea
+          // ---------- textarea ----------
           const ta = document.querySelector(
             'textarea.html_editor, textarea[name="content"], textarea#content'
           );
@@ -297,7 +317,6 @@ def _fill_title_and_content(page: Page, title: str, html: str) -> None:
             ta.dispatchEvent(new Event('change', { bubbles: true }));
             return { via: 'textarea', verified_len: ta.value.length };
           }
-
           return null;
         }
         """,
@@ -316,16 +335,51 @@ def _fill_title_and_content(page: Page, title: str, html: str) -> None:
         result["via"], len(html), result["verified_len"],
     )
 
-    # 검증: 활성 에디터에서 읽어온 길이가 보낸 길이의 절반보다 작으면 실패로 간주.
     if int(result["verified_len"]) < int(len(html) * 0.5):
         _screenshot(page, "content_injection_short")
         _dump_debug(page, "content_injection_short")
         raise PublishError(
             f"본문 주입 실패 — via={result['via']}, "
             f"sent={len(html)}, verified={result['verified_len']}. "
-            "잘못된 비활성 에디터 인스턴스에 쓴 것으로 추정. "
-            "artifact 의 *_content_injection_short.* 를 보고 셀렉터/iframe 보정 필요."
+            "artifact 의 *_content_injection_short.* 확인 필요."
         )
+
+    # 비동기 state sync 완료를 위한 대기
+    page.wait_for_timeout(1500)
+
+    # 발행 직전 강제 재-save + 모든 content 후보 필드의 현재 길이 로깅.
+    # → "TinyMCE 는 가득 차 있는데 textarea 는 0" 같은 mirror sync 실패를 즉시 가시화.
+    pre_publish = page.evaluate(
+        """
+        () => {
+          const out = { fields: {}, mode: null };
+          const tm = window.tinymce;
+          const ed = tm && (tm.activeEditor || (tm.editors && tm.editors[0]));
+          if (ed) {
+            try { ed.save && ed.save(); } catch (e) {}
+            out.fields.tinymce = (ed.getContent({ format: 'html' }) || '').length;
+            const elem = ed.getElement && ed.getElement();
+            if (elem) {
+              out.fields['tinymce_mirror_textarea'] = (elem.value || '').length;
+            }
+          }
+          document.querySelectorAll('textarea').forEach((t, i) => {
+            const key = 'ta[' + i + ']:' + (t.name || t.id || '?');
+            out.fields[key] = (t.value || '').length;
+          });
+          const cm5 = document.querySelector('.CodeMirror');
+          if (cm5 && cm5.CodeMirror) {
+            out.fields.cm5 = (cm5.CodeMirror.getValue() || '').length;
+          }
+          // 어느 모드인지 힌트 (basic = TinyMCE iframe 존재, HTML/MD = CodeMirror)
+          if (document.querySelector('iframe[id$="_ifr"]')) out.mode = 'basic(TinyMCE)';
+          else if (document.querySelector('.CodeMirror, .cm-editor')) out.mode = 'codemirror';
+          return out;
+        }
+        """
+    )
+    logger.info("Pre-publish content state: mode=%s fields=%s",
+                pre_publish.get("mode"), pre_publish.get("fields"))
 
 
 def _set_tags(page: Page, tags: list[str]) -> None:
