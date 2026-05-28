@@ -14,14 +14,14 @@ defaults:
 
 blogs:
   - name: "Tech Blog"
-    blog_name: "unobigtech"           # 본인 Tistory 서브도메인으로 교체
+    blog_name: "unobigtech"           
     niche_keyword: "technology"
     rss_query: "AI OR 반도체 OR 스타트업 OR IT트렌드"
     topic_label: "IT/테크"
     tags: ["IT", "테크", "AI", "기술트렌드", "스타트업"]
 
   - name: "Economy Blog"
-    blog_name: "unoecon"           # 본인 Tistory 서브도메인으로 교체
+    blog_name: "unoecon"           
     niche_keyword: "finance"
     rss_query: "주식 OR 금리 OR 부동산 OR 환율 OR 투자"
     topic_label: "경제/투자"
