@@ -383,9 +383,26 @@ def _fill_title_and_content(page: Page, title: str, html: str) -> None:
 
 
 def _set_tags(page: Page, tags: list[str]) -> None:
-    """발행 사이드바가 열려 있는 상태에서 호출되어야 함."""
+    """발행 사이드바가 열려 있는 상태에서 호출되어야 함.
+
+    Tistory 사이드바 위에 잔여 ReactModalPortal/툴팁 같은 비가시 오버레이가
+    남아 있으면 #tagText 의 pointer event 를 가로채서 'subtree intercepts
+    pointer events' 에러가 발생한다.  두 가지로 회피:
+      1) 진입 직전 Escape 를 몇 번 눌러 떠 있는 모달/툴팁/포털을 정리.
+      2) click / fill 모두 force=True 로 Playwright actionability 체크를
+         우회 — 위에 가리는 요소가 있어도 강제로 진행.
+    """
     if not tags:
         return
+
+    # 0) 잔여 모달/툴팁/포털 정리 (사이드바 자체는 Escape 로 닫히지 않으므로 안전)
+    for _ in range(3):
+        try:
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(150)
+        except Exception:
+            pass
+
     tag_inp = None
     for sel in (
         '#tagText',
@@ -395,7 +412,8 @@ def _set_tags(page: Page, tags: list[str]) -> None:
     ):
         loc = page.locator(sel).first
         try:
-            loc.wait_for(state="visible", timeout=4_000)
+            # 오버레이가 가려도 attached 만으로 충분 — 실제 입력은 force=True
+            loc.wait_for(state="attached", timeout=4_000)
             tag_inp = loc
             break
         except PWTimeoutError:
@@ -407,9 +425,10 @@ def _set_tags(page: Page, tags: list[str]) -> None:
     added = 0
     for t in tags:
         try:
-            tag_inp.click()
-            tag_inp.fill(t)
+            tag_inp.click(force=True)
+            tag_inp.fill(t, force=True)
             page.keyboard.press("Enter")
+            page.wait_for_timeout(120)   # 태그 칩이 추가되며 input 이 리셋될 시간
             added += 1
         except Exception as e:
             logger.warning("Tag '%s' add failed: %s", t, e)
