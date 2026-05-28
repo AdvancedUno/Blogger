@@ -452,27 +452,102 @@ def _publish(page: Page, tags: list[str]) -> str:
     page.wait_for_timeout(800)   # 사이드바 애니메이션 정착
     _set_tags(page, tags)
 
-    # 3) 공개 발행 옵션 선택
+    # 3) 공개 발행 옵션 선택 (셀렉터 확장)
     _try_click(
         page,
         [
             'label:has-text("공개")',
             'input#open20',
             'input[name="open"][value="20"]',
+            'input[value="20"]',
+            'span:has-text("공개")',
         ],
-        timeout=4_000,
+        timeout=3_000,
     )
+    page.wait_for_timeout(500)
 
-    # 4) 최종 발행 버튼
+    # 4) 최종 발행 버튼 — 광범위 셀렉터 + JS text 매칭 폴백
     final_btns = [
         'button#publish-btn',
+        'button.publish',
+        'button.btn_publish',
+        'button.btn-publish',
         'button:has-text("공개 발행")',
+        'button:has-text("공개발행")',
         'button:has-text("발행하기")',
         'button:has-text("발행")',
+        'a:has-text("공개 발행")',
+        'a:has-text("발행")',
+        '[role="button"]:has-text("발행")',
+        'button[type="submit"]',
     ]
-    if not _try_click(page, final_btns, timeout=8_000):
+    clicked = _try_click(page, final_btns, timeout=2_500)
+
+    if not clicked:
+        # JS 폴백: 화면에 보이고 텍스트가 정확히 "공개 발행"/"발행"/"발행하기" 인
+        # button/a/[role=button] 을 직접 클릭. force click 효과.
+        js_result = page.evaluate(
+            """
+            () => {
+              const targets = ['공개 발행', '공개발행', '발행하기', '발행'];
+              const els = Array.from(document.querySelectorAll(
+                'button, a, [role="button"], input[type="submit"]'
+              ));
+              for (const el of els) {
+                const t = ((el.innerText || el.value || '') + '').trim();
+                if (targets.includes(t) && el.offsetParent) {
+                  el.click();
+                  return { clicked: t, id: el.id || '', cls: el.className || '' };
+                }
+              }
+              return null;
+            }
+            """
+        )
+        if js_result:
+            logger.info("JS fallback clicked publish: %s", js_result)
+            clicked = True
+
+    if not clicked:
         _screenshot(page, "publish_btn_missing")
-        raise PublishError("Final publish button not found")
+        _dump_debug(page, "publish_btn_missing")
+        # 화면에 보이는 모든 버튼/링크 텍스트 dump (다음 사이클에 정확한 셀렉터 잡기 위해)
+        try:
+            visible_btns = page.evaluate(
+                """
+                () => Array.from(document.querySelectorAll(
+                  'button, a, [role="button"], input[type="submit"]'
+                ))
+                .map(el => ({
+                  tag: el.tagName,
+                  text: ((el.innerText || el.value || '') + '').trim().slice(0, 60),
+                  id: el.id || '',
+                  cls: ((el.className || '') + '').slice(0, 80),
+                  visible: !!el.offsetParent,
+                }))
+                .filter(b => b.text && b.visible)
+                .slice(0, 80)
+                """
+            )
+            logger.info("Visible buttons snapshot: %s", visible_btns)
+        except Exception as e:
+            logger.warning("Buttons dump failed: %s", e)
+        raise PublishError(
+            "Final publish button not found. artifact 의 "
+            "*_publish_btn_missing.html / .png 와 'Visible buttons snapshot' "
+            "로그를 보고 정확한 셀렉터 보강 필요."
+        )
+
+    # 4-b) 발행 직후 한 번 더 확인 다이얼로그가 뜨는 케이스 (있을 때만 dismiss)
+    _try_click(
+        page,
+        [
+            'button:has-text("확인")',
+            'button.btn-confirm',
+            'button:has-text("발행")',
+        ],
+        timeout=2_000,
+    )
 
     # 5) /newpost 에서 벗어나면 성공
     try:
