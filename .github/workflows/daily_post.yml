@@ -1,0 +1,65 @@
+name: Daily Tistory Post
+
+on:
+  schedule:
+    # 매일 07:00 KST = 22:00 UTC (전일 기준)
+    - cron: '0 22 * * *'
+  workflow_dispatch:        # 수동 실행 버튼 노출
+
+concurrency:
+  group: daily-tistory-post
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25     # Playwright 부팅 + 로그인 + 발행을 고려
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Playwright 가 쓰는 Chromium + 시스템 의존 라이브러리를 함께 설치.
+      # `--with-deps` 가 apt 패키지(libnss3, libatk 등)까지 깔아줍니다.
+      - name: Install Playwright Chromium
+        run: python -m playwright install --with-deps chromium
+
+      - name: Run daily pipeline
+        env:
+          # --- AI ---
+          GEMINI_API_KEY:        ${{ secrets.GEMINI_API_KEY }}
+          # 모델명을 env 로 오버라이드하고 싶으면 Secrets 에 추가 후 활성화:
+          # GEMINI_MODEL:        ${{ secrets.GEMINI_MODEL }}
+
+          # --- Kakao 계정 (Playwright 로그인용) ---
+          # 모든 블로그가 같은 Kakao 계정이면 이 한 쌍만 있으면 됩니다.
+          KAKAO_EMAIL:           ${{ secrets.KAKAO_EMAIL }}
+          KAKAO_PASSWORD:        ${{ secrets.KAKAO_PASSWORD }}
+
+          # 블로그별로 다른 카카오 계정을 쓰는 경우 추가:
+          # KAKAO_EMAIL_TECH:    ${{ secrets.KAKAO_EMAIL_TECH }}
+          # KAKAO_PASSWORD_TECH: ${{ secrets.KAKAO_PASSWORD_TECH }}
+          # KAKAO_EMAIL_ECON:    ${{ secrets.KAKAO_EMAIL_ECON }}
+          # KAKAO_PASSWORD_ECON: ${{ secrets.KAKAO_PASSWORD_ECON }}
+        run: python main.py
+
+      # 실패 시 스크린샷 업로드 (publisher.py 가 artifacts/screenshots/ 에 저장)
+      - name: Upload debug screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tistory-screenshots
+          path: artifacts/screenshots/
+          if-no-files-found: ignore
+          retention-days: 7

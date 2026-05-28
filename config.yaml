@@ -1,0 +1,35 @@
+# =====================================================================
+# 다중 블로그 운영 설정 (Multi-Blog Profile Config)
+# =====================================================================
+# Tistory Open API 신규 발급이 중단되어, 본 시스템은 Playwright 로
+# Kakao 계정에 직접 로그인하여 글을 발행합니다.
+#
+# 각 블로그가 같은 Kakao 계정을 쓰면 default 의 env 한 쌍이면 충분하고,
+# 블로그별로 다른 Kakao 계정이 필요하면 per-blog 로 kakao_email_env /
+# kakao_password_env 를 따로 지정하세요.
+# =====================================================================
+
+defaults:
+  max_news_items: 6
+  headless: true
+  # 모든 블로그가 공유하는 기본 Kakao 자격증명 환경변수 이름
+  kakao_email_env: "KAKAO_EMAIL"
+  kakao_password_env: "KAKAO_PASSWORD"
+
+blogs:
+  - name: "Tech Blog"
+    blog_name: "your-tech-blog"           # Tistory 서브도메인 (your-tech-blog.tistory.com)
+    niche_keyword: "technology"            # 표지 이미지 키워드 (loremflickr)
+    rss_query: "AI OR 반도체 OR 스타트업 OR IT트렌드"
+    topic_label: "IT/테크"
+    tags: ["IT", "테크", "AI", "기술트렌드", "스타트업"]
+    # 블로그별 다른 카카오 계정 사용 시 아래 두 줄 주석 해제
+    # kakao_email_env:    "KAKAO_EMAIL_TECH"
+    # kakao_password_env: "KAKAO_PASSWORD_TECH"
+
+  - name: "Economy Blog"
+    blog_name: "your-econ-blog"
+    niche_keyword: "finance"
+    rss_query: "주식 OR 금리 OR 부동산 OR 환율 OR 투자"
+    topic_label: "경제/투자"
+    tags: ["경제", "주식", "투자", "재테크", "금융"]
