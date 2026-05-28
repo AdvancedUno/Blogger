@@ -231,50 +231,51 @@ def _open_new_post(page: Page, blog_name: str) -> None:
         )
 
 
-def _switch_to_html_mode(page: Page) -> None:
-    _try_click(
-        page,
-        ['#editor-mode-layer-btn-open', 'button.btn-mode'],
-        timeout=3_000,
-    )
-    _try_click(
-        page,
-        [
-            '#editor-mode-html',
-            'a:has-text("HTML")',
-            'button:has-text("HTML")',
-            'li:has-text("HTML")',
-        ],
-        timeout=4_000,
-    )
-    _try_click(
-        page,
-        ['button:has-text("확인")', 'button.btn-confirm'],
-        timeout=3_000,
-    )
-    try:
-        page.wait_for_selector(
-            '.CodeMirror, .cm-editor, textarea.html_editor, textarea[name="content"]',
-            timeout=10_000,
-        )
-    except PWTimeoutError:
-        logger.warning("HTML editor area not detected — proceeding anyway")
-
-
 def _fill_title_and_content(page: Page, title: str, html: str) -> None:
     # 1) 제목
     page.locator(TITLE_SELECTOR).first.fill(title)
     logger.info("Title filled (%d chars)", len(title))
 
-    # 2) 본문 — CodeMirror(v5/v6) → textarea → 키보드 순으로 fallback
-    injected = page.evaluate(
+    # 2) 본문 — 활성 에디터에 주입.
+    #    우선순위: TinyMCE API → TinyMCE iframe → CodeMirror v5/v6 → textarea
+    #    주입 직후 그 에디터에서 다시 읽어 verified_len 을 돌려받아 실제 반영 검증.
+    result = page.evaluate(
         """
         (html) => {
+          // 1) TinyMCE 공식 API (basic 모드의 기본 본문 에디터)
+          try {
+            const tm = window.tinymce;
+            if (tm) {
+              const ed = tm.activeEditor || (tm.editors && tm.editors[0]);
+              if (ed && typeof ed.setContent === 'function') {
+                ed.setContent(html);
+                const v = ed.getContent({ format: 'html' }) || '';
+                return { via: 'tinymce-api', verified_len: v.length };
+              }
+            }
+          } catch (e) { /* fall through */ }
+
+          // 2) TinyMCE iframe 의 body 에 직접 innerHTML 주입
+          const tinyFrame = document.querySelector(
+            'iframe.tox-edit-area__iframe, iframe[id$="_ifr"]'
+          );
+          if (tinyFrame && tinyFrame.contentDocument) {
+            const body = tinyFrame.contentDocument.body;
+            if (body) {
+              body.innerHTML = html;
+              return { via: 'tinymce-iframe', verified_len: body.innerHTML.length };
+            }
+          }
+
+          // 3) CodeMirror v5 (HTML / Markdown 모드)
           const cm5host = document.querySelector('.CodeMirror');
           if (cm5host && cm5host.CodeMirror) {
             cm5host.CodeMirror.setValue(html);
-            return 'codemirror5';
+            const v = cm5host.CodeMirror.getValue() || '';
+            return { via: 'codemirror5', verified_len: v.length };
           }
+
+          // 4) CodeMirror v6
           const cm6host = document.querySelector('.cm-editor');
           if (cm6host) {
             const view = cm6host.cmView && cm6host.cmView.view;
@@ -282,9 +283,11 @@ def _fill_title_and_content(page: Page, title: str, html: str) -> None:
               view.dispatch({
                 changes: { from: 0, to: view.state.doc.length, insert: html }
               });
-              return 'codemirror6';
+              return { via: 'codemirror6', verified_len: view.state.doc.length };
             }
           }
+
+          // 5) 일반 textarea
           const ta = document.querySelector(
             'textarea.html_editor, textarea[name="content"], textarea#content'
           );
@@ -292,22 +295,37 @@ def _fill_title_and_content(page: Page, title: str, html: str) -> None:
             ta.value = html;
             ta.dispatchEvent(new Event('input',  { bubbles: true }));
             ta.dispatchEvent(new Event('change', { bubbles: true }));
-            return 'textarea';
+            return { via: 'textarea', verified_len: ta.value.length };
           }
+
           return null;
         }
         """,
         html,
     )
 
-    if not injected:
-        logger.warning("JS injection failed — falling back to keyboard input")
+    if not result:
+        logger.warning("All editor injection paths failed — falling back to keyboard")
         last_ta = page.locator("textarea").last
         last_ta.focus()
         page.keyboard.insert_text(html)
-        injected = "keyboard"
+        result = {"via": "keyboard", "verified_len": len(html)}
 
-    logger.info("Content injected via: %s (%d chars)", injected, len(html))
+    logger.info(
+        "Content injected via: %s (sent=%d, verified=%s)",
+        result["via"], len(html), result["verified_len"],
+    )
+
+    # 검증: 활성 에디터에서 읽어온 길이가 보낸 길이의 절반보다 작으면 실패로 간주.
+    if int(result["verified_len"]) < int(len(html) * 0.5):
+        _screenshot(page, "content_injection_short")
+        _dump_debug(page, "content_injection_short")
+        raise PublishError(
+            f"본문 주입 실패 — via={result['via']}, "
+            f"sent={len(html)}, verified={result['verified_len']}. "
+            "잘못된 비활성 에디터 인스턴스에 쓴 것으로 추정. "
+            "artifact 의 *_content_injection_short.* 를 보고 셀렉터/iframe 보정 필요."
+        )
 
 
 def _set_tags(page: Page, tags: list[str]) -> None:
@@ -426,7 +444,6 @@ def publish_to_tistory(
 
         try:
             _open_new_post(page, blog_name)
-            _switch_to_html_mode(page)
             _fill_title_and_content(page, title, html_content)
             _set_tags(page, tags or [])
             return _publish(page)
