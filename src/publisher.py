@@ -383,30 +383,42 @@ def _fill_title_and_content(page: Page, title: str, html: str) -> None:
 
 
 def _set_tags(page: Page, tags: list[str]) -> None:
+    """발행 사이드바가 열려 있는 상태에서 호출되어야 함."""
     if not tags:
         return
     tag_inp = None
-    for sel in ('#tagText', 'input[name="tag"]', 'input[placeholder*="태그"]'):
+    for sel in (
+        '#tagText',
+        'input[name="tag"]',
+        'input[placeholder*="태그"]',
+        'input[placeholder*="키워드"]',
+    ):
         loc = page.locator(sel).first
         try:
-            loc.wait_for(state="visible", timeout=2_000)
+            loc.wait_for(state="visible", timeout=4_000)
             tag_inp = loc
             break
         except PWTimeoutError:
             continue
     if not tag_inp:
-        logger.warning("Tag input not found — skipping tags")
+        logger.warning("Tag input not found — skipping tags (sidebar opened?)")
         return
+
+    added = 0
     for t in tags:
         try:
+            tag_inp.click()
             tag_inp.fill(t)
             page.keyboard.press("Enter")
+            added += 1
         except Exception as e:
             logger.warning("Tag '%s' add failed: %s", t, e)
+    logger.info("Tags entered: %d/%d", added, len(tags))
 
 
-def _publish(page: Page) -> str:
-    _try_click(
+def _publish(page: Page, tags: list[str]) -> str:
+    # 1) 발행 사이드바 열기 ("완료" 버튼)
+    if not _try_click(
         page,
         [
             'button#publish-layer-btn',
@@ -414,7 +426,14 @@ def _publish(page: Page) -> str:
             'button.btn-publish',
         ],
         timeout=8_000,
-    )
+    ):
+        logger.warning("'완료' 버튼을 찾지 못해 사이드바가 안 열렸을 수 있음")
+
+    # 2) 사이드바 안에서 태그 입력 (사이드바 안에 tag input 이 있음)
+    page.wait_for_timeout(800)   # 사이드바 애니메이션 정착
+    _set_tags(page, tags)
+
+    # 3) 공개 발행 옵션 선택
     _try_click(
         page,
         [
@@ -424,6 +443,8 @@ def _publish(page: Page) -> str:
         ],
         timeout=4_000,
     )
+
+    # 4) 최종 발행 버튼
     final_btns = [
         'button#publish-btn',
         'button:has-text("공개 발행")',
@@ -434,6 +455,7 @@ def _publish(page: Page) -> str:
         _screenshot(page, "publish_btn_missing")
         raise PublishError("Final publish button not found")
 
+    # 5) /newpost 에서 벗어나면 성공
     try:
         page.wait_for_url(lambda u: "/newpost" not in u, timeout=25_000)
     except PWTimeoutError:
@@ -499,8 +521,7 @@ def publish_to_tistory(
         try:
             _open_new_post(page, blog_name)
             _fill_title_and_content(page, title, html_content)
-            _set_tags(page, tags or [])
-            return _publish(page)
+            return _publish(page, tags=tags or [])
         except (PublishError, SessionExpiredError):
             raise
         except Exception as e:

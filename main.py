@@ -77,12 +77,23 @@ def run_one(blog: dict, defaults: dict) -> tuple[bool, str]:
         return False, f"generator-unexpected: {e}"
 
     # ----- 3. Publish (Playwright + storage_state 주입) ---------------
+    # 태그 우선순위: AI 가 생성한 5~7개 SEO 태그 → 비었으면 config 태그.
+    ai_tags = list(post.tags or [])
+    config_tags = list(blog.get("tags") or [])
+    final_tags = ai_tags if ai_tags else config_tags
+    logger.info(
+        "[%s] Tag source: %s (ai=%d, config=%d) → %s",
+        name,
+        "AI" if ai_tags else "config-fallback",
+        len(ai_tags), len(config_tags), final_tags,
+    )
+
     try:
         url = publish_to_tistory(
             blog_name=blog["blog_name"],
             title=post.title,
             html_content=post.html,
-            tags=list(blog.get("tags") or []),
+            tags=final_tags,
             headless=bool(defaults.get("headless", True)),
         )
         logger.info("[%s] Published OK -> %s", name, url)
