@@ -435,32 +435,25 @@ def _set_tags(page: Page, tags: list[str]) -> None:
     logger.info("Tags entered: %d/%d", added, len(tags))
 
 
-def _publish(page: Page, tags: list[str]) -> str:
-    # 1) 발행 사이드바 열기 ("완료" 버튼)
+def _publish(page: Page) -> str:
+    # 1) 발행 모달 열기 — #publish-layer-btn ("완료")
     if not _try_click(
         page,
         [
             'button#publish-layer-btn',
             'button:has-text("완료")',
-            'button.btn-publish',
-            'button[class*="publish"]',
+            'button[class*="publish-layer"]',
             '[aria-label*="완료"]',
         ],
         timeout=8_000,
     ):
-        logger.warning("'완료' 버튼을 찾지 못해 사이드바가 안 열렸을 수 있음")
+        _screenshot(page, "publish_layer_btn_missing")
+        raise PublishError("'완료' 버튼(#publish-layer-btn) 을 찾지 못함")
 
-    # 2) 사이드바 안에서 태그 입력 (사이드바 애니메이션 정착 대기)
-    page.wait_for_timeout(800)
-    _set_tags(page, tags)
+    # 2) 모달 애니메이션 / 컴포넌트 마운트 대기 (절대 Escape 누르지 말 것 — 모달 닫힘)
+    page.wait_for_timeout(1_000)
 
-    # 3) 공개 발행 옵션 선택 (셀렉터 확장 + 잔여 모달 정리)
-    for _ in range(2):
-        try:
-            page.keyboard.press("Escape")
-            page.wait_for_timeout(120)
-        except Exception:
-            pass
+    # 3) 공개 발행 옵션 선택
     _try_click(
         page,
         [
@@ -473,7 +466,7 @@ def _publish(page: Page, tags: list[str]) -> str:
         ],
         timeout=3_000,
     )
-    page.wait_for_timeout(500)
+    page.wait_for_timeout(400)
 
     # 4) 최종 발행 버튼 — Pass 1: CSS 셀렉터(확장)
     final_btns = [
@@ -654,7 +647,10 @@ def publish_to_tistory(
         try:
             _open_new_post(page, blog_name)
             _fill_title_and_content(page, title, html_content)
-            return _publish(page, tags=tags or [])
+            # 태그는 에디터 사이드바(항상 보임)에서 입력. publish 모달을 열기 전에
+            # 처리해야 _set_tags 내부의 Escape × 3 으로 모달이 닫히는 사고를 막을 수 있음.
+            _set_tags(page, tags or [])
+            return _publish(page)
         except (PublishError, SessionExpiredError):
             raise
         except Exception as e:
