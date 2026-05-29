@@ -461,12 +461,16 @@ def _set_tags(page: Page, tags: list[str]) -> None:
 # ---------------------------------------------------------------------
 # 외부 <img> URL → base64 data URI 인라인 변환 (Tistory isUploading 데드락 우회)
 # ---------------------------------------------------------------------
-_HTTP_IMG_SRC_RE = re.compile(
-    r'(<img\b[^>]*?\bsrc=)(["\'])(https?://[^"\']+)\2',
+
+# 전체 <img ... src="http..." ...> 태그를 매치 — 실패 시 태그 통째로 제거 가능.
+_HTTP_IMG_TAG_RE = re.compile(
+    r'<img\b[^>]*?\bsrc=(["\'])(https?://[^"\']+)\1[^>]*>',
     re.IGNORECASE,
 )
-_MAX_IMAGE_BYTES = 5 * 1024 * 1024   # 5MB safety limit per image
-_IMAGE_FETCH_TIMEOUT_S = 15           # Pollinations 가 on-the-fly 생성에 3~5s 필요
+_MAX_IMAGE_BYTES = 5 * 1024 * 1024    # 5MB safety limit per image
+_IMAGE_FETCH_TIMEOUT_S = 30           # Pollinations 가 가끔 느려서 여유 있게
+_IMAGE_FETCH_RETRIES = 3              # 네트워크 실패 시 재시도 횟수
+_IMAGE_RETRY_SLEEP_S = 2.0            # 재시도 사이 대기
 _IMAGE_FETCH_HEADERS = {
     # 일반 브라우저 흉내 — 일부 CDN 이 default Python UA 를 차단함
     "User-Agent": (
@@ -478,39 +482,85 @@ _IMAGE_FETCH_HEADERS = {
 }
 
 
-def _inline_images_as_base64(html: str) -> str:
-    """본문 안의 모든 <img src="http(s)://..."> URL 을 다운로드해
-    `data:image/...;base64,...` URI 로 치환.
+def _fetch_image_with_retries(url: str) -> tuple[str, bytes]:
+    """이미지 다운로드 — 최대 3회 재시도, 30초 타임아웃.
 
-    Tistory 가 외부 URL 을 자체 CDN 으로 fetch 하는 동안 'isUploading' state 가
-    켜져 발행이 차단되는 문제를 우회한다. base64 data URI 는 외부 fetch 가
-    필요 없으므로 Tistory 가 즉시 클립보드 paste 처럼 처리 → Kakao CDN 으로
-    바로 업로드하고 isUploading 가 안 켜짐.
+    Returns: (mime, content_bytes)
+    Raises:  마지막 시도 예외 (호출자가 catch 해서 kill-switch 발동).
     """
-    counts = {"ok": 0, "fail": 0, "total": 0}
-
-    def _repl(m: re.Match) -> str:
-        counts["total"] += 1
-        prefix, quote_ch, url = m.group(1), m.group(2), m.group(3)
+    last_err: Exception | None = None
+    for attempt in range(1, _IMAGE_FETCH_RETRIES + 1):
         try:
             r = requests.get(
-                url, timeout=_IMAGE_FETCH_TIMEOUT_S, headers=_IMAGE_FETCH_HEADERS
+                url,
+                timeout=_IMAGE_FETCH_TIMEOUT_S,
+                headers=_IMAGE_FETCH_HEADERS,
             )
             r.raise_for_status()
             raw = r.content
             if not raw:
-                raise ValueError("empty body")
+                raise ValueError("empty response body")
             if len(raw) > _MAX_IMAGE_BYTES:
-                logger.warning(
-                    "Image too large to inline (%d bytes) — leaving as-is: %s",
-                    len(raw), url[:80],
-                )
-                counts["fail"] += 1
-                return m.group(0)
+                raise ValueError(f"image too large ({len(raw)} bytes)")
             mime = (r.headers.get("Content-Type", "") or "").split(";")[0].strip().lower()
             if not mime.startswith("image/"):
-                # Content-Type 이 명시 안 됐거나 이상하면 jpeg 가정 (대다수 CDN 안전한 기본)
                 mime = "image/jpeg"
+            if attempt > 1:
+                logger.info(
+                    "Image fetch recovered on attempt %d/%d: %s",
+                    attempt, _IMAGE_FETCH_RETRIES, url[:60],
+                )
+            return mime, raw
+        except (requests.exceptions.Timeout,
+                requests.exceptions.ConnectionError) as e:
+            last_err = e
+            logger.warning(
+                "Image fetch attempt %d/%d network-failed (%s): %s",
+                attempt, _IMAGE_FETCH_RETRIES, type(e).__name__, url[:80],
+            )
+        except requests.exceptions.HTTPError as e:
+            last_err = e
+            status = getattr(e.response, "status_code", 0)
+            if not (500 <= status < 600):
+                # 4xx 는 재시도 무의미
+                logger.warning(
+                    "Image fetch HTTP %d (no retry, fail-fast): %s",
+                    status, url[:80],
+                )
+                break
+            logger.warning(
+                "Image fetch attempt %d/%d HTTP %d: %s",
+                attempt, _IMAGE_FETCH_RETRIES, status, url[:80],
+            )
+        except Exception as e:
+            last_err = e
+            logger.warning(
+                "Image fetch attempt %d/%d failed (%s): %s",
+                attempt, _IMAGE_FETCH_RETRIES, type(e).__name__, url[:80],
+            )
+
+        if attempt < _IMAGE_FETCH_RETRIES:
+            time.sleep(_IMAGE_RETRY_SLEEP_S)
+
+    raise last_err if last_err else RuntimeError("image fetch failed (unknown)")
+
+
+def _inline_images_as_base64(html: str) -> str:
+    """본문 안의 모든 <img src="http(s)://..."> URL 을 다운로드해
+    `data:image/...;base64,...` URI 로 치환.
+
+    실패 시 (3회 재시도 모두 실패) **<img> 태그 자체를 HTML 에서 완전 제거**
+    하여 Tistory 가 외부 URL 을 fetch 하려 시도조차 못 하게 한다 (kill switch).
+    이로써 외부 URL 잔존으로 인한 'isUploading' 데드락이 영구히 발생하지 않음.
+    """
+    counts = {"ok": 0, "removed": 0, "total": 0}
+
+    def _repl(m: re.Match) -> str:
+        counts["total"] += 1
+        full_tag = m.group(0)
+        url = m.group(2)
+        try:
+            mime, raw = _fetch_image_with_retries(url)
             b64 = base64.b64encode(raw).decode("ascii")
             data_uri = f"data:{mime};base64,{b64}"
             counts["ok"] += 1
@@ -519,18 +569,24 @@ def _inline_images_as_base64(html: str) -> str:
                 url[:60] + ("..." if len(url) > 60 else ""),
                 len(raw), mime,
             )
-            return f"{prefix}{quote_ch}{data_uri}{quote_ch}"
+            # 태그 안에서 URL 만 base64 로 1회 치환 (alt/style 등 다른 속성 보존)
+            return full_tag.replace(url, data_uri, 1)
         except Exception as e:
-            logger.warning("Image fetch failed (%s): %s", e, url[:100])
-            counts["fail"] += 1
-            return m.group(0)   # 실패하면 원본 외부 URL 유지
+            counts["removed"] += 1
+            logger.warning(
+                "Image fetch FAILED after %d attempts — KILL SWITCH: removing "
+                "<img> tag entirely. last_error=%s url=%s",
+                _IMAGE_FETCH_RETRIES, e, url[:80],
+            )
+            return ""   # Kill switch: <img> 태그 통째로 제거 — 외부 URL 잔존 0%
 
-    new_html = _HTTP_IMG_SRC_RE.sub(_repl, html)
+    new_html = _HTTP_IMG_TAG_RE.sub(_repl, html)
 
     if counts["total"] > 0:
         logger.info(
-            "Image inlining summary: %d/%d converted to base64 (failed=%d)",
-            counts["ok"], counts["total"], counts["fail"],
+            "Image inlining summary: %d inlined, %d removed (kill-switch) "
+            "out of %d total",
+            counts["ok"], counts["removed"], counts["total"],
         )
     return new_html
 
