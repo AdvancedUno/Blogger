@@ -27,12 +27,12 @@ blogs:
   #   topic_label: "경제/투자"
   #   tags: ["경제", "주식", "투자", "재테크", "금융"]
 
-  # - name: "Health Blog"
-  #   blog_name: "unohealth"           
-  #   niche_keyword: "health"
-  #   rss_query: "임플란트 OR 비만치료제 OR 영양제 OR 당뇨 OR 실손보험"
-  #   topic_label: "건강/의료"
-  #   tags: ["건강", "의료", "영양제", "보험", "혈당관리"]
+  - name: "Health Blog"
+    blog_name: "unohealth"           
+    niche_keyword: "health"
+    rss_query: "임플란트 OR 비만치료제 OR 영양제 OR 당뇨 OR 실손보험"
+    topic_label: "건강/의료"
+    tags: ["건강", "의료", "영양제", "보험", "혈당관리"]
 
   # - name: "Real Estate Blog"
   #   blog_name: "unohouse"       
