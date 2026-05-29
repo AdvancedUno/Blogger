@@ -435,7 +435,49 @@ def _set_tags(page: Page, tags: list[str]) -> None:
     logger.info("Tags entered: %d/%d", added, len(tags))
 
 
-def _publish(page: Page) -> str:
+def _verify_publish_success(page: Page, blog_name: str, title: str) -> bool:
+    """발행 후 /manage/posts/ 에서 우리가 만든 글의 제목이 실제로 목록에 있는지 확인.
+
+    Tistory 가 가끔 발행 후에도 /newpost URL 에 그대로 머무는 경우가 있어,
+    URL 이탈만으로는 성공/실패 구분이 불가능. 목록 페이지에서 title 매칭이
+    가장 신뢰도 높은 신호.
+    """
+    list_url = f"https://{blog_name}.tistory.com/manage/posts/"
+    try:
+        page.goto(list_url, wait_until="domcontentloaded", timeout=20_000)
+        page.wait_for_timeout(2_000)   # SPA 렌더링 정착
+    except Exception as e:
+        logger.warning("Verification page load failed: %s", e)
+        return False
+
+    # 제목 앞 25~35자를 식별 키로 사용 (이만 하면 충분히 unique)
+    title_norm = " ".join(title.strip().split())
+    title_key = title_norm[:30].strip()
+    if len(title_key) < 5:
+        logger.warning("Title too short to verify: %r", title_key)
+        return False
+
+    try:
+        content = page.content()
+    except Exception as e:
+        logger.warning("Page content read failed: %s", e)
+        return False
+
+    if title_key in content:
+        logger.info(
+            "Publish verified — title '%s...' found in /manage/posts/",
+            title_key[:20],
+        )
+        return True
+
+    logger.warning(
+        "Publish verification FAILED — title '%s...' not in /manage/posts/",
+        title_key[:20],
+    )
+    return False
+
+
+def _publish(page: Page, blog_name: str, title: str) -> str:
     # 1) 발행 모달 열기 — #publish-layer-btn ("완료")
     if not _try_click(
         page,
@@ -581,16 +623,43 @@ def _publish(page: Page) -> str:
         timeout=2_000,
     )
 
-    # 5) /newpost 에서 벗어나면 성공
+    # 5) 발행 결과 판정
+    # 5-a) Tistory 의 자연 redirect 가 일어날 시간을 잠깐 준다
+    page.wait_for_timeout(3_000)
     try:
-        page.wait_for_url(lambda u: "/newpost" not in u, timeout=25_000)
+        page.wait_for_url(lambda u: "/newpost" not in u, timeout=12_000)
+        naturally_navigated = True
     except PWTimeoutError:
+        naturally_navigated = False
         _screenshot(page, "after_publish_no_nav")
-        logger.warning("Did not navigate away from /newpost — assuming success")
+        logger.info("/newpost URL 이탈 안 됨 — /manage/posts/ 로 검증 진행")
 
-    final_url = page.url
-    logger.info("Post-publish URL: %s", final_url)
-    return final_url
+    # 5-b) 가장 신뢰도 높은 신호: /manage/posts/ 목록에 우리 글 제목이 있는지
+    verified = _verify_publish_success(page, blog_name, title)
+
+    if verified:
+        final_url = page.url
+        logger.info("Post-publish verified URL: %s", final_url)
+        return final_url
+
+    # 5-c) 검증 실패 처리 — URL 이동 여부에 따라 톤 다르게
+    _screenshot(page, "publish_unverified")
+    if naturally_navigated:
+        # URL 은 이동했는데 글이 목록에 안 보임 — Tistory 가 목록 페이지를 바꿨거나
+        # 발행은 됐는데 인덱싱 지연 가능. soft warning 후 일단 성공으로 처리.
+        logger.warning(
+            "URL 은 /newpost 이탈했으나 /manage/posts/ 에서 글 미발견. "
+            "발행됐을 가능성 있으나 verification 으로 확정 못 함. "
+            "title='%s', current_url=%s",
+            title[:40], page.url,
+        )
+        return page.url
+
+    # URL 도 안 움직였고 목록에도 없음 — 명백한 실패
+    raise PublishError(
+        f"발행 실패 — URL 이 /newpost 에 머물고 '{title[:40]}...' 글이 "
+        "manage/posts 에도 없음. 공개 발행 클릭이 실제로 처리되지 않은 것으로 추정."
+    )
 
 
 # ---------------------------------------------------------------------
@@ -639,7 +708,7 @@ def _run_publish_flow(
             # 태그는 에디터 사이드바(항상 보임)에서 입력. publish 모달을 열기 전에
             # 처리해야 _set_tags 내부의 Escape × 3 으로 모달이 닫히는 사고를 막을 수 있음.
             _set_tags(page, tags)
-            return _publish(page)
+            return _publish(page, blog_name, title)
         except (PublishError, SessionExpiredError):
             raise
         except Exception as e:
