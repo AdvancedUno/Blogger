@@ -687,9 +687,87 @@ def _publish(page: Page, blog_name: str, title: str) -> str:
 
     if still_at_newpost and publish_btn_still_visible:
         logger.warning(
-            "발행 클릭이 효과가 없었던 것으로 보임 — 1회 재클릭 시도"
+            "발행 클릭이 효과가 없었던 것으로 보임 — 진단 + 1회 재클릭 시도"
         )
-        # 공개 라디오를 한 번 더 확정한 뒤 같은 셀렉터로 재클릭
+
+        # 진단 1: 화면의 에러 배너 / select / radio / 보이는 버튼을 한 번에 dump
+        state = page.evaluate(
+            """
+            () => {
+              const errors = Array.from(document.querySelectorAll(
+                '.error_message, .desc_error, .txt_error, .ico_error, '
+                + '[role="alert"], .alert, .notification, .toast'
+              )).filter(el => el.offsetParent)
+                .map(el => (el.innerText || '').trim())
+                .filter(Boolean);
+              const selects = Array.from(document.querySelectorAll('select'))
+                .filter(s => s.offsetParent)
+                .map(s => ({
+                  name: s.name || s.id || '',
+                  value: s.value,
+                  options: Array.from(s.options).slice(0, 6).map(o => ({
+                    v: o.value, t: (o.text || '').trim().slice(0, 30),
+                  })),
+                }));
+              const radios = Array.from(document.querySelectorAll('input[type="radio"]'))
+                .filter(r => r.offsetParent)
+                .map(r => ({
+                  name: r.name, value: r.value, checked: r.checked,
+                }));
+              const buttons = Array.from(document.querySelectorAll(
+                'button, a, [role="button"]'
+              )).filter(b => b.offsetParent)
+                .slice(0, 30)
+                .map(b => ({
+                  text: ((b.innerText || '') + '').replace(/\\s+/g,' ').trim().slice(0, 40),
+                  id: b.id || '',
+                  cls: ((b.className || '') + '').slice(0, 60),
+                  disabled: b.disabled || b.getAttribute('aria-disabled') === 'true',
+                }));
+              return { errors, selects, radios, buttons };
+            }
+            """
+        )
+        logger.warning("Pre-retry state dump — errors=%s", state.get("errors"))
+        logger.warning("Pre-retry state dump — selects=%s", state.get("selects"))
+        logger.warning("Pre-retry state dump — radios=%s", state.get("radios"))
+        logger.warning("Pre-retry state dump — buttons[:30]=%s", state.get("buttons"))
+
+        # 진단 2: 카테고리 미선택일 가능성 → 첫 옵션으로 자동 선택 (placeholder 가 아니면)
+        cat_result = page.evaluate(
+            """
+            () => {
+              // 흔한 카테고리 select 셀렉터들
+              const candidates = [
+                'select[name="category"]', 'select#category',
+                'select[name="categoryId"]', 'select.category',
+              ];
+              for (const sel of candidates) {
+                const s = document.querySelector(sel);
+                if (!s) continue;
+                if (s.value && s.value !== '0' && s.value !== '') {
+                  return { skipped: true, current: s.value };
+                }
+                // value=0 또는 빈 값이면 첫 실값 옵션 선택
+                const opts = Array.from(s.options);
+                for (const o of opts) {
+                  if (o.value && o.value !== '0') {
+                    s.value = o.value;
+                    s.dispatchEvent(new Event('change', { bubbles: true }));
+                    s.dispatchEvent(new Event('input',  { bubbles: true }));
+                    return { selected: o.value, text: (o.text || '').trim() };
+                  }
+                }
+              }
+              return null;
+            }
+            """
+        )
+        if cat_result:
+            logger.warning("카테고리 자동 선택 결과: %s", cat_result)
+            page.wait_for_timeout(500)
+
+        # 공개 라디오 한 번 더 확정
         page.evaluate(
             """
             () => {
