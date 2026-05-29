@@ -435,6 +435,82 @@ def _set_tags(page: Page, tags: list[str]) -> None:
     logger.info("Tags entered: %d/%d", added, len(tags))
 
 
+def _wait_for_image_uploads(page: Page, timeout_seconds: float = 30.0) -> bool:
+    """Tistory 의 외부 <img> 자동 import("X개의 파일을 업로드 중") 토스트가
+    사라질 때까지 폴링 대기. 사라지면 True, 타임아웃이면 False.
+
+    토스트가 끝까지 남아 있는 경우 dismiss 버튼 시도 후 강제 진행을 위해
+    호출자가 False 도 수용해야 함 (publish 시도 자체는 막지 않음).
+    """
+    deadline = time.monotonic() + timeout_seconds
+    last_msg = None
+    while time.monotonic() < deadline:
+        msg = page.evaluate(
+            """
+            () => {
+              const containers = document.querySelectorAll(
+                '.notification, .toast, [role="alert"], .alert, '
+                + '.layer-notification, .upload-progress, .toast_layer, '
+                + '.notice, .progress, .mce-notification'
+              );
+              for (const el of containers) {
+                if (!el.offsetParent) continue;
+                const t = (el.innerText || '').trim();
+                if (/업로드|uploading/i.test(t)) return t;
+              }
+              return null;
+            }
+            """
+        )
+        if msg is None:
+            logger.info("Image upload toast cleared")
+            return True
+        if msg != last_msg:
+            logger.info("Waiting for image upload: %s", msg)
+            last_msg = msg
+        page.wait_for_timeout(1_500)
+
+    logger.warning(
+        "Image upload toast did not clear in %.0fs (last=%s) — proceeding anyway",
+        timeout_seconds, last_msg,
+    )
+    return False
+
+
+def _dismiss_upload_toast(page: Page) -> None:
+    """업로드 토스트에 close/dismiss 버튼이 있으면 클릭."""
+    try:
+        page.evaluate(
+            """
+            () => {
+              const containers = document.querySelectorAll(
+                '.notification, .toast, [role="alert"], .alert, '
+                + '.layer-notification, .upload-progress, .toast_layer, '
+                + '.notice, .mce-notification'
+              );
+              for (const el of containers) {
+                if (!el.offsetParent) continue;
+                const t = (el.innerText || '').trim();
+                if (!/업로드|uploading/i.test(t)) continue;
+                // 토스트 안의 close 버튼 후보
+                const btn = el.querySelector(
+                  'button.close, button.btn-close, .mce-close, [aria-label*="닫기"], '
+                  + 'button:has-text("닫기")'
+                );
+                if (btn) {
+                  btn.click();
+                  return;
+                }
+                // 못 찾으면 토스트 자체를 숨김 처리 (R/W 상태 정리 목적)
+                el.style.display = 'none';
+              }
+            }
+            """
+        )
+    except Exception as e:
+        logger.debug("Dismiss upload toast failed: %s", e)
+
+
 def _verify_publish_success(page: Page, blog_name: str, title: str) -> bool:
     """발행 후 /manage/posts/ 에서 우리가 만든 글의 제목이 실제로 목록에 있는지 확인.
 
@@ -548,6 +624,15 @@ def _publish(page: Page, blog_name: str, title: str) -> str:
     )
     logger.info("공개 옵션 selection: %s", public_state)
     page.wait_for_timeout(600)
+
+    # 3-b) 본문의 외부 <img> 자동 업로드(Tistory CDN 옮기기) 가 끝날 때까지 대기.
+    #      "X개의 파일을 업로드 중입니다" 토스트가 사라지지 않으면 발행 클릭이 묵살됨.
+    upload_cleared = _wait_for_image_uploads(page, timeout_seconds=30.0)
+    if not upload_cleared:
+        # 토스트가 끝까지 안 사라지면 dismiss 시도 (close 버튼 클릭 또는 강제 hide)
+        logger.warning("업로드 토스트 강제 dismiss 시도")
+        _dismiss_upload_toast(page)
+        page.wait_for_timeout(500)
 
     # 4) 최종 발행 버튼 — Pass 1: CSS 셀렉터(확장)
     final_btns = [
@@ -765,6 +850,11 @@ def _publish(page: Page, blog_name: str, title: str) -> str:
         )
         if cat_result:
             logger.warning("카테고리 자동 선택 결과: %s", cat_result)
+            page.wait_for_timeout(500)
+
+        # 재클릭 전에도 업로드 토스트 한 번 더 정리 (퍼지스트 토스트 회복)
+        if not _wait_for_image_uploads(page, timeout_seconds=10.0):
+            _dismiss_upload_toast(page)
             page.wait_for_timeout(500)
 
         # 공개 라디오 한 번 더 확정
