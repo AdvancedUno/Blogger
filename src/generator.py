@@ -11,6 +11,7 @@ import os
 import re
 import time
 from dataclasses import dataclass, field
+from urllib.parse import quote, unquote
 
 import google.generativeai as genai
 
@@ -211,14 +212,23 @@ E-E-A-T 의 4축을 본문 전반에 자연스럽게 녹여낸다:
 첫 <h2> 보다 앞에 <img> 두면 안 됨 (= 표지 형식 금지).
 
 형식 (정확히 준수):
-  <img src="https://loremflickr.com/800/400/{english_keyword}/all"
+  <img src="https://image.pollinations.ai/prompt/{english_prompt}?width=800&height=400&nologo=true"
        alt="{한국어 SEO 설명문}"
        style="max-width: 100%; border-radius: 8px; margin: 20px 0;">
 
-- {english_keyword} : 그 위치 단락의 핵심 명사 1개, 영문 소문자 단수.
-  예: cloud, datacenter, saas, dividend, etf, mortgage, interestrate,
-      enterprise, security, anthropic, nvidia, samsung, pension
-  (복수형/공백/특수문자/한글 금지 — loremflickr 가 인식 못 함)
+- {english_prompt} : 그 위치 단락의 컨텍스트를 가장 잘 표현하는 영문 묘사
+  **1~4단어** (Pollinations AI 가 그 prompt 로 이미지 생성). 공백은 그대로 두면
+  Python 후처리에서 URL-encode 됨.
+  좋은 예 (컨텍스트가 풍부):
+    "data center server room"     (datacenter 단락)
+    "business meeting laptop"      (B2B SaaS)
+    "electric car charging"        (전기차)
+    "dental implant teeth"         (임플란트)
+    "senior couple investment"     (연금/노후)
+    "smartphone display"           (갤럭시/아이폰)
+  나쁜 예 (금지):
+    한글, 특수문자, 인물 실명, 5단어 이상 장문, 부정/공격성 단어
+  ※ 한 단어만 써도 동작하나 컨텍스트가 약함. 가능하면 2~3단어 권장.
 - {alt} : 해당 컨텐츠를 가리키는 자연스러운 한국어 설명 문장.
 
 ────────────────────────────────────────────────────────
@@ -301,7 +311,7 @@ TAGS: 키워드1, 키워드2, 키워드3, 키워드4, 키워드5
 <p>... <strong>핵심 수치/용어</strong> ... 원인→결과 메커니즘 ...</p>
 <h3>...(자연 한국어 소제목)...</h3>
 <p>...</p>
-<img src="https://loremflickr.com/800/400/keyword/all" alt="..." style="...">
+<img src="https://image.pollinations.ai/prompt/data center server?width=800&height=400&nologo=true" alt="..." style="...">
 <h2>...</h2>
 <p>...</p>
 <h3>투자자를 위한 시사점</h3>      <!-- 대응 전략 / 시사점 섹션 — 필수 -->
@@ -468,6 +478,34 @@ def _strip_emoji(s: str) -> str:
     return re.sub(r"\s{2,}", " ", cleaned).strip()
 
 
+_POLLINATIONS_URL_RE = re.compile(
+    r'(https://image\.pollinations\.ai/prompt/)([^"\'?\s]+)(\?[^"\'\s]*)?',
+    re.IGNORECASE,
+)
+
+
+def _normalize_pollinations_urls(body: str) -> str:
+    """Pollinations.ai URL 의 prompt 부분을 URL-encode 한다.
+
+    AI 가 `https://image.pollinations.ai/prompt/data center server?width=...`
+    같이 공백 포함된 URL 을 출력해도 HTML 에 들어가면 깨지므로,
+    prompt 토큰만 추출해 quote() 처리 후 재조립. 이미 인코딩된 경우는 한 번
+    decode 후 다시 인코딩해 이중 인코딩 방지.
+    """
+    def _encode(m: re.Match) -> str:
+        prefix = m.group(1)
+        prompt = m.group(2)
+        query = m.group(3) or ""
+        try:
+            decoded = unquote(prompt)
+        except Exception:
+            decoded = prompt
+        encoded = quote(decoded, safe="")
+        return f"{prefix}{encoded}{query}"
+
+    return _POLLINATIONS_URL_RE.sub(_encode, body)
+
+
 def _parse_response(text: str) -> GeneratedPost:
     text = text.strip()
     # 모델이 코드펜스를 붙였을 경우 방어적으로 제거
@@ -510,6 +548,10 @@ def _parse_response(text: str) -> GeneratedPost:
     body = re.sub(r"^```(?:html|HTML)?\s*\n", "", body)
     body = re.sub(r"\n```\s*$", "", body)
     body = _strip_emoji(body)
+
+    # Pollinations 이미지 URL 의 prompt 부분 URL-encoding
+    # (AI 가 "data center server" 같이 공백 포함 prompt 를 그대로 출력하는 케이스 대응)
+    body = _normalize_pollinations_urls(body)
 
     # 4) 최소 구조 검증
     img_count = len(re.findall(r"<img\b", body))
@@ -588,7 +630,9 @@ def generate_post(
         model_name=MODEL_NAME,
         system_instruction=SYSTEM_INSTRUCTION,
         generation_config={
-            "temperature": 0.85,
+            # 0.85 → 0.7 : TITLE/이미지 등 포맷 룰 미준수로 인한 parse 재시도 빈도 감소.
+            # 너무 낮추면 표현 다양성이 떨어지므로 0.7 균형점.
+            "temperature": 0.7,
             "top_p": 0.95,
             "max_output_tokens": 8192,
         },
