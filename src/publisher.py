@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import time
 from pathlib import Path
 from urllib.parse import urlparse
@@ -70,11 +71,18 @@ def _screenshot(page: Page, tag: str) -> None:
         logger.warning("Screenshot failed (%s): %s", tag, e)
 
 
-def _try_click(page: Page, selectors: list[str], timeout: int = 4_000) -> bool:
+def _try_click(
+    page: Page,
+    selectors: list[str],
+    timeout: int = 4_000,
+    force: bool = False,
+) -> bool:
+    """첫 매칭 셀렉터로 클릭 시도. force=True 면 Playwright actionability
+    체크를 우회하여 오버레이가 가린 element 도 강제 클릭."""
     for sel in selectors:
         try:
-            page.locator(sel).first.click(timeout=timeout)
-            logger.debug("Clicked: %s", sel)
+            page.locator(sel).first.click(timeout=timeout, force=force)
+            logger.debug("Clicked: %s (force=%s)", sel, force)
             return True
         except PWTimeoutError:
             continue
@@ -437,10 +445,12 @@ def _set_tags(page: Page, tags: list[str]) -> None:
 
 def _wait_for_image_uploads(page: Page, timeout_seconds: float = 30.0) -> bool:
     """Tistory 의 외부 <img> 자동 import("X개의 파일을 업로드 중") 토스트가
-    사라질 때까지 폴링 대기. 사라지면 True, 타임아웃이면 False.
+    사라질 때까지 폴링 대기.
 
-    토스트가 끝까지 남아 있는 경우 dismiss 버튼 시도 후 강제 진행을 위해
-    호출자가 False 도 수용해야 함 (publish 시도 자체는 막지 않음).
+    Returns:
+        True  : 토스트가 자연 소멸 (= 실제로 업로드 완료된 정상 케이스).
+        False : 타임아웃 / "0개" 동결 감지. 호출자는 즉시 _dismiss_upload_toast
+                로 강제 제거하고 publish 를 진행해야 함.
     """
     deadline = time.monotonic() + timeout_seconds
     last_msg = None
@@ -449,7 +459,8 @@ def _wait_for_image_uploads(page: Page, timeout_seconds: float = 30.0) -> bool:
             """
             () => {
               const containers = document.querySelectorAll(
-                '.notification, .toast, [role="alert"], .alert, '
+                '.wrap_toast, .layer_toast, .toast_content, '
+                + '.notification, .toast, [role="alert"], .alert, '
                 + '.layer-notification, .upload-progress, .toast_layer, '
                 + '.notice, .progress, .mce-notification'
               );
@@ -465,9 +476,19 @@ def _wait_for_image_uploads(page: Page, timeout_seconds: float = 30.0) -> bool:
         if msg is None:
             logger.info("Image upload toast cleared")
             return True
+
         if msg != last_msg:
-            logger.info("Waiting for image upload: %s", msg)
+            logger.info("Image upload toast: %s", msg)
             last_msg = msg
+
+        # 핵심: "0개" 패턴이 보이면 = 업로드 큐는 비었는데 토스트가 동결된 UI 버그.
+        # 더 기다려도 안 풀리므로 즉시 break → 호출자가 DOM 에서 제거하도록.
+        if "0개" in msg:
+            logger.warning(
+                "토스트가 '0개' 상태에서 동결됨 (UI 버그) — 대기 중단, 강제 제거로 진행"
+            )
+            return False
+
         page.wait_for_timeout(1_500)
 
     logger.warning(
@@ -478,35 +499,36 @@ def _wait_for_image_uploads(page: Page, timeout_seconds: float = 30.0) -> bool:
 
 
 def _dismiss_upload_toast(page: Page) -> None:
-    """업로드 토스트에 close/dismiss 버튼이 있으면 클릭."""
+    """동결된 업로드 토스트를 DOM 에서 물리적으로 제거.
+
+    Tistory 가 외부 이미지 fetch 후에도 '0개의 파일을 업로드 중' 토스트를
+    안 닫는 UI 버그 우회용. 토스트 element 자체를 DOM 에서 빼내 발행 버튼의
+    pointer-event interception 을 차단.
+    """
     try:
-        page.evaluate(
+        removed = page.evaluate(
             """
             () => {
-              const containers = document.querySelectorAll(
+              let n = 0;
+              // 사용자가 지정한 Tistory 토스트 클래스 (1차)
+              document.querySelectorAll(
+                '.wrap_toast, .layer_toast, .toast_content'
+              ).forEach(e => { e.remove(); n++; });
+
+              // 폴백 — "업로드" 텍스트 포함 알림 컨테이너 모두 제거 (2차)
+              document.querySelectorAll(
                 '.notification, .toast, [role="alert"], .alert, '
                 + '.layer-notification, .upload-progress, .toast_layer, '
                 + '.notice, .mce-notification'
-              );
-              for (const el of containers) {
-                if (!el.offsetParent) continue;
+              ).forEach(el => {
                 const t = (el.innerText || '').trim();
-                if (!/업로드|uploading/i.test(t)) continue;
-                // 토스트 안의 close 버튼 후보
-                const btn = el.querySelector(
-                  'button.close, button.btn-close, .mce-close, [aria-label*="닫기"], '
-                  + 'button:has-text("닫기")'
-                );
-                if (btn) {
-                  btn.click();
-                  return;
-                }
-                // 못 찾으면 토스트 자체를 숨김 처리 (R/W 상태 정리 목적)
-                el.style.display = 'none';
-              }
+                if (/업로드|uploading/i.test(t)) { el.remove(); n++; }
+              });
+              return n;
             }
             """
         )
+        logger.info("Upload toast DOM removed (count=%s)", removed)
     except Exception as e:
         logger.debug("Dismiss upload toast failed: %s", e)
 
@@ -652,7 +674,8 @@ def _publish(page: Page, blog_name: str, title: str) -> str:
         'button[type="submit"]',
         '[aria-label*="발행"]',
     ]
-    clicked = _try_click(page, final_btns, timeout=2_000)
+    # force=True : 동결된 토스트가 pointer-event 가로채도 무시하고 강제 클릭
+    clicked = _try_click(page, final_btns, timeout=2_000, force=True)
 
     # 4b) Pass 2: JS 폴백 — 퍼지 매칭으로 모든 클릭 가능 요소 스캔
     if not clicked:
@@ -872,7 +895,8 @@ def _publish(page: Page, blog_name: str, title: str) -> str:
             """
         )
         page.wait_for_timeout(500)
-        retry_clicked = _try_click(page, final_btns, timeout=2_000)
+        # 재클릭도 force=True
+        retry_clicked = _try_click(page, final_btns, timeout=2_000, force=True)
         if not retry_clicked:
             # JS 폴백 재시도
             page.evaluate(
