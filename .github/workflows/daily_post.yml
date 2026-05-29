@@ -2,8 +2,10 @@ name: Daily Tistory Post
 
 on:
   schedule:
-    # 매일 07:00 KST = 22:00 UTC (전일 기준)
-    - cron: '0 22 * * *'
+    # 매일 2회 실행 — 아침/저녁 다른 토픽 커버.
+    #   08:00 KST = 23:00 UTC (전일)
+    #   20:00 KST = 11:00 UTC (당일)
+    - cron: '0 23,11 * * *'
   workflow_dispatch:        # 수동 실행 버튼 노출
 
 concurrency:
