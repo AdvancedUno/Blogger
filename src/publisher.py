@@ -29,12 +29,15 @@ state.json 만드는 법 (로컬, 1회):
 """
 from __future__ import annotations
 
+import base64
 import logging
 import os
 import re
 import time
 from pathlib import Path
 from urllib.parse import urlparse
+
+import requests
 
 from playwright.sync_api import (
     Page,
@@ -244,6 +247,18 @@ def _fill_title_and_content(page: Page, title: str, html: str) -> None:
     page.locator(TITLE_SELECTOR).first.fill(title)
     logger.info("Title filled (%d chars)", len(title))
 
+    # 1-b) 외부 <img> URL → base64 data URI 인라인 변환.
+    # Tistory 가 외부 URL 을 fetch 하는 동안 isUploading=true 가 잠기는 데드락 회피.
+    # data URI 는 외부 fetch 불필요 → TinyMCE 가 클립보드 paste 처럼 즉시 처리 →
+    # Kakao CDN 으로 바로 업로드되고 isUploading 트리거 안 됨.
+    pre_len = len(html)
+    html = _inline_images_as_base64(html)
+    if len(html) != pre_len:
+        logger.info(
+            "HTML size after base64 inlining: %d → %d chars (+%.1fx)",
+            pre_len, len(html), len(html) / max(pre_len, 1),
+        )
+
     # 2) 본문 — 활성 에디터에 주입 + 모든 mirror 경로/이벤트 강제 sync.
     #   배경: Tistory submit 은 TinyMCE 가 mirror 하는 원본 textarea 또는
     #   자체 state 에서 본문을 가져간다. setContent 만으로는 mirror sync 이벤트가
@@ -441,6 +456,83 @@ def _set_tags(page: Page, tags: list[str]) -> None:
         except Exception as e:
             logger.warning("Tag '%s' add failed: %s", t, e)
     logger.info("Tags entered: %d/%d", added, len(tags))
+
+
+# ---------------------------------------------------------------------
+# 외부 <img> URL → base64 data URI 인라인 변환 (Tistory isUploading 데드락 우회)
+# ---------------------------------------------------------------------
+_HTTP_IMG_SRC_RE = re.compile(
+    r'(<img\b[^>]*?\bsrc=)(["\'])(https?://[^"\']+)\2',
+    re.IGNORECASE,
+)
+_MAX_IMAGE_BYTES = 5 * 1024 * 1024   # 5MB safety limit per image
+_IMAGE_FETCH_TIMEOUT_S = 15           # Pollinations 가 on-the-fly 생성에 3~5s 필요
+_IMAGE_FETCH_HEADERS = {
+    # 일반 브라우저 흉내 — 일부 CDN 이 default Python UA 를 차단함
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept": "image/avif,image/webp,image/png,image/jpeg,image/*,*/*;q=0.8",
+}
+
+
+def _inline_images_as_base64(html: str) -> str:
+    """본문 안의 모든 <img src="http(s)://..."> URL 을 다운로드해
+    `data:image/...;base64,...` URI 로 치환.
+
+    Tistory 가 외부 URL 을 자체 CDN 으로 fetch 하는 동안 'isUploading' state 가
+    켜져 발행이 차단되는 문제를 우회한다. base64 data URI 는 외부 fetch 가
+    필요 없으므로 Tistory 가 즉시 클립보드 paste 처럼 처리 → Kakao CDN 으로
+    바로 업로드하고 isUploading 가 안 켜짐.
+    """
+    counts = {"ok": 0, "fail": 0, "total": 0}
+
+    def _repl(m: re.Match) -> str:
+        counts["total"] += 1
+        prefix, quote_ch, url = m.group(1), m.group(2), m.group(3)
+        try:
+            r = requests.get(
+                url, timeout=_IMAGE_FETCH_TIMEOUT_S, headers=_IMAGE_FETCH_HEADERS
+            )
+            r.raise_for_status()
+            raw = r.content
+            if not raw:
+                raise ValueError("empty body")
+            if len(raw) > _MAX_IMAGE_BYTES:
+                logger.warning(
+                    "Image too large to inline (%d bytes) — leaving as-is: %s",
+                    len(raw), url[:80],
+                )
+                counts["fail"] += 1
+                return m.group(0)
+            mime = (r.headers.get("Content-Type", "") or "").split(";")[0].strip().lower()
+            if not mime.startswith("image/"):
+                # Content-Type 이 명시 안 됐거나 이상하면 jpeg 가정 (대다수 CDN 안전한 기본)
+                mime = "image/jpeg"
+            b64 = base64.b64encode(raw).decode("ascii")
+            data_uri = f"data:{mime};base64,{b64}"
+            counts["ok"] += 1
+            logger.info(
+                "Image inlined: %s → %d bytes (%s)",
+                url[:60] + ("..." if len(url) > 60 else ""),
+                len(raw), mime,
+            )
+            return f"{prefix}{quote_ch}{data_uri}{quote_ch}"
+        except Exception as e:
+            logger.warning("Image fetch failed (%s): %s", e, url[:100])
+            counts["fail"] += 1
+            return m.group(0)   # 실패하면 원본 외부 URL 유지
+
+    new_html = _HTTP_IMG_SRC_RE.sub(_repl, html)
+
+    if counts["total"] > 0:
+        logger.info(
+            "Image inlining summary: %d/%d converted to base64 (failed=%d)",
+            counts["ok"], counts["total"], counts["fail"],
+        )
+    return new_html
 
 
 def _wait_for_image_uploads(page: Page, timeout_seconds: float = 30.0) -> bool:
