@@ -646,6 +646,76 @@ def _wait_for_image_uploads(page: Page, timeout_seconds: float = 30.0) -> bool:
     return False
 
 
+def _try_select_first_category(page: Page) -> dict | None:
+    """발행 모달의 '카테고리 더보기'(#category-btn) 드롭다운을 열어 첫 번째
+    실제 카테고리를 선택. 카테고리 미설정/미선택 상태의 publish 차단 회피용.
+
+    Returns: 선택된 카테고리 정보 dict, 못 찾으면 None.
+    """
+    try:
+        # 카테고리 드롭다운 트리거 후보
+        opened = page.evaluate(
+            """
+            () => {
+              const candidates = [
+                '#category-btn',
+                'button.btn_category', 'button.category-select',
+                'button[class*="category"]',
+              ];
+              for (const sel of candidates) {
+                const btn = document.querySelector(sel);
+                if (btn && btn.offsetParent) {
+                  btn.click();
+                  return { sel, id: btn.id || '', cls: btn.className || '' };
+                }
+              }
+              return null;
+            }
+            """
+        )
+        if not opened:
+            return None
+        logger.info("카테고리 드롭다운 오픈 시도: %s", opened)
+        page.wait_for_timeout(600)
+
+        # 드롭다운 내 첫 카테고리 항목 클릭
+        result = page.evaluate(
+            """
+            () => {
+              // 카테고리 리스트 후보 (Tistory 신규 에디터 + 구버전 변종)
+              const lists = document.querySelectorAll(
+                '.category-list, .layer_category, #category-list, '
+                + '.dropdown-menu, .list_category, [class*="categoryList"], '
+                + '[class*="CategoryList"], .opt_category'
+              );
+              const items = [];
+              lists.forEach(l => {
+                if (!l.offsetParent) return;
+                l.querySelectorAll('li, button, a').forEach(el => {
+                  if (!el.offsetParent) return;
+                  const t = (el.innerText || '').trim();
+                  if (!t) return;
+                  // placeholder/미분류 제외
+                  if (/카테고리\\s*없음|선택하세요|선택해주세요/.test(t)) return;
+                  items.push({ el, text: t });
+                });
+              });
+              if (items.length === 0) return { ok: false, reason: 'no items' };
+              const pick = items[0];
+              pick.el.click();
+              return { ok: true, picked: pick.text, total: items.length };
+            }
+            """
+        )
+        logger.info("카테고리 선택 결과: %s", result)
+        if result and result.get("ok"):
+            page.wait_for_timeout(500)
+        return result
+    except Exception as e:
+        logger.debug("Category selection error: %s", e)
+        return None
+
+
 def _dismiss_upload_toast(page: Page) -> None:
     """동결된 업로드 토스트를 DOM 에서 물리적으로 제거.
 
@@ -803,6 +873,10 @@ def _publish(page: Page, blog_name: str, title: str) -> str:
         logger.warning("업로드 토스트 강제 dismiss 시도")
         _dismiss_upload_toast(page)
         page.wait_for_timeout(500)
+
+    # 3-c) 카테고리 자동 선택 — 카테고리 필수 / 미선택 상태에서 publish silent reject 회피.
+    #      카테고리가 0개인 블로그면 이 단계는 no-op (사용자가 미리 카테고리 생성해야 함).
+    _try_select_first_category(page)
 
     # 4) 최종 발행 버튼 — Pass 1: CSS 셀렉터(확장)
     final_btns = [
@@ -988,6 +1062,66 @@ def _publish(page: Page, blog_name: str, title: str) -> str:
         logger.warning("Pre-retry state dump — selects=%s", state.get("selects"))
         logger.warning("Pre-retry state dump — radios=%s", state.get("radios"))
         logger.warning("Pre-retry state dump — buttons[:30]=%s", state.get("buttons"))
+
+        # 추가: '발행' / '카테고리' 관련 모든 요소 + disabled 상태 (truncation 없이)
+        focused = page.evaluate(
+            """
+            () => {
+              const out = { publishLike: [], categoryLike: [], overlays: [] };
+              // 발행 관련 — text 매칭 + id/class 매칭 둘 다
+              document.querySelectorAll(
+                'button, a, [role="button"], input[type="submit"], div[onclick]'
+              ).forEach(el => {
+                const t = ((el.innerText || el.value || '') + '').replace(/\\s+/g,' ').trim();
+                const id = el.id || '';
+                const cls = ((el.className || '') + '').slice(0, 80);
+                const hit = /발행|publish/i.test(t) || /publish/i.test(id) || /publish/i.test(cls);
+                if (!hit) return;
+                const r = el.getBoundingClientRect();
+                out.publishLike.push({
+                  tag: el.tagName, text: t.slice(0, 50), id, cls,
+                  disabled: el.disabled || el.getAttribute('aria-disabled') === 'true',
+                  visible: !!el.offsetParent && r.width > 0 && r.height > 0,
+                  rect: { x: Math.round(r.x), y: Math.round(r.y),
+                          w: Math.round(r.width), h: Math.round(r.height) },
+                });
+              });
+              // 카테고리 관련
+              document.querySelectorAll(
+                '[id*="category"], [class*="category"], [class*="Category"]'
+              ).forEach(el => {
+                const t = ((el.innerText || '') + '').replace(/\\s+/g,' ').trim().slice(0, 50);
+                if (!t) return;
+                out.categoryLike.push({
+                  tag: el.tagName,
+                  text: t,
+                  id: el.id || '',
+                  cls: ((el.className || '') + '').slice(0, 80),
+                  visible: !!el.offsetParent,
+                });
+              });
+              // 고-z-index 오버레이 (클릭 인터셉트 가능성)
+              document.querySelectorAll('*').forEach(el => {
+                if (!el.offsetParent) return;
+                const cs = window.getComputedStyle(el);
+                const z = parseInt(cs.zIndex);
+                if (!z || z < 100) return;
+                if (cs.position !== 'fixed' && cs.position !== 'absolute') return;
+                out.overlays.push({
+                  tag: el.tagName,
+                  id: el.id || '',
+                  cls: ((el.className || '') + '').slice(0, 60),
+                  z, position: cs.position,
+                });
+              });
+              out.overlays = out.overlays.slice(0, 15);
+              return out;
+            }
+            """
+        )
+        logger.warning("Pre-retry FOCUSED — publishLike=%s", focused.get("publishLike"))
+        logger.warning("Pre-retry FOCUSED — categoryLike=%s", focused.get("categoryLike"))
+        logger.warning("Pre-retry FOCUSED — highZ overlays=%s", focused.get("overlays"))
 
         # 진단 2: 카테고리 미선택일 가능성 → 첫 옵션으로 자동 선택 (placeholder 가 아니면)
         cat_result = page.evaluate(
