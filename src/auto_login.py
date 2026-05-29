@@ -38,6 +38,17 @@ DEFAULT_TIMEOUT_MS = 30_000
 TYPING_DELAY_MS = 100   # 키 입력당 100ms — 인간 같은 속도로 봇 탐지 우회
 LOGIN_DEADLINE_S = 30.0
 
+SCREENSHOTS_DIR = Path("artifacts/screenshots")
+
+# Kakao TMS(부정행위 방지) 가 추가 본인확인을 요구할 때 URL 에 나타나는 토큰들.
+# 어느 것이든 발견되면 "신뢰도 낮은 IP 로 인한 차단" 이므로 자동화 불가.
+TMS_BLOCK_TOKENS = (
+    "verifytms",            # #verifyTmsForActionPenalty 등
+    "actionpenalty",
+    "tmsforaction",
+    "captcha",
+)
+
 
 # ---------------------------------------------------------------------
 # Helpers
@@ -58,6 +69,22 @@ def _human_type(page: Page, locator, text: str) -> None:
     """포커스를 잡고 키보드로 한 글자씩 typing — fill 보다 봇 탐지에 강함."""
     locator.click()
     page.keyboard.type(text, delay=TYPING_DELAY_MS)
+
+
+def _screenshot(page: Page, tag: str) -> None:
+    try:
+        SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
+        p = SCREENSHOTS_DIR / f"{int(time.time())}_{tag}.png"
+        page.screenshot(path=str(p), full_page=True)
+        logger.info("Saved screenshot: %s", p)
+    except Exception as e:
+        logger.warning("Screenshot failed (%s): %s", tag, e)
+
+
+def _is_tms_blocked(url: str) -> bool:
+    """URL 의 fragment / path / query 에 TMS 차단 토큰이 들어있는지 검사."""
+    lower = url.lower()
+    return any(tok in lower for tok in TMS_BLOCK_TOKENS)
 
 
 # ---------------------------------------------------------------------
@@ -171,12 +198,28 @@ def renew_tistory_session(
             deadline = time.monotonic() + LOGIN_DEADLINE_S
             while time.monotonic() < deadline:
                 page.wait_for_timeout(500)
-                parsed = urlparse(page.url)
+                current_url = page.url
+
+                # ── Kakao TMS / CAPTCHA 차단 즉시 감지 (재시도 무의미) ──
+                if _is_tms_blocked(current_url):
+                    _screenshot(page, "kakao_tms_blocked")
+                    raise AutoLoginError(
+                        "Kakao TMS(부정행위 방지 시스템)가 추가 본인확인을 요구함 — "
+                        "runner IP 가 신뢰도 낮은 클라우드 IP 로 분류됨. "
+                        "자동 로그인으로는 우회 불가능. "
+                        "해결책: (1) self-hosted runner (집/사무실 IP) 사용, "
+                        "(2) residential proxy 경유, 또는 "
+                        "(3) 로컬에서 한 번 수동으로 state.json 발급 후 "
+                        "TISTORY_STATE_JSON 시크릿 수동 갱신. "
+                        f"(url={current_url})"
+                    )
+
+                parsed = urlparse(current_url)
                 host = (parsed.hostname or "").lower()
                 path = (parsed.path or "").lower()
 
                 if host == "tistory.com" or host.endswith(".tistory.com"):
-                    logger.info("Auto-login: redirect OK (url=%s)", page.url)
+                    logger.info("Auto-login: redirect OK (url=%s)", current_url)
                     break
 
                 # select_account 화면 자동 통과
@@ -223,6 +266,12 @@ def renew_tistory_session(
                         )
             else:
                 # while 가 break 없이 deadline 으로 끝남
+                _screenshot(page, "login_redirect_timeout")
+                if _is_tms_blocked(page.url):
+                    raise AutoLoginError(
+                        "Kakao TMS 차단 (timeout 도달 시점에 verifyTms 화면). "
+                        f"current_url={page.url}"
+                    )
                 raise AutoLoginError(
                     f"{int(LOGIN_DEADLINE_S)}초 내 tistory.com 으로 리다이렉트되지 않음 "
                     f"— current_url={page.url}"

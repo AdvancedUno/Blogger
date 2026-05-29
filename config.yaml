@@ -13,33 +13,33 @@ defaults:
   headless: true
 
 blogs:
-  - name: "Tech Blog"
-    blog_name: "unobigtech"           
-    niche_keyword: "technology"
-    rss_query: "B2B SaaS OR 클라우드 보안 OR AI 인프라 OR 데이터센터 OR 엔터프라이즈 솔루션"
-    topic_label: "IT/테크"
-    tags: ["IT", "테크", "AI", "기술트렌드", "스타트업"]
+  # - name: "Tech Blog"
+  #   blog_name: "unobigtech"           
+  #   niche_keyword: "technology"
+  #   rss_query: "B2B SaaS OR 클라우드 보안 OR AI 인프라 OR 데이터센터 OR 엔터프라이즈 솔루션"
+  #   topic_label: "IT/테크"
+  #   tags: ["IT", "테크", "AI", "기술트렌드", "스타트업"]
 
-  - name: "Economy Blog"
-    blog_name: "unoecon"
-    niche_keyword: "finance"
-    rss_query: "미국 배당 ETF OR 부동산 대출 OR 연금저축펀드 OR 금리인하 수혜주 OR 보험 리모델링"
-    topic_label: "경제/투자"
-    tags: ["경제", "주식", "투자", "재테크", "금융"]
+  # - name: "Economy Blog"
+  #   blog_name: "unoecon"
+  #   niche_keyword: "finance"
+  #   rss_query: "미국 배당 ETF OR 부동산 대출 OR 연금저축펀드 OR 금리인하 수혜주 OR 보험 리모델링"
+  #   topic_label: "경제/투자"
+  #   tags: ["경제", "주식", "투자", "재테크", "금융"]
 
-  - name: "Health Blog"
-    blog_name: "unohealth"           
-    niche_keyword: "health"
-    rss_query: "임플란트 OR 비만치료제 OR 영양제 OR 당뇨 OR 실손보험"
-    topic_label: "건강/의료"
-    tags: ["건강", "의료", "영양제", "보험", "혈당관리"]
+  # - name: "Health Blog"
+  #   blog_name: "unohealth"           
+  #   niche_keyword: "health"
+  #   rss_query: "임플란트 OR 비만치료제 OR 영양제 OR 당뇨 OR 실손보험"
+  #   topic_label: "건강/의료"
+  #   tags: ["건강", "의료", "영양제", "보험", "혈당관리"]
 
-  - name: "Real Estate Blog"
-    blog_name: "unohouse"       
-    niche_keyword: "realestate"
-    rss_query: "부동산 OR 청약 OR 주택담보대출 OR 지원금"
-    topic_label: "부동산/정부지원"
-    tags: ["부동산", "청약", "주담대", "디딤돌대출", "정부지원금"]
+  # - name: "Real Estate Blog"
+  #   blog_name: "unohouse"       
+  #   niche_keyword: "realestate"
+  #   rss_query: "부동산 OR 청약 OR 주택담보대출 OR 지원금"
+  #   topic_label: "부동산/정부지원"
+  #   tags: ["부동산", "청약", "주담대", "디딤돌대출", "정부지원금"]
 
   - name: "Side Hustle Blog"
     blog_name: "unohustle"       

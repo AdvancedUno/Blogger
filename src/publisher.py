@@ -653,7 +653,7 @@ def _run_publish_flow(
 
 
 # ---------------------------------------------------------------------
-# Public entrypoint — Self-Healing wrapper
+# Public entrypoint
 # ---------------------------------------------------------------------
 def publish_to_tistory(
     blog_name: str,
@@ -662,43 +662,38 @@ def publish_to_tistory(
     tags: list[str] | None = None,
     headless: bool = True,
 ) -> str:
-    """state.json (storage_state) 으로 글 발행. 세션 만료 시 자동 재로그인 후 1회 재시도."""
+    """state.json (storage_state) 으로 글 1편 발행.
+
+    세션 만료(SessionExpiredError) 시 자동 재로그인을 시도하지 않는다.
+    이유: GitHub Actions cloud IP 에서 Kakao TMS 가 verifyTms 화면으로
+    리다이렉트시키므로 자동화 우회 불가능. 만료 감지 시 명확한 메시지로
+    실패하고, 사용자가 로컬에서 `python -m src.auto_login` 으로 새
+    state.json 을 발급한 뒤 TISTORY_STATE_JSON 시크릿을 직접 갱신해야 한다.
+    """
     if not title or not html_content:
         raise PublishError("Empty title or content cannot be published")
 
     state_file = _resolve_state_path()
-    tags = tags or []
-
-    # state.json 이 아예 없거나 0 바이트면 즉시 auto-login 시도
-    if (not state_file.is_file()) or state_file.stat().st_size == 0:
-        logger.warning(
-            "storage_state missing/empty (%s) — running auto-login first",
-            state_file,
+    if not state_file.is_file():
+        raise PublishError(
+            f"storage_state 파일을 찾을 수 없습니다: {state_file}. "
+            "로컬에서 'python -m src.auto_login' 으로 state.json 발급 후, "
+            "GitHub Secrets 의 TISTORY_STATE_JSON 을 그 내용으로 업데이트하세요."
         )
-        _do_auto_login(state_file, headless)
+    if state_file.stat().st_size == 0:
+        raise PublishError(
+            f"storage_state 파일이 비어 있습니다: {state_file}. "
+            "수동 재발급 후 시크릿 갱신 필요."
+        )
 
-    # 1차 시도
     try:
         return _run_publish_flow(
-            state_file, blog_name, title, html_content, tags, headless,
+            state_file, blog_name, title, html_content, tags or [], headless,
         )
     except SessionExpiredError as e:
-        # 2차 시도 — auto-login 후 동일 발행 흐름 재실행
-        logger.warning("Session expired. Attempting auto-login... (%s)", e)
-        _do_auto_login(state_file, headless)
-        logger.info("Auto-login OK — retrying publish (attempt 2)")
-        return _run_publish_flow(
-            state_file, blog_name, title, html_content, tags, headless,
-        )
-
-
-def _do_auto_login(state_file: Path, headless: bool) -> None:
-    """auto_login.renew_tistory_session 호출 + 에러 변환."""
-    # 순환 의존 방지를 위해 함수 내부에서 import
-    from src.auto_login import AutoLoginError, renew_tistory_session
-    try:
-        renew_tistory_session(state_path=state_file, headless=headless)
-    except AutoLoginError as e:
+        # 클라우드 IP 에선 자동 재로그인이 TMS 에 걸려 회복 불가 → 즉시 실패 + 안내
         raise PublishError(
-            f"자동 로그인 실패 — 수동 state.json 재발급 필요: {e}"
+            f"세션 만료 감지 — {e} "
+            "로컬에서 'python -m src.auto_login' 실행 → 새 state.json 의 "
+            "내용을 TISTORY_STATE_JSON 시크릿에 붙여넣기로 갱신하세요."
         ) from e

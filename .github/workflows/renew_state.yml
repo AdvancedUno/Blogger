@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   renew:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted        # 본인 머신/라즈베리파이 IP 사용 → Kakao TMS 회피
     timeout-minutes: 10
 
     steps:
@@ -39,8 +39,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Install Playwright Chromium
-        run: python -m playwright install --with-deps chromium
+      # self-hosted: 시스템 deps 는 1회 수동 설치, 매 실행은 브라우저만 동기화.
+      - name: Install Playwright Chromium (no deps)
+        run: python -m playwright install chromium
 
       # Kakao 자격증명으로 로그인 → state.json 생성
       - name: Run auto-login
@@ -78,8 +79,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tistory-renew-debug
-          path: artifacts/screenshots/
-          if-no-files-found: ignore
+          path: |
+            artifacts/screenshots/**/*.png
+            artifacts/screenshots/**/*.html
+          if-no-files-found: warn
           retention-days: 7
 
       - name: Cleanup state.json
