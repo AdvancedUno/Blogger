@@ -198,7 +198,7 @@ HTML 본문의 가장 마지막 요소로 정확히 아래 형식:
 ────────────────────────────────────────────────────────
 응답의 첫 두 줄을 정확히 아래 형식 (콜론 뒤 공백 1칸):
 
-  TITLE: [오늘의 핫이슈] 메인키워드 - 호기심을 유발하는 부제목
+  TITLE:  메인키워드 - 호기심을 유발하는 부제목
   TAGS: 키워드1, 키워드2, 키워드3, 키워드4, 키워드5
 
 TITLE: 한글 기준 30~50자, 과장/낚시/허위 금지.
@@ -226,7 +226,7 @@ TAGS:
 ────────────────────────────────────────────────────────
 [규칙 12] 출력 포맷 — 정확히 이 구조만, 다른 머리말/꼬리말 금지
 ────────────────────────────────────────────────────────
-TITLE: [오늘의 핫이슈] 메인키워드 - 부제목
+TITLE:  메인키워드 - 부제목
 TAGS: 키워드1, 키워드2, 키워드3, 키워드4, 키워드5
 ---
 <h2>...(Intro 섹션 헤딩)...</h2>
@@ -307,6 +307,26 @@ class GeneratedPost:
 
 class GenerationError(RuntimeError):
     """Raised when content generation fails."""
+
+
+# Gemini 무료 티어 RPM(5/min) 초과 시 대기할 시간 (초).
+QUOTA_RETRY_DELAY = 30.0
+
+
+def _is_quota_error(err: BaseException) -> bool:
+    """429/quota/rate limit 류 에러 여부를 메시지 기반으로 판별."""
+    s = str(err).lower()
+    return any(
+        kw in s
+        for kw in (
+            "429",
+            "quota",
+            "rate limit",
+            "resource exhausted",
+            "resourceexhausted",
+            "too many requests",
+        )
+    )
 
 
 def _format_news_block(news_items: list[dict]) -> str:
@@ -457,6 +477,7 @@ def generate_post(
 
     last_err: Exception | None = None
     for attempt in range(retries + 1):
+        delay = retry_delay   # 이번 시도 실패 후 사용할 sleep 시간
         try:
             response = model.generate_content(user_prompt)
             text = getattr(response, "text", None)
@@ -475,12 +496,21 @@ def generate_post(
             )
         except Exception as e:
             last_err = e
-            logger.warning(
-                "Generation attempt %d/%d API error: %s",
-                attempt + 1, retries + 1, e,
-            )
+            if _is_quota_error(e):
+                # 429 / quota — 짧은 지연으로는 또 막힘. 강제로 15s 대기 후 재시도.
+                delay = QUOTA_RETRY_DELAY
+                logger.warning(
+                    "Generation attempt %d/%d hit RATE LIMIT (429/quota) — "
+                    "sleeping %ds before retry: %s",
+                    attempt + 1, retries + 1, int(delay), e,
+                )
+            else:
+                logger.warning(
+                    "Generation attempt %d/%d API error: %s",
+                    attempt + 1, retries + 1, e,
+                )
 
         if attempt < retries:
-            time.sleep(retry_delay)
+            time.sleep(delay)
 
     raise GenerationError(f"All generation attempts failed: {last_err}")

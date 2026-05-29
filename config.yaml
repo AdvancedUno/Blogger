@@ -30,20 +30,20 @@ blogs:
   - name: "Health Blog"
     blog_name: "unohealth"           
     niche_keyword: "health"
-    rss_query: "임플란트 가격 OR 비만 치료제 OR 항노화 영양제 OR 혈당 관리 OR 실손 보험 리모델링"
+    rss_query: "임플란트 OR 비만치료제 OR 영양제 OR 당뇨 OR 실손보험"
     topic_label: "건강/의료"
     tags: ["건강", "의료", "영양제", "보험", "혈당관리"]
 
   - name: "Real Estate Blog"
     blog_name: "unohouse"       
     niche_keyword: "realestate"
-    rss_query: "아파트 청약 OR 주택담보대출 OR 디딤돌 대출 조건 OR 부동산 세금 OR 청년 정부지원금"
+    rss_query: "부동산 OR 청약 OR 주택담보대출 OR 지원금"
     topic_label: "부동산/정부지원"
     tags: ["부동산", "청약", "주담대", "디딤돌대출", "정부지원금"]
 
   - name: "Side Hustle Blog"
     blog_name: "unohustle"       
     niche_keyword: "business"
-    rss_query: "직장인 투잡 OR 1인 창업 OR 정부지원 사업 OR 유망 자격증 추천 OR 무자본 수익화"
+    rss_query: "투잡 OR 창업 OR 부업 OR 자격증"
     topic_label: "부업/커리어"
     tags: ["부업", "투잡", "1인창업", "자격증", "정부지원사업"]

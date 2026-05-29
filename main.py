@@ -12,10 +12,14 @@ from __future__ import annotations
 
 import logging
 import sys
+import time
 import traceback
 from pathlib import Path
 
 import yaml
+
+# Gemini 무료 티어 RPM 한도 회피용 블로그 간 sleep (초)
+INTER_BLOG_SLEEP_SECONDS = 25
 
 from src.fetcher import FetchError, fetch_top_news
 from src.generator import GenerationError, generate_post
@@ -117,9 +121,18 @@ def main() -> int:
         return 1
 
     results: list[tuple[str, bool, str]] = []
-    for blog in blogs:
+    total = len(blogs)
+    for idx, blog in enumerate(blogs):
         ok, info = run_one(blog, defaults)
         results.append((blog.get("name", "<unnamed>"), ok, info))
+
+        # 마지막 블로그가 아니면 Gemini RPM 한도 회피용 대기.
+        if idx < total - 1:
+            logger.info(
+                "Sleeping %ds before next blog (Gemini free-tier RPM safeguard)",
+                INTER_BLOG_SLEEP_SECONDS,
+            )
+            time.sleep(INTER_BLOG_SLEEP_SECONDS)
 
     logger.info("=================== SUMMARY ===================")
     for name, ok, info in results:
