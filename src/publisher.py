@@ -463,10 +463,24 @@ def _verify_publish_success(page: Page, blog_name: str, title: str) -> bool:
         logger.warning("Page content read failed: %s", e)
         return False
 
-    if title_key in content:
+    # 페이지 HTML 의 공백/줄바꿈을 한 칸으로 정규화하여 비교
+    # (Tistory 가 <span>...</span><br>... 같이 끊어 렌더링하면 raw 매칭이 실패함)
+    import re as _re
+    content_norm = _re.sub(r"\s+", " ", content)
+
+    if title_key in content_norm:
         logger.info(
             "Publish verified — title '%s...' found in /manage/posts/",
             title_key[:20],
+        )
+        return True
+
+    # 한층 더 느슨한 매칭: 제목의 앞 15자만으로도 시도
+    short_key = title_norm[:15].strip()
+    if len(short_key) >= 8 and short_key in content_norm:
+        logger.info(
+            "Publish verified (short-key) — '%s...' found in /manage/posts/",
+            short_key,
         )
         return True
 
@@ -495,7 +509,7 @@ def _publish(page: Page, blog_name: str, title: str) -> str:
     # 2) 모달 애니메이션 / 컴포넌트 마운트 대기 (절대 Escape 누르지 말 것 — 모달 닫힘)
     page.wait_for_timeout(1_000)
 
-    # 3) 공개 발행 옵션 선택
+    # 3) 공개 발행 옵션 선택 — 클릭 후 실제 :checked 상태 확인, 아니면 JS 강제
     _try_click(
         page,
         [
@@ -508,7 +522,32 @@ def _publish(page: Page, blog_name: str, title: str) -> str:
         ],
         timeout=3_000,
     )
-    page.wait_for_timeout(400)
+    page.wait_for_timeout(800)
+
+    # 라디오가 실제로 :checked 인지 확인 + 안 됐으면 JS 로 강제
+    public_state = page.evaluate(
+        """
+        () => {
+          const checked = document.querySelector(
+            'input[name="open"][value="20"]:checked, input#open20:checked, '
+            + 'input[value="20"]:checked'
+          );
+          if (checked) return { ok: true, via: 'native' };
+          const target = document.querySelector(
+            'input[name="open"][value="20"], input#open20, input[value="20"]'
+          );
+          if (target) {
+            target.checked = true;
+            target.dispatchEvent(new Event('input',  { bubbles: true }));
+            target.dispatchEvent(new Event('change', { bubbles: true }));
+            return { ok: true, via: 'js-forced' };
+          }
+          return { ok: false };
+        }
+        """
+    )
+    logger.info("공개 옵션 selection: %s", public_state)
+    page.wait_for_timeout(600)
 
     # 4) 최종 발행 버튼 — Pass 1: CSS 셀렉터(확장)
     final_btns = [
@@ -622,6 +661,76 @@ def _publish(page: Page, blog_name: str, title: str) -> str:
         ],
         timeout=2_000,
     )
+
+    # 4e) 클릭이 실제로 효과가 있었는지 확인 — 발행 버튼이 여전히 보이면 no-op 이었음.
+    # 1회 한정으로 재클릭 시도 (Tistory React state 동기화 race 대응).
+    page.wait_for_timeout(2_500)
+    still_at_newpost = "/newpost" in page.url
+    publish_btn_still_visible = page.evaluate(
+        """
+        () => {
+          const els = Array.from(document.querySelectorAll(
+            'button, a, [role="button"], input[type="submit"]'
+          ));
+          for (const el of els) {
+            const t = ((el.innerText || el.value || '') + '')
+                        .replace(/\\s+/g, ' ').trim();
+            if (!/^(공개\\s*발행|공개발행|발행하기|발행)$/.test(t)) continue;
+            if (!el.offsetParent) continue;
+            const r = el.getBoundingClientRect();
+            if (r.width > 0 && r.height > 0) return true;
+          }
+          return false;
+        }
+        """
+    )
+
+    if still_at_newpost and publish_btn_still_visible:
+        logger.warning(
+            "발행 클릭이 효과가 없었던 것으로 보임 — 1회 재클릭 시도"
+        )
+        # 공개 라디오를 한 번 더 확정한 뒤 같은 셀렉터로 재클릭
+        page.evaluate(
+            """
+            () => {
+              const target = document.querySelector(
+                'input[name="open"][value="20"], input#open20, input[value="20"]'
+              );
+              if (target) {
+                target.checked = true;
+                target.dispatchEvent(new Event('change', { bubbles: true }));
+              }
+            }
+            """
+        )
+        page.wait_for_timeout(500)
+        retry_clicked = _try_click(page, final_btns, timeout=2_000)
+        if not retry_clicked:
+            # JS 폴백 재시도
+            page.evaluate(
+                """
+                () => {
+                  const targets = ['공개 발행','공개발행','발행하기','발행'];
+                  const els = Array.from(document.querySelectorAll(
+                    'button, a, [role="button"]'
+                  ));
+                  for (const el of els) {
+                    const t = ((el.innerText || '') + '').replace(/\\s+/g, ' ').trim();
+                    if (targets.includes(t) && el.offsetParent) {
+                      try { el.click(); } catch (e) {
+                        el.dispatchEvent(new MouseEvent('click', {
+                          bubbles: true, cancelable: true, view: window,
+                        }));
+                      }
+                      return;
+                    }
+                  }
+                }
+                """
+            )
+        page.wait_for_timeout(2_000)
+        # 확인 다이얼로그 한번 더 dismiss
+        _try_click(page, ['button:has-text("확인")', 'button.btn-confirm'], timeout=1_500)
 
     # 5) 발행 결과 판정
     # 5-a) Tistory 의 자연 redirect 가 일어날 시간을 잠깐 준다
