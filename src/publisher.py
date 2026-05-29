@@ -594,32 +594,21 @@ def _publish(page: Page) -> str:
 
 
 # ---------------------------------------------------------------------
-# Public entrypoint
+# Inner publish flow — 한 번의 Playwright 세션
 # ---------------------------------------------------------------------
-def publish_to_tistory(
+def _run_publish_flow(
+    state_file: Path,
     blog_name: str,
     title: str,
     html_content: str,
-    tags: list[str] | None = None,
-    headless: bool = True,
+    tags: list[str],
+    headless: bool,
 ) -> str:
-    """state.json (storage_state) 을 주입하고 글을 발행 후 최종 URL 반환."""
-    if not title or not html_content:
-        raise PublishError("Empty title or content cannot be published")
-
-    state_file = _resolve_state_path()
-    if not state_file.is_file():
-        raise PublishError(
-            f"storage_state 파일을 찾을 수 없습니다: {state_file}. "
-            "로컬에서 수동 로그인 후 state.json 을 생성하거나, "
-            "GitHub Actions 에서 TISTORY_STATE_JSON 시크릿을 해당 경로로 기록하는 "
-            "단계를 워크플로에 추가하세요."
-        )
-    if state_file.stat().st_size == 0:
-        raise PublishError(f"storage_state 파일이 비어 있습니다: {state_file}")
-
-    logger.info("Using storage_state: %s (%d bytes)",
-                state_file, state_file.stat().st_size)
+    """state_file 의 storage_state 로 컨텍스트 만들고 글 1편 발행."""
+    logger.info(
+        "Using storage_state: %s (%d bytes)",
+        state_file, state_file.stat().st_size,
+    )
 
     with sync_playwright() as p:
         browser = p.chromium.launch(
@@ -645,11 +634,11 @@ def publish_to_tistory(
         page.set_default_timeout(DEFAULT_TIMEOUT_MS)
 
         try:
-            _open_new_post(page, blog_name)
+            _open_new_post(page, blog_name)   # 세션 만료 시 SessionExpiredError raise
             _fill_title_and_content(page, title, html_content)
             # 태그는 에디터 사이드바(항상 보임)에서 입력. publish 모달을 열기 전에
             # 처리해야 _set_tags 내부의 Escape × 3 으로 모달이 닫히는 사고를 막을 수 있음.
-            _set_tags(page, tags or [])
+            _set_tags(page, tags)
             return _publish(page)
         except (PublishError, SessionExpiredError):
             raise
@@ -661,3 +650,55 @@ def publish_to_tistory(
                 ctx.close()
             finally:
                 browser.close()
+
+
+# ---------------------------------------------------------------------
+# Public entrypoint — Self-Healing wrapper
+# ---------------------------------------------------------------------
+def publish_to_tistory(
+    blog_name: str,
+    title: str,
+    html_content: str,
+    tags: list[str] | None = None,
+    headless: bool = True,
+) -> str:
+    """state.json (storage_state) 으로 글 발행. 세션 만료 시 자동 재로그인 후 1회 재시도."""
+    if not title or not html_content:
+        raise PublishError("Empty title or content cannot be published")
+
+    state_file = _resolve_state_path()
+    tags = tags or []
+
+    # state.json 이 아예 없거나 0 바이트면 즉시 auto-login 시도
+    if (not state_file.is_file()) or state_file.stat().st_size == 0:
+        logger.warning(
+            "storage_state missing/empty (%s) — running auto-login first",
+            state_file,
+        )
+        _do_auto_login(state_file, headless)
+
+    # 1차 시도
+    try:
+        return _run_publish_flow(
+            state_file, blog_name, title, html_content, tags, headless,
+        )
+    except SessionExpiredError as e:
+        # 2차 시도 — auto-login 후 동일 발행 흐름 재실행
+        logger.warning("Session expired. Attempting auto-login... (%s)", e)
+        _do_auto_login(state_file, headless)
+        logger.info("Auto-login OK — retrying publish (attempt 2)")
+        return _run_publish_flow(
+            state_file, blog_name, title, html_content, tags, headless,
+        )
+
+
+def _do_auto_login(state_file: Path, headless: bool) -> None:
+    """auto_login.renew_tistory_session 호출 + 에러 변환."""
+    # 순환 의존 방지를 위해 함수 내부에서 import
+    from src.auto_login import AutoLoginError, renew_tistory_session
+    try:
+        renew_tistory_session(state_path=state_file, headless=headless)
+    except AutoLoginError as e:
+        raise PublishError(
+            f"자동 로그인 실패 — 수동 state.json 재발급 필요: {e}"
+        ) from e

@@ -53,6 +53,11 @@ jobs:
           GEMINI_API_KEY:       ${{ secrets.GEMINI_API_KEY }}
           # GEMINI_MODEL:       ${{ secrets.GEMINI_MODEL }}   # 모델명 오버라이드 시
           TISTORY_STATE_PATH:   state.json
+          # --- Self-Healing 자동 재로그인용 자격증명 ---
+          # SessionExpiredError 발생 시 src/auto_login.renew_tistory_session 이
+          # 이 자격증명으로 카카오 로그인 → state.json 재생성 → 재발행.
+          KAKAO_EMAIL:          ${{ secrets.KAKAO_EMAIL }}
+          KAKAO_PASSWORD:       ${{ secrets.KAKAO_PASSWORD }}
         run: python main.py
 
       - name: Upload debug artifacts (screenshots + HTML dump)
