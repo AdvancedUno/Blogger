@@ -517,7 +517,8 @@ TAGS: 5-7 high-CPC B2B tags (PascalCase / compounds, no spaces inside individual
 <div style="background:#ffffff; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; margin: 30px 0; overflow-x: auto;">
   <script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'; mermaid.initialize({{ startOnLoad: true }});</script>
   <pre class="mermaid">
-[CRITICAL INSTRUCTION: GENERATE A HIGHLY DETAILED MERMAID.JS FLOWCHART (graph TD) HERE. YOU MUST OUTPUT RAW TEXT ONLY. DO NOT WRAP THE CODE IN ```mermaid BACKTICKS. DO NOT USE HTML ENTITIES. START THE VERY FIRST LINE DIRECTLY WITH "graph TD".]
+graph TD;
+[CRITICAL INSTRUCTION: GENERATE MERMAID CODE HERE. YOU MUST END EVERY SINGLE STATEMENT WITH A SEMICOLON (;). DO NOT USE BACKTICKS. DO NOT USE AMPERSANDS (&) OR SPECIAL HTML CHARACTERS IN NODE NAMES (USE "and" INSTEAD). DO NOT ADD EXPLANATORY TEXT.]
   </pre>
 </div>
 
