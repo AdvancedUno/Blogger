@@ -876,7 +876,19 @@ def _publish(page: Page, blog_name: str, title: str) -> str:
 
     # 3-c) 카테고리 자동 선택 — 카테고리 필수 / 미선택 상태에서 publish silent reject 회피.
     #      카테고리가 0개인 블로그면 이 단계는 no-op (사용자가 미리 카테고리 생성해야 함).
-    _try_select_first_category(page)
+    cat_result = _try_select_first_category(page)
+    blog_has_no_categories = bool(
+        cat_result
+        and cat_result.get("ok") is False
+        and cat_result.get("reason") == "no items"
+    )
+    if blog_has_no_categories:
+        logger.warning(
+            "이 블로그는 카테고리가 0개 — Tistory 가 publish 를 silent reject 할 "
+            "가능성 큼. 사용자가 https://%s.tistory.com/manage/category 에서 "
+            "카테고리 최소 1개 생성해야 함.",
+            blog_name,
+        )
 
     # 4) 최종 발행 버튼 — Pass 1: CSS 셀렉터(확장)
     final_btns = [
@@ -1239,10 +1251,19 @@ def _publish(page: Page, blog_name: str, title: str) -> str:
         return page.url
 
     # URL 도 안 움직였고 목록에도 없음 — 명백한 실패
-    raise PublishError(
+    base_msg = (
         f"발행 실패 — URL 이 /newpost 에 머물고 '{title[:40]}...' 글이 "
-        "manage/posts 에도 없음. 공개 발행 클릭이 실제로 처리되지 않은 것으로 추정."
+        "manage/posts 에도 없음. 공개 발행 클릭이 Tistory 에 의해 silent "
+        "rejected 된 것으로 추정."
     )
+    # 가장 흔한 silent reject 원인 — 블로그에 카테고리가 0개
+    if blog_has_no_categories:
+        base_msg += (
+            f"  ★ 원인 확정: '{blog_name}' 블로그에 카테고리가 0개입니다. "
+            f"https://{blog_name}.tistory.com/manage/category 에 접속해서 "
+            "카테고리를 최소 1개 생성하고 기본 카테고리로 지정하세요."
+        )
+    raise PublishError(base_msg)
 
 
 # ---------------------------------------------------------------------

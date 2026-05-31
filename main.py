@@ -46,10 +46,11 @@ def run_one(blog: dict, defaults: dict) -> tuple[bool, str]:
     name = blog.get("name", "<unnamed>")
     logger.info("================ START : %s ================", name)
 
-    # ----- 1. Fetch ---------------------------------------------------
+    # ----- 1. Fetch (Keyword Roulette: rss_queries 리스트 중 1개 랜덤 선택) -----
     try:
         news = fetch_top_news(
-            query=blog["rss_query"],
+            queries=blog["rss_queries"],
+            blog_name=name,
             max_items=int(blog.get("max_news_items", defaults.get("max_news_items", 6))),
         )
         logger.info("[%s] Fetched %d news items", name, len(news))

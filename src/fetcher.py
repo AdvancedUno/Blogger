@@ -39,22 +39,36 @@ def _entry_to_item(entry) -> dict:
 
 
 def fetch_top_news(
-    query: str,
+    queries: list[str],
+    *,
+    blog_name: str = "",
     max_items: int = 6,
     pool_size: int = DEFAULT_POOL_SIZE,
     retries: int = 2,
     retry_delay: float = 2.0,
 ) -> list[dict]:
-    """Fetch Google News items for `query` and randomly sample `max_items`
-    from the top `pool_size` recent entries.
+    """Keyword Roulette + 풀 샘플링 — Google News 결과 편향 회피.
 
-    하루 2회(아침/저녁) 실행 시 동일 1순위 기사 중복 작성을 방지하기 위해,
-    상위 `pool_size` 개 안에서 `max_items` 개를 무작위 추출한다.
-    각 실행은 독립적인 random seed 를 쓰므로 회차마다 다른 조합이 나온다.
+    동작:
+      1) `queries` 리스트에서 random.choice 로 **단 하나의 키워드** 선택
+         (OR 체인 시 검색량 높은 토픽으로 결과가 쏠리는 문제 회피).
+      2) 그 키워드를 URL-encode 해서 Google News RSS 호출.
+      3) 상위 `pool_size` 결과에서 `max_items` 개를 무작위 샘플.
+
+    Args:
+        queries: 키워드 리스트 (config 의 rss_queries 필드).
+        blog_name: 로그 prefix 용 (e.g., "Tech Blog"). 선택.
 
     Returns: list of dicts with keys title/link/summary/published/source.
     """
-    url = GOOGLE_NEWS_RSS.format(query=quote_plus(query))
+    if not queries:
+        raise FetchError("rss_queries 리스트가 비어 있음 — 최소 1개 키워드 필요")
+
+    chosen_keyword = random.choice(queries)
+    prefix = f"[{blog_name}] " if blog_name else ""
+    logger.info("%sSelected Roulette Keyword: %s", prefix, chosen_keyword)
+
+    url = GOOGLE_NEWS_RSS.format(query=quote_plus(chosen_keyword))
     logger.info("Fetching Google News RSS: %s", url)
 
     last_err: Exception | None = None
@@ -66,7 +80,7 @@ def fetch_top_news(
                     f"RSS parse failed: {getattr(feed, 'bozo_exception', 'unknown')}"
                 )
             if not feed.entries:
-                raise FetchError(f"No entries returned for query: {query!r}")
+                raise FetchError(f"No entries returned for query: {chosen_keyword!r}")
 
             # 1) 최신 상위 pool_size 개를 후보 풀로 확보
             pool = feed.entries[:pool_size]
@@ -96,4 +110,4 @@ def fetch_top_news(
             if attempt < retries:
                 time.sleep(retry_delay)
 
-    raise FetchError(f"All fetch attempts failed for {query!r}: {last_err}")
+    raise FetchError(f"All fetch attempts failed for {chosen_keyword!r}: {last_err}")
