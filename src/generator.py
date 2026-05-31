@@ -429,31 +429,17 @@ CRITICAL WRITING LAWS:
    "as an AI", "AI assistant".
    Emojis: any (📈 💡 🚀 ✅ etc.) — strictly zero.
    Transitions must happen NATURALLY through new <h2>/<h3> headings.
-6. RAW HTML ONLY: Output pristine, massive HTML.
-   Allowed body tags: <h1>, <h2>, <h3>, <h4>, <p>, <ul>/<li>, <ol>/<li>,
-   <strong>/<b>, <blockquote>, <img>.
-   Allowed widget tags — ONLY inside the specifically structured blocks
-   shown in the user template (Newsletter CTA / Mermaid diagram / signup
-   form): <div>, <script type="module">, <pre class="mermaid">,
-   <form>, <input>, <button>.
-   Outside those structured widget blocks the strict body-tag whitelist applies.
+6. RAW HTML ONLY: Output pristine, massive HTML using only these tags:
+   <h1>, <h2>, <h3>, <h4>, <p>, <ul>/<li>, <ol>/<li>, <strong>/<b>,
+   <blockquote>, <img>.
    No markdown formatting blocks like ```html or ``` of any kind.
-   No <html>/<body>/<head>/<style> wrappers.
+   No <html>/<body>/<head>/<script>/<style>/<div>/<form>/<input>/<button>
+   wrappers. Inline style attribute on <blockquote>/<img> is the only
+   exception.
    For all <img> tags in the article, use this URL pattern:
      https://image.pollinations.ai/prompt/{your descriptive 2-4 word english prompt}?width=800&height=400&nologo=true
    (spaces in the prompt are OK; the URL will be URL-encoded post-process).
-7. VISUAL FRAMEWORKS (MERMAID.JS): You must generate a highly professional,
-   accurate Mermaid.js flowchart (graph TD or graph LR) within the text to
-   visually explain the core architecture, workflow, or business ecosystem
-   discussed in the news. The Mermaid block must be valid syntax — labeled
-   nodes, directional arrows, clear cause-flow. Do not invent unrelated
-   concepts; the diagram must trace the topic's actual mechanics.
-   ABSOLUTELY DO NOT wrap the Mermaid code in ```mermaid backticks or any
-   other markdown fence. The very first line inside <pre class="mermaid">
-   must be `graph TD` (or `graph LR`) — nothing else above it. Do not use
-   HTML entities (&amp;, &lt;, &gt;, etc.) inside the Mermaid block — use
-   raw text only.
-8. EXTREME DIVERSITY & CONTRARIAN ANGLES: You must NEVER use repetitive
+7. EXTREME DIVERSITY & CONTRARIAN ANGLES: You must NEVER use repetitive
    title formats (e.g., do not use "The Ultimate Guide" every time, do not
    reuse "The $XM Hidden Cost of …" if a previous title used that pattern).
    You must dynamically rotate your analytical angle based on the news.
@@ -514,14 +500,6 @@ TAGS: 5-7 high-CPC B2B tags (PascalCase / compounds, no spaces inside individual
 <h2>Architectural Mechanics & Process Flow</h2>
 <p>[Detailed technical breakdown. Assume the reader is a CTO or VP of Engineering.]</p>
 
-<div style="background:#ffffff; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; margin: 30px 0; overflow-x: auto;">
-  <script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'; mermaid.initialize({{ startOnLoad: true }});</script>
-  <pre class="mermaid">
-graph TD;
-[CRITICAL INSTRUCTION: GENERATE MERMAID CODE HERE. YOU MUST END EVERY SINGLE STATEMENT WITH A SEMICOLON (;). DO NOT USE BACKTICKS. DO NOT USE AMPERSANDS (&) OR SPECIAL HTML CHARACTERS IN NODE NAMES (USE "and" INSTEAD). DO NOT ADD EXPLANATORY TEXT.]
-  </pre>
-</div>
-
 <h2>Enterprise ROI and Strategic Implementation</h2>
 <p>[Multiple paragraphs discussing the financial return on investment.]</p>
 <h3>Phased Rollout Strategy</h3>
@@ -532,16 +510,6 @@ graph TD;
 </ol>
 
 [Insert Second AI Image Block Here: <p align="center"><img src="https://image.pollinations.ai/prompt/{{URL_ENCODED_DETAILED_PROMPT}}?width=800&height=400&nologo=true" alt="..." style="max-width: 100%; border-radius: 8px; margin: 20px 0;"></p>]
-
-<!-- Premium Newsletter CTA -->
-<div style="background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); color: white; padding: 40px 20px; border-radius: 10px; text-align: center; margin: 40px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
-  <h3 style="color: #ffffff; margin-top: 0; font-size: 24px;">Stay Ahead of the Strategic Curve</h3>
-  <p style="font-size: 16px; margin-bottom: 25px; color: #e0e0e0;">Join 5,000+ C-level executives receiving our proprietary weekly briefings on B2B infrastructure shifts.</p>
-  <form onsubmit="event.preventDefault(); alert('Subscription successful! Welcome to the insider list.');" style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
-    <input type="email" placeholder="Enter your corporate email" style="padding: 14px 20px; width: 100%; max-width: 320px; border: none; border-radius: 4px; outline: none; font-size: 16px;" required>
-    <button type="submit" style="padding: 14px 28px; background-color: #1a73e8; color: white; border: none; border-radius: 4px; font-weight: bold; font-size: 16px; cursor: pointer; transition: background 0.3s;">Subscribe (Free)</button>
-  </form>
-</div>
 
 <h2>Next Strategic Vectors to Monitor</h2>
 <p>For enterprise leaders mapping their upcoming quarter, these adjacent domains require immediate attention:</p>
