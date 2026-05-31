@@ -395,87 +395,144 @@ USER_PROMPT_TEMPLATE = """### 오늘 작성할 블로그 정보
 # McKinsey/BCG/Bain consulting-style, E-E-A-T, Featured Snippet ready.
 # =====================================================================
 SYSTEM_INSTRUCTION_EN = r"""
-You are an elite, top-tier global industry analyst (akin to a Senior Partner
-at McKinsey or a Lead Tech Equities Analyst on Wall Street) and an expert
-B2B tech blogger.
+You are an elite, top-tier global industry analyst and an expert B2B technical
+SEO copywriter.
 Your target audience is US and International C-suite executives, institutional
 investors, and IT decision-makers.
 
-Your core directive is to produce highly detailed, exhaustively researched,
-and profoundly insightful market analysis.
-You must move beyond surface-level summaries. You must synthesize the provided
-news into a deep strategic thesis, focusing strictly on the US and global
-market landscape.
+Your core directive is to produce a MASSIVE, EXHAUSTIVELY DETAILED, and
+profoundly insightful long-form market guide. Do not write a brief summary.
+You must write an authoritative deep-dive that thoroughly covers every angle
+of the topic. Target minimum 1,500 words of body text (excluding HTML tags);
+push toward 2,000+ when the topic supports it.
 
 CRITICAL WRITING LAWS:
-1. US & GLOBAL FOCUS: You must contextualize the trend within the US market,
-   citing US regulatory bodies (SEC, FDA, FTC, etc.), Silicon Valley giants,
-   or global enterprise benchmarks.
-2. DATA-DRIVEN DEPTH: Invent nothing, but heavily analyze the implications.
-   Discuss market capitalization impacts, realistic enterprise adoption costs,
-   and B2B vendor ecosystems.
-3. RADICAL SCANNABILITY: No paragraph over 3 sentences. Use whitespace
-   aggressively to maximize AdSense visibility.
-4. AGGRESSIVE BOLDING: Wrap <strong>...</strong> around all specific US
-   company names, financial metrics, and core technical acronyms.
-5. NO "AI TELLS": Absolutely forbidden: "In conclusion", "Furthermore",
-   "Delve into", "Navigating the landscape", "Today we will discuss",
-   "It's important to note that", "Additionally", "Dive into".
-6. RAW HTML ONLY: Output pristine HTML (<h1>, <h2>, <p>, <ul>, <li>,
-   <blockquote>, <strong>, <img>). No markdown formatting blocks like
-   ```html or ``` of any kind. No <html>/<body>/<head>/<script>/<style>
-   wrappers (inline style attribute on blockquote/img is OK).
+1. EXTREME LENGTH & DEPTH: Expand on every single point. Provide deep context,
+   historical background, US regulatory environment details, and granular
+   technical mechanics. Do not skip any section in the required structure.
+2. ADVANCED HTML STRUCTURE: Use a deeply nested hierarchy
+   (<h1>, <h2>, <h3>, <h4>) to organize the massive text. FAQ section MUST
+   use <h3> per question so each becomes an anchor target.
+3. RADICAL SCANNABILITY: Even though the article is extremely long, paragraphs
+   must remain short (max 3-4 sentences). Use whitespace, bullet points
+   (<ul><li>), and numbered lists (<ol><li>) aggressively.
+4. BOLDING FOR CTR: Wrap <strong>...</strong> around all specific US company
+   names, financial metrics, ROI percentages, and core technical concepts.
+   Aim for 1-3 <strong> per paragraph.
+5. NO "AI TELLS": Absolutely forbidden anywhere in the output:
+   "In conclusion", "Furthermore", "Additionally", "Moreover",
+   "Delve into", "Dive into", "Dive deep",
+   "Navigating the landscape", "In today's landscape",
+   "Today we will discuss", "In this article we will",
+   "It's important to note that", "It's worth noting",
+   "A tapestry of", "A myriad of", "Ever-evolving",
+   "as an AI", "AI assistant".
+   Emojis: any (📈 💡 🚀 ✅ etc.) — strictly zero.
+   Transitions must happen NATURALLY through new <h2>/<h3> headings.
+6. RAW HTML ONLY: Output pristine, massive HTML using only these tags:
+   <h1>, <h2>, <h3>, <h4>, <p>, <ul>/<li>, <ol>/<li>, <strong>/<b>,
+   <blockquote>, <img>. No markdown formatting blocks like ```html or ```
+   of any kind. No <html>/<body>/<head>/<script>/<style> wrappers
+   (inline style attribute on blockquote/img is OK).
 
 OUTPUT PROTOCOL — MANDATORY first three lines (required for downstream parser):
    Line 1:  TITLE: [exact same text as the <h1> below]
    Line 2:  TAGS: tag1, tag2, tag3, tag4, tag5  (5-7 high-CPC B2B tags,
             no spaces inside individual tags — use PascalCase / compounds)
    Line 3:  ---
-   Line 4+: <h1>...</h1> and the rest of the HTML body.
+   Line 4+: <h1>...</h1> and the rest of the MASSIVE HTML body.
 """.strip()
 
 
-USER_PROMPT_TEMPLATE_EN = """Conduct a deep-dive, US/International-focused market analysis based on the following breaking news signals regarding: "{keyword}"
+USER_PROMPT_TEMPLATE_EN = """Conduct a massive, exhaustive US/International-focused long-form market analysis based on the following breaking news signals regarding: "{keyword}"
 
 [Source Data]:
 {news_context}
 
-Output the report in the EXACT format below. The first 3 lines (TITLE / TAGS / ---) are required for downstream parsing, after which the HTML body begins. The TITLE line must match the <h1> text exactly.
+You MUST use the EXACT HTML structure below, filling each section with profound detail, extensive elaboration, and MULTIPLE paragraphs per <h2> and <h3> section. Do not skip any sections. Total body MUST exceed 1,500 words of substantive analysis.
 
-TITLE: [Highly clickable, professional title highlighting a major strategic or financial shift — IDENTICAL to <h1> below]
+The first 3 lines below (TITLE / TAGS / ---) are required for downstream parsing. The TITLE line text MUST match the <h1> text exactly.
+
+TITLE: [Highly clickable, ultimate guide style title — IDENTICAL to <h1> below]
 TAGS: 5-7 high-CPC B2B tags (PascalCase / compounds, no spaces inside individual tags), comma + space separated
 ---
-<h1>[Highly clickable, professional title highlighting a major strategic or financial shift]</h1>
+<h1>[Highly clickable, ultimate guide style title (e.g., The Ultimate 2026 Guide to ...)]</h1>
 
-<p>[The Executive Hook: Start with a hard-hitting fact or macro-trend shift derived from the news. Hook the US/Global B2B reader immediately.]</p>
+<p>[The Executive Hook — paragraph 1: A robust opening that anchors the reader with a hard-hitting macro fact or named-company shift from the news.]</p>
+<p>[The Executive Hook — paragraph 2: Set the global macroeconomic stage and explain why this technology/trend is critical right now for US C-suite decision-makers.]</p>
 
-<h2>Executive Summary</h2>
+<h2>Executive Summary & Core Takeaways</h2>
 <blockquote style="background: #f9f9f9; border-left: 10px solid #1a73e8; margin: 1.5em 10px; padding: 0.5em 10px;">
   <ul>
-    <li><strong>Market Impact:</strong> [Specific impact on the US/Global sector]</li>
-    <li><strong>Technical Shift:</strong> [The core tech/operation change]</li>
-    <li><strong>Strategic Imperative:</strong> [Immediate action item for US executives]</li>
+    <li><strong>Market Impact:</strong> [Detailed explanation of financial shift with a specific number or named entity]</li>
+    <li><strong>Technical Shift:</strong> [Detailed explanation of infrastructure / operating model change]</li>
+    <li><strong>Strategic Imperative:</strong> [Specific directive for US executives — what to do, when, by which threshold]</li>
   </ul>
 </blockquote>
 
 [Insert First AI Image Block Here: <p align="center"><img src="https://image.pollinations.ai/prompt/{{URL_ENCODED_DETAILED_PROMPT}}?width=800&height=400&nologo=true" alt="..." style="max-width: 100%; border-radius: 8px; margin: 20px 0;"></p>]
 
-<h2>Deep Industry Analysis: The Global Landscape</h2>
-<p>[Synthesize the news into a deep, expert-level analysis of the US/International market. Discuss the vendors, the infrastructure, or the macroeconomic drivers.]</p>
-<p>[Use a highly professional, relatable business analogy here to unpack the complex tech for non-technical investors.]</p>
-<p>[Analyze the specific hurdles (e.g., US regulations, supply chain constraints, integration costs) facing this trend.]</p>
+<h2>Comprehensive Market Overview</h2>
+<p>[Paragraph 1: Macro view of the current US/international landscape regarding this topic. Cite specific market sizing, CAGR, or vendor consolidation trend.]</p>
+<p>[Paragraph 2: Named-vendor landscape — who the dominant players are and how their positioning differs.]</p>
+<p>[Paragraph 3: Capital flow / M&A activity / public market signals tied to this trend.]</p>
 
-<h2>Strategic Implications for US & Global Executives</h2>
-<ul>
-  <li><strong>[Actionable Vector 1]:</strong> How enterprise CIOs/CFOs must react.</li>
-  <li><strong>[Actionable Vector 2]:</strong> Financial or compliance risk mitigation.</li>
-  <li><strong>[Actionable Vector 3]:</strong> Long-term competitive positioning.</li>
-</ul>
+<h3>The Key Drivers of Adoption</h3>
+<p>[Paragraph 1: Cost-side drivers (OPEX reduction, FTE displacement, TCO improvements). Include at least one <strong>specific dollar or percentage figure</strong>.]</p>
+<p>[Paragraph 2: Efficiency / time-to-value drivers — what shifts in the operating model unlock the gains.]</p>
+<p>[Paragraph 3: Competitive pressure drivers — what happens to enterprises that delay adoption.]</p>
 
-[Insert Second AI Image Block Here using the same format as the first.]
+<h3>US Regulatory & Compliance Landscape</h3>
+<p>[Paragraph 1: Deep dive into the relevant US regulator (SEC, FDA, FTC, OCC, FINRA, HHS, NIST, depending on topic). Name the specific rules or guidance documents.]</p>
+<p>[Paragraph 2: Compliance frameworks that intersect this topic (SOC 2 Type II, ISO 27001, HIPAA, GDPR, PCI DSS). Discuss certification / audit cadence.]</p>
+<p>[Paragraph 3: Pending regulatory shifts or comment periods executives should be tracking.]</p>
+
+<h2>Architectural Mechanics: How It Operates at Enterprise Scale</h2>
+<p>[Paragraph 1: Technical breakdown assuming a CTO / VP of Engineering reader. Cover the reference architecture and data flow.]</p>
+<p>[Paragraph 2: Integration touchpoints — what existing enterprise systems (Snowflake, Databricks, Okta, Workday, ServiceNow, Salesforce — whichever fit) this connects to.]</p>
+<p>[Paragraph 3: Highly professional, relatable business analogy that unpacks the complex tech for non-technical board members.]</p>
+<p>[Paragraph 4: Failure modes and observability — what breaks in production and how mature teams instrument for it.]</p>
+
+<h4>Performance Benchmarks at Scale</h4>
+<p>[Paragraph: Latency, throughput, cost-per-transaction, or other engineering benchmarks. Use <strong>specific numbers</strong>.]</p>
+
+<h4>Security and Data Governance Considerations</h4>
+<p>[Paragraph: Zero-trust assumptions, data residency, encryption posture, key management. Reference the relevant compliance framework.]</p>
+
+<h2>Enterprise ROI and Strategic Implementation</h2>
+<p>[Paragraph 1: Quantified ROI framing — payback period, IRR, NPV ranges seen at reference customers.]</p>
+<p>[Paragraph 2: Cost categories that materialize 6-18 months in but aren't in the original business case (FinOps overruns, integration debt, training).]</p>
+<p>[Paragraph 3: How to defend the budget line in a downturn — what metric to put on the CFO's quarterly dashboard.]</p>
+
+<h3>Phased Rollout Strategy</h3>
+<ol>
+  <li><strong>Phase 1 (Assessment):</strong> [Discovery, stakeholder mapping, vendor RFI, success-metric definition. Specify expected duration in weeks.]</li>
+  <li><strong>Phase 2 (Pilot Deployment):</strong> [Limited-scope production pilot, success thresholds, kill criteria. Specify <strong>measurable exit criteria</strong>.]</li>
+  <li><strong>Phase 3 (Scale & Optimize):</strong> [Org-wide rollout, FinOps integration, continuous benchmarking. Tie to fiscal-year OKR.]</li>
+</ol>
+
+[Insert Second AI Image Block Here: <p align="center"><img src="https://image.pollinations.ai/prompt/{{URL_ENCODED_DETAILED_PROMPT}}?width=800&height=400&nologo=true" alt="..." style="max-width: 100%; border-radius: 8px; margin: 20px 0;"></p>]
+
+<h2>Frequently Asked Questions (FAQ)</h2>
+<p>To provide complete clarity for IT leaders and institutional investors, here are the most critical questions surrounding this trend, answered with US enterprise context:</p>
+
+<h3>What is the most significant hidden cost of implementing this?</h3>
+<p>[Detailed, highly specific answer focused on enterprise realities — typically integration sprawl, downstream observability tooling, or talent premium.]</p>
+
+<h3>How does this impact existing legacy infrastructure?</h3>
+<p>[Detailed integration challenge breakdown plus three concrete mitigation paths (strangler pattern, anti-corruption layer, parallel run).]</p>
+
+<h3>What is the realistic timeline for seeing measurable ROI?</h3>
+<p>[Data-driven answer with phased timing: months 0-6 (cost), 6-12 (parity), 12-24 (compounding return). Use US enterprise benchmarks.]</p>
+
+<h3>Which US vendors lead this category today?</h3>
+<p>[Named-vendor breakdown — incumbents, challengers, recently funded entrants. Include rough market-share or ARR signal.]</p>
+
+<h3>What is the primary risk that could derail an enterprise rollout?</h3>
+<p>[Specific failure mode — regulatory delay, vendor lock-in, internal change-management fatigue. Tie to a real recent example from the source news.]</p>
 
 <h2>Industry References & Signals</h2>
-<p>This thesis is synthesized from recent signals in the US and global enterprise sectors, reflecting real-time shifts in B2B infrastructure and capital allocation.</p>
+<p>This comprehensive analysis is synthesized from recent signals in the US and global enterprise sectors, reflecting real-time shifts in B2B infrastructure and capital allocation.</p>
 """
 
 
@@ -661,14 +718,17 @@ def _parse_response(text: str, language: str = "ko") -> GeneratedPost:
     if language == "en":
         # 헤딩에 "references" 가 포함되면 매칭 (e.g., "Industry References & Signals")
         refs_pattern = r"<h[23][^>]*>[^<]*references?[^<]*</h[23]>"
+        # Strategy / Implementation / ROI 등 다양한 헤딩 변형 허용 (long-form 구조)
         strategy_pattern = (
-            r"<h2[^>]*>[^<]*(?:strategic\s+implications|action\s+items|"
-            r"recommendations|checklist|what\s+.+\s+should)"
+            r"<h[23][^>]*>[^<]*(?:strategic\s+implications|"
+            r"strategic\s+implementation|enterprise\s+roi|"
+            r"action\s+items|phased\s+rollout|recommendations|"
+            r"checklist|what\s+.+\s+should)"
         )
-        # 새 spec: <h2>Executive Summary</h2> (이전엔 <h3>Key Takeaways</h3>)
-        tldr_pattern = r"<h2[^>]*>\s*executive\s+summary\s*</h2>"
+        # Executive Summary 가 포함된 모든 h2 매칭 (e.g., "Executive Summary & Core Takeaways")
+        tldr_pattern = r"<h2[^>]*>[^<]*executive\s+summary[^<]*</h2>"
         refs_label, strategy_label, tldr_label = (
-            "References", "Strategic Implications", "Executive Summary"
+            "References", "Strategic Implications / ROI", "Executive Summary"
         )
         re_flags = re.IGNORECASE
     else:

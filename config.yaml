@@ -124,7 +124,7 @@ blogs:
 blogger_sites:
   # ===== TECH & INFRASTRUCTURE (group 1, keys 1-5) =====
   - name: "AI Infra Insider"
-    blog_id: "45872662805561713"
+    blog_id: "9028911206094611951"
     language: "en"
     run_group: 1
     api_key_env: "GEMINI_API_KEY_1"
