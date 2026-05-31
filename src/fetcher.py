@@ -13,9 +13,13 @@ import feedparser
 
 logger = logging.getLogger(__name__)
 
-GOOGLE_NEWS_RSS = (
-    "https://news.google.com/rss/search?q={query}&hl=ko&gl=KR&ceid=KR:ko"
-)
+# Google News RSS URL 은 language 에 따라 다른 hl/gl/ceid 사용.
+# - ko : 한국 시장 뉴스 (Tistory)
+# - en : 미국 시장 뉴스 (Blogger — US-centric C-suite 타깃)
+GOOGLE_NEWS_RSS_BY_LANG = {
+    "ko": "https://news.google.com/rss/search?q={query}&hl=ko&gl=KR&ceid=KR:ko",
+    "en": "https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en",
+}
 
 DEFAULT_POOL_SIZE = 10   # 상위 N 개 풀에서 max_items 만큼 랜덤 샘플링
 
@@ -41,6 +45,7 @@ def _entry_to_item(entry) -> dict:
 def fetch_top_news(
     queries: list[str],
     *,
+    language: str = "ko",
     blog_name: str = "",
     max_items: int = 6,
     pool_size: int = DEFAULT_POOL_SIZE,
@@ -50,13 +55,14 @@ def fetch_top_news(
     """Keyword Roulette + 풀 샘플링 — Google News 결과 편향 회피.
 
     동작:
-      1) `queries` 리스트에서 random.choice 로 **단 하나의 키워드** 선택
-         (OR 체인 시 검색량 높은 토픽으로 결과가 쏠리는 문제 회피).
-      2) 그 키워드를 URL-encode 해서 Google News RSS 호출.
+      1) `queries` 리스트에서 random.choice 로 **단 하나의 키워드** 선택.
+      2) language 에 따른 locale 의 Google News RSS 호출
+         (ko → hl=ko&gl=KR&ceid=KR:ko, en → hl=en-US&gl=US&ceid=US:en).
       3) 상위 `pool_size` 결과에서 `max_items` 개를 무작위 샘플.
 
     Args:
         queries: 키워드 리스트 (config 의 rss_queries 필드).
+        language: "ko" (default, 한국 뉴스) 또는 "en" (US 뉴스).
         blog_name: 로그 prefix 용 (e.g., "Tech Blog"). 선택.
 
     Returns: list of dicts with keys title/link/summary/published/source.
@@ -66,9 +72,13 @@ def fetch_top_news(
 
     chosen_keyword = random.choice(queries)
     prefix = f"[{blog_name}] " if blog_name else ""
-    logger.info("%sSelected Roulette Keyword: %s", prefix, chosen_keyword)
+    logger.info("%sSelected Roulette Keyword: %s (lang=%s)",
+                prefix, chosen_keyword, language)
 
-    url = GOOGLE_NEWS_RSS.format(query=quote_plus(chosen_keyword))
+    rss_template = GOOGLE_NEWS_RSS_BY_LANG.get(
+        language, GOOGLE_NEWS_RSS_BY_LANG["ko"]
+    )
+    url = rss_template.format(query=quote_plus(chosen_keyword))
     logger.info("Fetching Google News RSS: %s", url)
 
     last_err: Exception | None = None

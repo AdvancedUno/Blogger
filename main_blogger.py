@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import random
 import sys
 import time
 import traceback
@@ -43,23 +44,60 @@ def run_one(site: dict, defaults: dict) -> tuple[bool, str]:
     name = site.get("name", "<unnamed>")
     logger.info("================ START : %s ================", name)
 
-    # ----- 1. Fetch (Keyword Roulette) --------------------------------
+    # ----- 1. Fetch (Keyword Fallback Loop) ---------------------------
+    # B2B 마이크로 니치 키워드는 그날 뉴스가 0건일 확률이 높아, random.choice
+    # 하나로는 자주 실패함. 그래서 rss_queries 를 셔플하고 순서대로 시도하면서
+    # 첫 번째 뉴스가 잡히는 키워드에서 break. 전부 0건이면 그 사이트만 skip.
     try:
-        news = fetch_top_news(
-            queries=site["rss_queries"],
-            blog_name=name,
-            max_items=int(
-                site.get("max_news_items", defaults.get("max_news_items", 6))
-            ),
-        )
-        logger.info("[%s] Fetched %d news items", name, len(news))
-    except (FetchError, KeyError) as e:
-        logger.error("[%s] Fetcher failed: %s", name, e)
+        queries = list(site["rss_queries"])
+    except KeyError as e:
+        logger.error("[%s] Fetcher failed: missing rss_queries: %s", name, e)
         return False, f"fetcher: {e}"
-    except Exception as e:
-        logger.error("[%s] Fetcher unexpected error: %s\n%s",
-                     name, e, traceback.format_exc())
-        return False, f"fetcher-unexpected: {e}"
+
+    if not queries:
+        logger.error("[%s] rss_queries 가 비어 있음", name)
+        return False, "fetcher: empty rss_queries"
+
+    random.shuffle(queries)
+    max_items = int(site.get("max_news_items", defaults.get("max_news_items", 6)))
+    news: list[dict] = []
+    chosen_keyword = ""
+
+    for kw in queries:
+        logger.info("[%s] Trying keyword: %r", name, kw)
+        try:
+            news = fetch_top_news(
+                queries=[kw],         # 단일 키워드로 호출 → fallback 다음 키워드 시도
+                language="en",        # US locale (hl=en-US, gl=US, ceid=US:en)
+                blog_name=name,
+                max_items=max_items,
+                retries=0,            # 빠른 fail → 다음 키워드로 즉시 넘어감
+            )
+            if news:
+                chosen_keyword = kw
+                break
+        except FetchError as e:
+            logger.warning(
+                "[%s] Keyword %r yielded no news (%s) — trying next",
+                name, kw, e,
+            )
+        except Exception as e:
+            logger.warning(
+                "[%s] Keyword %r unexpected error (%s) — trying next",
+                name, kw, e,
+            )
+
+    if not news:
+        logger.warning(
+            "[%s] All %d keywords in rss_queries yielded no news today. Skipping site.",
+            name, len(queries),
+        )
+        return False, f"skipped: all {len(queries)} keywords empty"
+
+    logger.info(
+        "[%s] Fetch OK via fallback — keyword=%r, %d items",
+        name, chosen_keyword, len(news),
+    )
 
     # ----- 2. Generate (English prompt) -------------------------------
     # Multi-key routing
@@ -78,6 +116,7 @@ def run_one(site: dict, defaults: dict) -> tuple[bool, str]:
             news_items=news,
             language=site.get("language", "en"),
             api_key=api_key,
+            focus_keyword=chosen_keyword,
         )
         logger.info(
             "[%s] Generated post — title=%s (html %d chars)",

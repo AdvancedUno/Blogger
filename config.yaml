@@ -201,147 +201,147 @@ blogger_sites:
       - "Smart contract auditing firms"
       - "Enterprise blockchain interoperability"
 
-  - name: "WealthTech Systems"
-    blog_id: "[YOUR_BLOGGER_ID_8]"
-    language: "en"
-    run_group: 2
-    api_key_env: "GEMINI_API_KEY_8"
-    rss_queries:
-      - "Family office portfolio management software"
-      - "Alternative asset investment platforms"
-      - "Automated tax-loss harvesting APIs"
-      - "Registered Investment Advisor (RIA) CRM"
+  # - name: "WealthTech Systems"
+  #   blog_id: "[YOUR_BLOGGER_ID_8]"
+  #   language: "en"
+  #   run_group: 2
+  #   api_key_env: "GEMINI_API_KEY_8"
+  #   rss_queries:
+  #     - "Family office portfolio management software"
+  #     - "Alternative asset investment platforms"
+  #     - "Automated tax-loss harvesting APIs"
+  #     - "Registered Investment Advisor (RIA) CRM"
 
-  - name: "Enterprise InsurTech"
-    blog_id: "[YOUR_BLOGGER_ID_9]"
-    language: "en"
-    run_group: 2
-    api_key_env: "GEMINI_API_KEY_9"
-    rss_queries:
-      - "Commercial fleet telematics insurance"
-      - "AI underwriting automation"
-      - "Property and casualty claims SaaS"
-      - "Parametric insurance smart contracts"
+  # - name: "Enterprise InsurTech"
+  #   blog_id: "[YOUR_BLOGGER_ID_9]"
+  #   language: "en"
+  #   run_group: 2
+  #   api_key_env: "GEMINI_API_KEY_9"
+  #   rss_queries:
+  #     - "Commercial fleet telematics insurance"
+  #     - "AI underwriting automation"
+  #     - "Property and casualty claims SaaS"
+  #     - "Parametric insurance smart contracts"
 
-  - name: "Corporate Treasury Tech"
-    blog_id: "[YOUR_BLOGGER_ID_10]"
-    language: "en"
-    run_group: 2
-    api_key_env: "GEMINI_API_KEY_10"
-    rss_queries:
-      - "Liquidity management SaaS"
-      - "Corporate FX risk hedging software"
-      - "Treasury Management Systems (TMS)"
-      - "Open banking API aggregation"
+  # - name: "Corporate Treasury Tech"
+  #   blog_id: "[YOUR_BLOGGER_ID_10]"
+  #   language: "en"
+  #   run_group: 2
+  #   api_key_env: "GEMINI_API_KEY_10"
+  #   rss_queries:
+  #     - "Liquidity management SaaS"
+  #     - "Corporate FX risk hedging software"
+  #     - "Treasury Management Systems (TMS)"
+  #     - "Open banking API aggregation"
 
-  # ===== HEALTHCARE + REAL ESTATE start (group 3, keys 1-5) =====
-  - name: "Clinical Trial Tech"
-    blog_id: "[YOUR_BLOGGER_ID_11]"
-    language: "en"
-    run_group: 3
-    api_key_env: "GEMINI_API_KEY_1"
-    rss_queries:
-      - "Decentralized clinical trial software"
-      - "Electronic Data Capture (EDC) systems"
-      - "Patient recruitment AI platforms"
-      - "eCOA and ePRO mobile health apps"
+  # # ===== HEALTHCARE + REAL ESTATE start (group 3, keys 1-5) =====
+  # - name: "Clinical Trial Tech"
+  #   blog_id: "[YOUR_BLOGGER_ID_11]"
+  #   language: "en"
+  #   run_group: 3
+  #   api_key_env: "GEMINI_API_KEY_1"
+  #   rss_queries:
+  #     - "Decentralized clinical trial software"
+  #     - "Electronic Data Capture (EDC) systems"
+  #     - "Patient recruitment AI platforms"
+  #     - "eCOA and ePRO mobile health apps"
 
-  - name: "Digital Health Interoperability"
-    blog_id: "[YOUR_BLOGGER_ID_12]"
-    language: "en"
-    run_group: 3
-    api_key_env: "GEMINI_API_KEY_2"
-    rss_queries:
-      - "FHIR API healthcare integration"
-      - "HIPAA compliant cloud hosting"
-      - "Remote Patient Monitoring (RPM) architecture"
-      - "Electronic Health Record (EHR) data migration"
+  # - name: "Digital Health Interoperability"
+  #   blog_id: "[YOUR_BLOGGER_ID_12]"
+  #   language: "en"
+  #   run_group: 3
+  #   api_key_env: "GEMINI_API_KEY_2"
+  #   rss_queries:
+  #     - "FHIR API healthcare integration"
+  #     - "HIPAA compliant cloud hosting"
+  #     - "Remote Patient Monitoring (RPM) architecture"
+  #     - "Electronic Health Record (EHR) data migration"
 
-  - name: "MedDevice Cybersecurity"
-    blog_id: "[YOUR_BLOGGER_ID_13]"
-    language: "en"
-    run_group: 3
-    api_key_env: "GEMINI_API_KEY_3"
-    rss_queries:
-      - "Internet of Medical Things (IoMT) security"
-      - "FDA medical device software compliance"
-      - "Hospital network threat detection"
-      - "Legacy medical equipment patching"
+  # - name: "MedDevice Cybersecurity"
+  #   blog_id: "[YOUR_BLOGGER_ID_13]"
+  #   language: "en"
+  #   run_group: 3
+  #   api_key_env: "GEMINI_API_KEY_3"
+  #   rss_queries:
+  #     - "Internet of Medical Things (IoMT) security"
+  #     - "FDA medical device software compliance"
+  #     - "Hospital network threat detection"
+  #     - "Legacy medical equipment patching"
 
-  - name: "Commercial PropTech"
-    blog_id: "[YOUR_BLOGGER_ID_14]"
-    language: "en"
-    run_group: 3
-    api_key_env: "GEMINI_API_KEY_4"
-    rss_queries:
-      - "Commercial real estate portfolio SaaS"
-      - "Tenant experience mobile apps"
-      - "Lease administration software"
-      - "Digital twin building tech"
+  # - name: "Commercial PropTech"
+  #   blog_id: "[YOUR_BLOGGER_ID_14]"
+  #   language: "en"
+  #   run_group: 3
+  #   api_key_env: "GEMINI_API_KEY_4"
+  #   rss_queries:
+  #     - "Commercial real estate portfolio SaaS"
+  #     - "Tenant experience mobile apps"
+  #     - "Lease administration software"
+  #     - "Digital twin building tech"
 
-  - name: "Smart Building ESG"
-    blog_id: "[YOUR_BLOGGER_ID_15]"
-    language: "en"
-    run_group: 3
-    api_key_env: "GEMINI_API_KEY_5"
-    rss_queries:
-      - "HVAC optimization AI algorithms"
-      - "Commercial building carbon accounting"
-      - "IoT energy monitoring sensors"
-      - "LEED certification tracking software"
+  # - name: "Smart Building ESG"
+  #   blog_id: "[YOUR_BLOGGER_ID_15]"
+  #   language: "en"
+  #   run_group: 3
+  #   api_key_env: "GEMINI_API_KEY_5"
+  #   rss_queries:
+  #     - "HVAC optimization AI algorithms"
+  #     - "Commercial building carbon accounting"
+  #     - "IoT energy monitoring sensors"
+  #     - "LEED certification tracking software"
 
-  # ===== LOGISTICS + COMPLIANCE + REVOPS (group 4, keys 6-10) =====
-  - name: "Supply Chain Visibility"
-    blog_id: "[YOUR_BLOGGER_ID_16]"
-    language: "en"
-    run_group: 4
-    api_key_env: "GEMINI_API_KEY_6"
-    rss_queries:
-      - "Supply chain control tower software"
-      - "Freight forwarding API integration"
-      - "Predictive logistics AI"
-      - "Cold chain IoT tracking"
+  # # ===== LOGISTICS + COMPLIANCE + REVOPS (group 4, keys 6-10) =====
+  # - name: "Supply Chain Visibility"
+  #   blog_id: "[YOUR_BLOGGER_ID_16]"
+  #   language: "en"
+  #   run_group: 4
+  #   api_key_env: "GEMINI_API_KEY_6"
+  #   rss_queries:
+  #     - "Supply chain control tower software"
+  #     - "Freight forwarding API integration"
+  #     - "Predictive logistics AI"
+  #     - "Cold chain IoT tracking"
 
-  - name: "Autonomous Fleet Ops"
-    blog_id: "[YOUR_BLOGGER_ID_17]"
-    language: "en"
-    run_group: 4
-    api_key_env: "GEMINI_API_KEY_7"
-    rss_queries:
-      - "Warehouse robotics management software"
-      - "Commercial EV fleet charging APIs"
-      - "Last-mile delivery routing AI"
-      - "Heavy duty autonomous trucking tech"
+  # - name: "Autonomous Fleet Ops"
+  #   blog_id: "[YOUR_BLOGGER_ID_17]"
+  #   language: "en"
+  #   run_group: 4
+  #   api_key_env: "GEMINI_API_KEY_7"
+  #   rss_queries:
+  #     - "Warehouse robotics management software"
+  #     - "Commercial EV fleet charging APIs"
+  #     - "Last-mile delivery routing AI"
+  #     - "Heavy duty autonomous trucking tech"
 
-  - name: "Cyber Compliance Automation"
-    blog_id: "[YOUR_BLOGGER_ID_18]"
-    language: "en"
-    run_group: 4
-    api_key_env: "GEMINI_API_KEY_8"
-    rss_queries:
-      - "SOC 2 compliance automation SaaS"
-      - "GDPR data privacy APIs"
-      - "ISO 27001 readiness platforms"
-      - "Continuous compliance monitoring"
+  # - name: "Cyber Compliance Automation"
+  #   blog_id: "[YOUR_BLOGGER_ID_18]"
+  #   language: "en"
+  #   run_group: 4
+  #   api_key_env: "GEMINI_API_KEY_8"
+  #   rss_queries:
+  #     - "SOC 2 compliance automation SaaS"
+  #     - "GDPR data privacy APIs"
+  #     - "ISO 27001 readiness platforms"
+  #     - "Continuous compliance monitoring"
 
-  - name: "LegalTech Enterprise"
-    blog_id: "[YOUR_BLOGGER_ID_19]"
-    language: "en"
-    run_group: 4
-    api_key_env: "GEMINI_API_KEY_9"
-    rss_queries:
-      - "AI Contract Lifecycle Management (CLM)"
-      - "Enterprise e-discovery software"
-      - "Corporate legal spend management"
-      - "Intellectual property tracking SaaS"
+  # - name: "LegalTech Enterprise"
+  #   blog_id: "[YOUR_BLOGGER_ID_19]"
+  #   language: "en"
+  #   run_group: 4
+  #   api_key_env: "GEMINI_API_KEY_9"
+  #   rss_queries:
+  #     - "AI Contract Lifecycle Management (CLM)"
+  #     - "Enterprise e-discovery software"
+  #     - "Corporate legal spend management"
+  #     - "Intellectual property tracking SaaS"
 
-  - name: "Enterprise RevOps"
-    blog_id: "[YOUR_BLOGGER_ID_20]"
-    language: "en"
-    run_group: 4
-    api_key_env: "GEMINI_API_KEY_10"
-    rss_queries:
-      - "B2B intent data platforms"
-      - "Configure Price Quote (CPQ) software"
-      - "Sales conversation intelligence AI"
-      - "Subscription billing engines"
+  # - name: "Enterprise RevOps"
+  #   blog_id: "[YOUR_BLOGGER_ID_20]"
+  #   language: "en"
+  #   run_group: 4
+  #   api_key_env: "GEMINI_API_KEY_10"
+  #   rss_queries:
+  #     - "B2B intent data platforms"
+  #     - "Configure Price Quote (CPQ) software"
+  #     - "Sales conversation intelligence AI"
+  #     - "Subscription billing engines"
