@@ -429,11 +429,25 @@ CRITICAL WRITING LAWS:
    "as an AI", "AI assistant".
    Emojis: any (📈 💡 🚀 ✅ etc.) — strictly zero.
    Transitions must happen NATURALLY through new <h2>/<h3> headings.
-6. RAW HTML ONLY: Output pristine, massive HTML using only these tags:
-   <h1>, <h2>, <h3>, <h4>, <p>, <ul>/<li>, <ol>/<li>, <strong>/<b>,
-   <blockquote>, <img>. No markdown formatting blocks like ```html or ```
-   of any kind. No <html>/<body>/<head>/<script>/<style> wrappers
-   (inline style attribute on blockquote/img is OK).
+6. RAW HTML ONLY: Output pristine, massive HTML.
+   Allowed body tags: <h1>, <h2>, <h3>, <h4>, <p>, <ul>/<li>, <ol>/<li>,
+   <strong>/<b>, <blockquote>, <img>.
+   Allowed widget tags — ONLY inside the specifically structured blocks
+   shown in the user template (Newsletter CTA / Mermaid diagram / signup
+   form): <div>, <script type="module">, <pre class="mermaid">,
+   <form>, <input>, <button>.
+   Outside those structured widget blocks the strict body-tag whitelist applies.
+   No markdown formatting blocks like ```html or ``` of any kind.
+   No <html>/<body>/<head>/<style> wrappers.
+   For all <img> tags in the article, use this URL pattern:
+     https://image.pollinations.ai/prompt/{your descriptive 2-4 word english prompt}?width=800&height=400&nologo=true
+   (spaces in the prompt are OK; the URL will be URL-encoded post-process).
+7. VISUAL FRAMEWORKS (MERMAID.JS): You must generate a highly professional,
+   accurate Mermaid.js flowchart (graph TD or graph LR) within the text to
+   visually explain the core architecture, workflow, or business ecosystem
+   discussed in the news. The Mermaid block must be valid syntax — labeled
+   nodes, directional arrows, clear cause-flow. Do not invent unrelated
+   concepts; the diagram must trace the topic's actual mechanics.
 
 OUTPUT PROTOCOL — MANDATORY first three lines (required for downstream parser):
    Line 1:  TITLE: [exact same text as the <h1> below]
@@ -449,87 +463,85 @@ USER_PROMPT_TEMPLATE_EN = """Conduct a massive, exhaustive US/International-focu
 [Source Data]:
 {news_context}
 
-You MUST use the EXACT HTML structure below, filling each section with profound detail, extensive elaboration, and MULTIPLE paragraphs per <h2> and <h3> section. Do not skip any sections. Total body MUST exceed 1,500 words of substantive analysis.
+You MUST use the exact HTML structure below. Do not skip any sections. Total body MUST exceed 1,500 words of substantive analysis.
 
 The first 3 lines below (TITLE / TAGS / ---) are required for downstream parsing. The TITLE line text MUST match the <h1> text exactly.
 
 TITLE: [Highly clickable, ultimate guide style title — IDENTICAL to <h1> below]
 TAGS: 5-7 high-CPC B2B tags (PascalCase / compounds, no spaces inside individual tags), comma + space separated
 ---
-<h1>[Highly clickable, ultimate guide style title (e.g., The Ultimate 2026 Guide to ...)]</h1>
+<h1>[Highly clickable, ultimate guide style title (e.g., The Ultimate 2026 Guide to...)]</h1>
 
-<p>[The Executive Hook — paragraph 1: A robust opening that anchors the reader with a hard-hitting macro fact or named-company shift from the news.]</p>
-<p>[The Executive Hook — paragraph 2: Set the global macroeconomic stage and explain why this technology/trend is critical right now for US C-suite decision-makers.]</p>
+<p>[The Executive Hook: A robust 2-paragraph introduction setting the global macroeconomic stage and explaining why this technology/trend is critical right now.]</p>
 
 <h2>Executive Summary & Core Takeaways</h2>
 <blockquote style="background: #f9f9f9; border-left: 10px solid #1a73e8; margin: 1.5em 10px; padding: 0.5em 10px;">
   <ul>
-    <li><strong>Market Impact:</strong> [Detailed explanation of financial shift with a specific number or named entity]</li>
-    <li><strong>Technical Shift:</strong> [Detailed explanation of infrastructure / operating model change]</li>
-    <li><strong>Strategic Imperative:</strong> [Specific directive for US executives — what to do, when, by which threshold]</li>
+    <li><strong>Market Impact:</strong> [Detailed explanation]</li>
+    <li><strong>Technical Shift:</strong> [Detailed explanation]</li>
+    <li><strong>Strategic Imperative:</strong> [Specific directive]</li>
   </ul>
 </blockquote>
 
 [Insert First AI Image Block Here: <p align="center"><img src="https://image.pollinations.ai/prompt/{{URL_ENCODED_DETAILED_PROMPT}}?width=800&height=400&nologo=true" alt="..." style="max-width: 100%; border-radius: 8px; margin: 20px 0;"></p>]
 
 <h2>Comprehensive Market Overview</h2>
-<p>[Paragraph 1: Macro view of the current US/international landscape regarding this topic. Cite specific market sizing, CAGR, or vendor consolidation trend.]</p>
-<p>[Paragraph 2: Named-vendor landscape — who the dominant players are and how their positioning differs.]</p>
-<p>[Paragraph 3: Capital flow / M&A activity / public market signals tied to this trend.]</p>
-
+<p>[Multiple paragraphs analyzing the current state of the US and international landscape.]</p>
 <h3>The Key Drivers of Adoption</h3>
-<p>[Paragraph 1: Cost-side drivers (OPEX reduction, FTE displacement, TCO improvements). Include at least one <strong>specific dollar or percentage figure</strong>.]</p>
-<p>[Paragraph 2: Efficiency / time-to-value drivers — what shifts in the operating model unlock the gains.]</p>
-<p>[Paragraph 3: Competitive pressure drivers — what happens to enterprises that delay adoption.]</p>
-
+<p>[Extensive breakdown of why enterprises are adopting this now.]</p>
 <h3>US Regulatory & Compliance Landscape</h3>
-<p>[Paragraph 1: Deep dive into the relevant US regulator (SEC, FDA, FTC, OCC, FINRA, HHS, NIST, depending on topic). Name the specific rules or guidance documents.]</p>
-<p>[Paragraph 2: Compliance frameworks that intersect this topic (SOC 2 Type II, ISO 27001, HIPAA, GDPR, PCI DSS). Discuss certification / audit cadence.]</p>
-<p>[Paragraph 3: Pending regulatory shifts or comment periods executives should be tracking.]</p>
+<p>[Deep dive into SEC, FDA, FTC, or standard compliance (SOC2, ISO).]</p>
 
-<h2>Architectural Mechanics: How It Operates at Enterprise Scale</h2>
-<p>[Paragraph 1: Technical breakdown assuming a CTO / VP of Engineering reader. Cover the reference architecture and data flow.]</p>
-<p>[Paragraph 2: Integration touchpoints — what existing enterprise systems (Snowflake, Databricks, Okta, Workday, ServiceNow, Salesforce — whichever fit) this connects to.]</p>
-<p>[Paragraph 3: Highly professional, relatable business analogy that unpacks the complex tech for non-technical board members.]</p>
-<p>[Paragraph 4: Failure modes and observability — what breaks in production and how mature teams instrument for it.]</p>
+<h2>Architectural Mechanics & Process Flow</h2>
+<p>[Detailed technical breakdown. Assume the reader is a CTO or VP of Engineering.]</p>
 
-<h4>Performance Benchmarks at Scale</h4>
-<p>[Paragraph: Latency, throughput, cost-per-transaction, or other engineering benchmarks. Use <strong>specific numbers</strong>.]</p>
-
-<h4>Security and Data Governance Considerations</h4>
-<p>[Paragraph: Zero-trust assumptions, data residency, encryption posture, key management. Reference the relevant compliance framework.]</p>
+<div style="background:#ffffff; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; margin: 30px 0; overflow-x: auto;">
+  <script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'; mermaid.initialize({{ startOnLoad: true }});</script>
+  <pre class="mermaid">
+  [GENERATE A HIGHLY DETAILED MERMAID.JS FLOWCHART (graph TD) HERE EXPLAINING THE CORE PROCESS OR ARCHITECTURE OF THE TOPIC. Use labeled nodes and directional arrows. Replace this bracketed instruction with the actual Mermaid syntax, e.g.:
+  graph TD
+    A[Source System] --> B{{Decision Gateway}}
+    B -->|Path 1| C[Processor]
+    B -->|Path 2| D[Alt Processor]
+    C --> E[Output / Compliance Log]
+    D --> E]
+  </pre>
+</div>
 
 <h2>Enterprise ROI and Strategic Implementation</h2>
-<p>[Paragraph 1: Quantified ROI framing — payback period, IRR, NPV ranges seen at reference customers.]</p>
-<p>[Paragraph 2: Cost categories that materialize 6-18 months in but aren't in the original business case (FinOps overruns, integration debt, training).]</p>
-<p>[Paragraph 3: How to defend the budget line in a downturn — what metric to put on the CFO's quarterly dashboard.]</p>
-
+<p>[Multiple paragraphs discussing the financial return on investment.]</p>
 <h3>Phased Rollout Strategy</h3>
 <ol>
-  <li><strong>Phase 1 (Assessment):</strong> [Discovery, stakeholder mapping, vendor RFI, success-metric definition. Specify expected duration in weeks.]</li>
-  <li><strong>Phase 2 (Pilot Deployment):</strong> [Limited-scope production pilot, success thresholds, kill criteria. Specify <strong>measurable exit criteria</strong>.]</li>
-  <li><strong>Phase 3 (Scale & Optimize):</strong> [Org-wide rollout, FinOps integration, continuous benchmarking. Tie to fiscal-year OKR.]</li>
+  <li><strong>Phase 1 (Assessment):</strong> [Details]</li>
+  <li><strong>Phase 2 (Deployment):</strong> [Details]</li>
+  <li><strong>Phase 3 (Scaling):</strong> [Details]</li>
 </ol>
 
 [Insert Second AI Image Block Here: <p align="center"><img src="https://image.pollinations.ai/prompt/{{URL_ENCODED_DETAILED_PROMPT}}?width=800&height=400&nologo=true" alt="..." style="max-width: 100%; border-radius: 8px; margin: 20px 0;"></p>]
 
+<!-- Premium Newsletter CTA -->
+<div style="background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); color: white; padding: 40px 20px; border-radius: 10px; text-align: center; margin: 40px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+  <h3 style="color: #ffffff; margin-top: 0; font-size: 24px;">Stay Ahead of the Strategic Curve</h3>
+  <p style="font-size: 16px; margin-bottom: 25px; color: #e0e0e0;">Join 5,000+ C-level executives receiving our proprietary weekly briefings on B2B infrastructure shifts.</p>
+  <form onsubmit="event.preventDefault(); alert('Subscription successful! Welcome to the insider list.');" style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+    <input type="email" placeholder="Enter your corporate email" style="padding: 14px 20px; width: 100%; max-width: 320px; border: none; border-radius: 4px; outline: none; font-size: 16px;" required>
+    <button type="submit" style="padding: 14px 28px; background-color: #1a73e8; color: white; border: none; border-radius: 4px; font-weight: bold; font-size: 16px; cursor: pointer; transition: background 0.3s;">Subscribe (Free)</button>
+  </form>
+</div>
+
+<h2>Next Strategic Vectors to Monitor</h2>
+<p>For enterprise leaders mapping their upcoming quarter, these adjacent domains require immediate attention:</p>
+<ul>
+   <li><strong>[Adjacent Tech/Trend 1]:</strong> [Brief reason why it connects to today's topic, acting as a hook for internal site search]</li>
+   <li><strong>[Adjacent Tech/Trend 2]:</strong> [Brief reason]</li>
+   <li><strong>[Adjacent Tech/Trend 3]:</strong> [Brief reason]</li>
+</ul>
+
 <h2>Frequently Asked Questions (FAQ)</h2>
-<p>To provide complete clarity for IT leaders and institutional investors, here are the most critical questions surrounding this trend, answered with US enterprise context:</p>
-
 <h3>What is the most significant hidden cost of implementing this?</h3>
-<p>[Detailed, highly specific answer focused on enterprise realities — typically integration sprawl, downstream observability tooling, or talent premium.]</p>
-
+<p>[Detailed, highly specific answer.]</p>
 <h3>How does this impact existing legacy infrastructure?</h3>
-<p>[Detailed integration challenge breakdown plus three concrete mitigation paths (strangler pattern, anti-corruption layer, parallel run).]</p>
-
-<h3>What is the realistic timeline for seeing measurable ROI?</h3>
-<p>[Data-driven answer with phased timing: months 0-6 (cost), 6-12 (parity), 12-24 (compounding return). Use US enterprise benchmarks.]</p>
-
-<h3>Which US vendors lead this category today?</h3>
-<p>[Named-vendor breakdown — incumbents, challengers, recently funded entrants. Include rough market-share or ARR signal.]</p>
-
-<h3>What is the primary risk that could derail an enterprise rollout?</h3>
-<p>[Specific failure mode — regulatory delay, vendor lock-in, internal change-management fatigue. Tie to a real recent example from the source news.]</p>
+<p>[Detailed explanation.]</p>
 
 <h2>Industry References & Signals</h2>
 <p>This comprehensive analysis is synthesized from recent signals in the US and global enterprise sectors, reflecting real-time shifts in B2B infrastructure and capital allocation.</p>
