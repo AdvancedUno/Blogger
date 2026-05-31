@@ -448,6 +448,25 @@ CRITICAL WRITING LAWS:
    discussed in the news. The Mermaid block must be valid syntax — labeled
    nodes, directional arrows, clear cause-flow. Do not invent unrelated
    concepts; the diagram must trace the topic's actual mechanics.
+   ABSOLUTELY DO NOT wrap the Mermaid code in ```mermaid backticks or any
+   other markdown fence. The very first line inside <pre class="mermaid">
+   must be `graph TD` (or `graph LR`) — nothing else above it. Do not use
+   HTML entities (&amp;, &lt;, &gt;, etc.) inside the Mermaid block — use
+   raw text only.
+8. EXTREME DIVERSITY & CONTRARIAN ANGLES: You must NEVER use repetitive
+   title formats (e.g., do not use "The Ultimate Guide" every time, do not
+   reuse "The $XM Hidden Cost of …" if a previous title used that pattern).
+   You must dynamically rotate your analytical angle based on the news.
+   Choose ONE of these lenses for every post (and rotate across posts):
+     - A contrarian teardown (Why the market is wrong about X)
+     - A pure financial / ROI deep dive (cost structure, IRR, payback math)
+     - A regulatory risk warning (specific US agency stance + deadline)
+     - A ruthless vendor comparison (incumbent vs. challenger teardown)
+   The structure, vocabulary, opening sentence shape, and phrasing must
+   feel completely unique from your previous outputs. If the previous
+   article opened with a dollar figure, this one must NOT — open with a
+   named regulator, a vendor move, or a fail-mode instead. Vary cadence,
+   sentence length, and lead noun aggressively.
 
 OUTPUT PROTOCOL — MANDATORY first three lines (required for downstream parser):
    Line 1:  TITLE: [exact same text as the <h1> below]
@@ -467,10 +486,10 @@ You MUST use the exact HTML structure below. Do not skip any sections. Total bod
 
 The first 3 lines below (TITLE / TAGS / ---) are required for downstream parsing. The TITLE line text MUST match the <h1> text exactly.
 
-TITLE: [Highly clickable, ultimate guide style title — IDENTICAL to <h1> below]
+TITLE: [Same text as the <h1> below — follow the diversity rules in that <h1> placeholder. NEVER use "The Ultimate Guide".]
 TAGS: 5-7 high-CPC B2B tags (PascalCase / compounds, no spaces inside individual tags), comma + space separated
 ---
-<h1>[Highly clickable, ultimate guide style title (e.g., The Ultimate 2026 Guide to...)]</h1>
+<h1>[Generate a highly specific, click-driven B2B title. ROTATE FORMATS: Use data-backed hooks (e.g., "The $50M Hidden Cost of..."), contrarian takes (e.g., "Why Enterprise CI/CD is Failing..."), or strategic warnings (e.g., "The SEC's New Stance on..."). NEVER use the phrase "The Ultimate Guide".]</h1>
 
 <p>[The Executive Hook: A robust 2-paragraph introduction setting the global macroeconomic stage and explaining why this technology/trend is critical right now.]</p>
 
@@ -498,13 +517,7 @@ TAGS: 5-7 high-CPC B2B tags (PascalCase / compounds, no spaces inside individual
 <div style="background:#ffffff; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; margin: 30px 0; overflow-x: auto;">
   <script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'; mermaid.initialize({{ startOnLoad: true }});</script>
   <pre class="mermaid">
-  [GENERATE A HIGHLY DETAILED MERMAID.JS FLOWCHART (graph TD) HERE EXPLAINING THE CORE PROCESS OR ARCHITECTURE OF THE TOPIC. Use labeled nodes and directional arrows. Replace this bracketed instruction with the actual Mermaid syntax, e.g.:
-  graph TD
-    A[Source System] --> B{{Decision Gateway}}
-    B -->|Path 1| C[Processor]
-    B -->|Path 2| D[Alt Processor]
-    C --> E[Output / Compliance Log]
-    D --> E]
+[CRITICAL INSTRUCTION: GENERATE A HIGHLY DETAILED MERMAID.JS FLOWCHART (graph TD) HERE. YOU MUST OUTPUT RAW TEXT ONLY. DO NOT WRAP THE CODE IN ```mermaid BACKTICKS. DO NOT USE HTML ENTITIES. START THE VERY FIRST LINE DIRECTLY WITH "graph TD".]
   </pre>
 </div>
 
