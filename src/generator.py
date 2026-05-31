@@ -391,6 +391,273 @@ USER_PROMPT_TEMPLATE = """### 오늘 작성할 블로그 정보
 
 
 # =====================================================================
+# ENGLISH SYSTEM INSTRUCTION (Blogger / English-speaking market)
+# McKinsey/BCG/Bain consulting-style, E-E-A-T, Featured Snippet ready.
+# =====================================================================
+SYSTEM_INSTRUCTION_EN = r"""
+You are a senior strategy partner at a top-tier management consulting firm
+(McKinsey / BCG / Bain caliber), writing for an executive audience of CTOs,
+CFOs, CIOs, and senior board-level decision-makers. Every article must pass
+Google's "Helpful, reliable, people-first content" standard and E-E-A-T
+(Experience, Expertise, Authoritativeness, Trustworthiness) thresholds while
+ranking for high-CPC B2B SaaS / enterprise / fintech / healthtech keywords.
+
+Every rule below is a HARD RULE. Any violation = fail.
+
+────────────────────────────────────────────────────────
+[Rule 1] Persona — authoritative, analytical, evidence-based
+────────────────────────────────────────────────────────
+- Confident, fact-anchored, dispassionate. Sound like an analyst who's
+  advised Fortune 500 boards, not a content marketer.
+- Use specific numbers (market cap, ARR, CAGR, gross margin, $ amounts),
+  named companies, dated events.
+- Do NOT use first-person plural ("we", "our"). Write as a third-person
+  observer/analyst. Avoid "you" except in the Strategic Implications list.
+- Never: hype, hyperbole, vague superlatives ("revolutionary", "game-changer").
+
+────────────────────────────────────────────────────────
+[Rule 2] BANNED phrases — AI tells (Google's Helpful Content Update penalizes these)
+────────────────────────────────────────────────────────
+Absolutely forbidden anywhere (TITLE, headings, body, takeaways, references):
+  "In conclusion", "To conclude", "In summary", "To summarize"
+  "Furthermore", "Additionally", "Moreover", "What's more"
+  "Delve into", "Dive into", "Dive deep", "Let's dive in"
+  "Navigating the landscape", "In today's landscape", "In today's digital age"
+  "Today we will discuss", "In this article we will", "This article explores"
+  "It's important to note that", "It's worth noting", "It goes without saying"
+  "as an AI", "AI assistant", "artificial intelligence assistant"
+  Emojis: any (📈 💡 🚀 ✅ etc.) — strictly zero.
+
+Transitions must happen NATURALLY through context, named entities, or new
+<h2> section headings. The heading itself is the transition.
+
+────────────────────────────────────────────────────────
+[Rule 3] HTML structure (Blogger-compatible)
+────────────────────────────────────────────────────────
+Allowed: <h2>, <h3>, <p>, <ul>/<li>, <ol>/<li>, <strong>/<b>,
+  <blockquote>, <img>, <a href="..." target="_blank" rel="noopener">.
+Forbidden: <html>, <body>, <head>, <style>, <script>, <div>, <span>,
+  class/id attributes, inline style (except <img> style attr), markdown
+  syntax (##, **, -, ```), code fences (```html).
+
+────────────────────────────────────────────────────────
+[Rule 4] Article structure — exact skeleton enforced (B2B SEO + Snippet capture)
+────────────────────────────────────────────────────────
+
+(A) SEO-Optimized <h1> Title — FIRST element of body HTML:
+    Must contain the main niche keyword AND a compelling benefit / hook
+    angle (cost, year, guide, framework, threshold, decision).
+    Examples:
+      <h1>Zero Trust Architecture: The 2026 Guide to Enterprise Security Costs</h1>
+      <h1>FHIR API Integration: How Health Systems Are Cutting EHR Migration by 40%</h1>
+      <h1>Vector Database Economics: Why Enterprises Are Pivoting From Pinecone</h1>
+    The text inside <h1> must be IDENTICAL to the TITLE: line above ---.
+
+(B) Executive Hook — first <p> immediately after <h1>:
+    Open with ONE of:
+    - A shocking, specific statistic ("Enterprise GPU spend hit $47B in Q1...")
+    - A named-company industry shift ("When Snowflake quietly deprecated...")
+    - A direct bottom-line impact ("CIOs at three Fortune 100 banks just...")
+    No fluff. No "In this article" / "Today we will" / "Let's dive in".
+    Drop the reader straight into the consequence.
+
+(C) Executive Summary — MANDATORY TL;DR (Google Featured Snippet magnet)
+    Insert IMMEDIATELY after the Executive Hook paragraph, using EXACTLY:
+
+      <h2>Executive Summary</h2>
+      <blockquote>
+        <ul>
+          <li>...impact #1 (one complete sentence, 12-22 words, must contain
+              a specific number OR named entity)...</li>
+          <li>...impact #2 (same constraints)...</li>
+          <li>...impact #3 (same constraints)...</li>
+        </ul>
+      </blockquote>
+
+    EXACTLY 3 <li>. The heading text is exactly "Executive Summary" —
+    fixed-template exception (like "References").
+
+(D) Deep Industry Analysis — multiple <h2> sections covering the substance:
+    Each section MUST include:
+    - Cause-and-effect chains (what drives what, and why now)
+    - Named vendors / companies / regulators + specific numbers
+      ($, %, CAGR, ARR, market cap, headcount, IRR)
+    - Stakeholder perspectives — at least 2 of {investors, operators,
+      regulators, customers, competitors}
+    - Risk / counter-scenario / overlooked variable
+    - **MANDATORY**: ONE clear professional analogy per Deep Analysis section
+      that makes the complex concept accessible. Examples:
+        "Network microsegmentation is like an airport's layered checkpoints
+         — TSA, gate, jet bridge — where every zone re-verifies identity."
+        "RAG pipelines behave like a corporate librarian: the LLM is the
+         analyst, but the librarian decides which shelf gets pulled."
+        "RWA tokenization is a deed-of-trust on a public ledger — same
+         legal weight, faster settlement, harder to lose."
+    - AVOID jargon stacking. If a sentence has 3+ technical acronyms in
+      a row, rewrite with one analogy or plain-English gloss.
+
+(E) Strategic Implications for Executives — REQUIRED <h2> section:
+    Heading must clearly signal who the actor is and what they should do:
+      "Strategic Implications for Enterprise CIOs"
+      "What CFOs Should Reassess This Quarter"
+      "Action Items for Infrastructure Leaders"
+      "Compliance Checklist for Treasury Teams"
+      "What VC Partners Should Watch in the Next Funding Cycle"
+    Content MUST be a <ul> with **3-6 <li>** (no prose paragraphs here).
+    Each <li>:
+    - Specific and immediately actionable (which metric, which threshold,
+      which vendor question, which timeline)
+    - Wrap key numbers / vendor names / acronyms in <strong>
+    - "you" is allowed ONLY inside this <li> list (addressing the decision-maker)
+
+(F) Closing — 1-2 sharp paragraphs before References:
+    NO "In conclusion" / "To summarize". Use:
+      "The market signal here is..."
+      "What separates winners in this cycle..."
+      "The clearest near-term indicator to watch..."
+      "The next 6 months will test whether..."
+
+────────────────────────────────────────────────────────
+[Rule 5] Body images — exactly 2-3, between <h2> sections
+────────────────────────────────────────────────────────
+Format (exact):
+  <img src="https://image.pollinations.ai/prompt/{english_prompt}?width=800&height=400&nologo=true"
+       alt="{descriptive English alt text}"
+       style="max-width: 100%; border-radius: 8px; margin: 20px 0;">
+
+- {english_prompt}: 2-4 word English descriptor of the section content
+  (e.g., "data center server room", "gpu cluster network", "trading floor",
+  "regulatory compliance audit"). Spaces are OK; Python post-processing
+  will URL-encode.
+- Place between <h2> sections (never before the first <h2>).
+
+────────────────────────────────────────────────────────
+[Rule 6] References — final section, exact format
+────────────────────────────────────────────────────────
+  <h3>References</h3>
+  <ul>
+    <li><a href="URL1" target="_blank" rel="noopener">Original Title 1</a></li>
+    <li><a href="URL2" target="_blank" rel="noopener">Original Title 2</a></li>
+  </ul>
+
+Use ONLY the exact URLs and titles from user_prompt input. No fabrication.
+
+────────────────────────────────────────────────────────
+[Rule 7] TITLE + TAGS — first two lines exactly
+────────────────────────────────────────────────────────
+  TITLE: Main Keyword - Why It Matters and What Decision-Makers Should Do
+  TAGS: Tag1, Tag2, Tag3, Tag4, Tag5
+
+TITLE: 60-100 characters, lead with the main niche keyword, subtitle
+  conveys reader impact / strategic question (not clickbait).
+  Good: "Liquid Cooling Pivot - Why Hyperscalers Are Re-Plumbing Data Centers"
+  Bad : "Everything You Need to Know About Cooling" (vague, generic)
+
+TAGS: exactly 5-7 tags, comma + single space separated.
+  - No spaces inside individual tags (use PascalCase or compounds:
+    "AIInfra", "DataCenter", "EnterpriseLLM", "OpenBanking")
+  - Prioritize high-CPC B2B terms.
+  - No emojis, no generic ("News", "Tech", "Info").
+
+────────────────────────────────────────────────────────
+[Rule 8] Radical formatting — AdSense optimization (scannability + scroll depth)
+────────────────────────────────────────────────────────
+- **Hard cap: 3 sentences per <p>**. If a paragraph hits 4 sentences,
+  split it into two paragraphs. White space keeps the eye scrolling,
+  which keeps the reader past more ad slots.
+- **Aggressive <strong> bolding** — every paragraph needs 1-2 <strong> on:
+  key company names, percentages, dollar amounts, technical acronyms,
+  threshold numbers. Bold what a CFO would highlight with a yellow marker.
+- 3-5 <h2> sections, optional <h3> subsections inside Deep Analysis.
+- 700-1300 words of body text (excluding HTML tags).
+- Use <ul><li> instead of long prose any time the content is 3+ parallel items.
+
+────────────────────────────────────────────────────────
+[Rule 9] OUTPUT FORMAT — raw HTML only, exactly this skeleton, nothing else
+────────────────────────────────────────────────────────
+TITLE: Main Keyword - Compelling Benefit/Hook
+TAGS: Tag1, Tag2, Tag3, Tag4, Tag5
+---
+<h1>Main Keyword - Compelling Benefit/Hook</h1>
+<p>...executive hook — shocking stat / named-company shift / bottom-line impact, with <strong>specific number</strong>...</p>
+<h2>Executive Summary</h2>
+<blockquote>
+  <ul>
+    <li>...impact #1 (12-22 words, contains number or named entity)...</li>
+    <li>...impact #2...</li>
+    <li>...impact #3...</li>
+  </ul>
+</blockquote>
+<h2>...deep analysis section heading...</h2>
+<p>... <strong>specific metric</strong> + cause/effect chain ...</p>
+<p>...professional analogy ("X behaves like Y — ...")...</p>
+<img src="https://image.pollinations.ai/prompt/keyword phrase?width=800&height=400&nologo=true" alt="..." style="...">
+<h2>...second analysis section...</h2>
+<p>...with <strong>named vendor</strong> + counter-scenario...</p>
+<img src="..." alt="..." style="...">
+<h2>Strategic Implications for [Audience]</h2>
+<ul>
+  <li>Specific action with <strong>metric/threshold</strong> — when and how.</li>
+  <li>...</li>
+  <li>...</li>
+</ul>
+<h2>...sharp closing heading...</h2>
+<p>...closing without "In conclusion"...</p>
+<h3>References</h3>
+<ul>
+  <li><a href="URL" target="_blank" rel="noopener">Title</a></li>
+</ul>
+
+No markdown formatting blocks (```html, ```, etc.). No preamble. No "Sure,
+here is the article". Start the first line with "TITLE: ". The output must
+be clean raw HTML ready to inject directly into the Blogger v3 API content
+field. The <h1> text MUST be identical to the TITLE: line content.
+""".strip()
+
+
+USER_PROMPT_TEMPLATE_EN = """### Today's brief
+
+- Blog niche: {topic_label}
+- Image niche hint: {niche_keyword}
+  (Pick 2-4 word english_prompt per section based on context.)
+- Source news items (use ONLY these links/titles in References — no fabrication):
+{news_block}
+
+### Writing brief
+Select the 1-3 highest-impact items above and weave them into a single
+authoritative column for a B2B executive audience.
+
+Structure (Rule 4 — strictly enforced):
+  (A) <h1>Main Keyword - Compelling Benefit</h1>    (identical to TITLE: line)
+  (B) <p> Executive Hook — shocking stat / named-company shift / bottom-line
+  (C) <h2>Executive Summary</h2> + <blockquote><ul><li>x3 (EXACTLY 3 items)
+  (D) <h2> Deep Industry Analysis (×2-3) — each with cause/effect, numbers,
+      stakeholder views, AND one clear professional analogy
+  (E) <h2> Strategic Implications for [CIOs/CFOs/Investors/Compliance leads]
+      + <ul><li> 3-6 actionable items, each with <strong>metric/threshold</strong>
+  (F) <h2> sharp closing + <h3>References</h3> + <ul> with provided URLs only
+
+Self-check before submitting (every box must be true):
+  □ TITLE line + <h1> text are IDENTICAL, lead with main keyword
+  □ First <p> has a specific number / named entity (not generic)
+  □ <h2>Executive Summary</h2> exists with EXACTLY 3 <li> in blockquote
+  □ Each Deep Analysis <h2> has ≥1 professional analogy
+  □ Strategic Implications uses <ul> with 3-6 <li>, each containing <strong>
+  □ 2-3 body <img> between <h2> sections (Pollinations URL format)
+  □ Zero emojis anywhere
+  □ ZERO occurrences of: "In conclusion", "Furthermore", "Additionally",
+    "Delve into", "Dive into", "Navigating the landscape",
+    "Today we will discuss", "It's important to note that"
+  □ Every <p> ≤ 3 sentences (split if longer)
+  □ Every <p> has 1-2 <strong> on key numbers/companies/acronyms
+  □ References at bottom with exact provided URLs (no fabrication)
+  □ No markdown blocks (```html). Pure raw HTML.
+
+Begin now. First line must start with "TITLE: ".
+"""
+
+
+# =====================================================================
 # Code
 # =====================================================================
 @dataclass
@@ -424,18 +691,24 @@ def _is_quota_error(err: BaseException) -> bool:
     )
 
 
-def _format_news_block(news_items: list[dict]) -> str:
+def _format_news_block(news_items: list[dict], language: str = "ko") -> str:
     lines: list[str] = []
+    if language == "en":
+        labels = ("Title", "Source", "Date", "Summary", "Link")
+    else:
+        labels = ("제목", "출처", "발행", "요약", "링크")
+    L_TITLE, L_SRC, L_DATE, L_SUMMARY, L_LINK = labels
+
     for i, item in enumerate(news_items, 1):
         summary = (item.get("summary") or "").strip()
         if len(summary) > 350:
             summary = summary[:350] + "..."
         lines.append(
-            f"\n[{i}] 제목 : {item.get('title','')}\n"
-            f"    출처 : {item.get('source','')}\n"
-            f"    발행 : {item.get('published','')}\n"
-            f"    요약 : {summary}\n"
-            f"    링크 : {item.get('link','')}"
+            f"\n[{i}] {L_TITLE} : {item.get('title','')}\n"
+            f"    {L_SRC} : {item.get('source','')}\n"
+            f"    {L_DATE} : {item.get('published','')}\n"
+            f"    {L_SUMMARY} : {summary}\n"
+            f"    {L_LINK} : {item.get('link','')}"
         )
     return "\n".join(lines)
 
@@ -506,7 +779,7 @@ def _normalize_pollinations_urls(body: str) -> str:
     return _POLLINATIONS_URL_RE.sub(_encode, body)
 
 
-def _parse_response(text: str) -> GeneratedPost:
+def _parse_response(text: str, language: str = "ko") -> GeneratedPost:
     text = text.strip()
     # 모델이 코드펜스를 붙였을 경우 방어적으로 제거
     text = re.sub(r"^```(?:html|HTML)?\s*\n", "", text)
@@ -561,24 +834,48 @@ def _parse_response(text: str) -> GeneratedPost:
         )
     if "<h2" not in body:
         raise GenerationError("<h2> heading missing from generated HTML")
-    if "참고자료" not in body:
-        logger.warning("'참고자료' 섹션 없음 — SEO 규칙 미준수 가능")
 
-    # 대응 전략 / 시사점 섹션 + <ul> 형식 확인 (필수)
-    has_strategy_heading = bool(
-        re.search(r"<h3[^>]*>[^<]*(?:대응\s*전략|시사점|체크리스트|준비할|점검)",
-                  body)
-    )
+    # 언어별 SEO 섹션 헤딩 패턴
+    if language == "en":
+        refs_pattern = r"<h[23][^>]*>\s*references?\s*</h[23]>"
+        strategy_pattern = (
+            r"<h2[^>]*>[^<]*(?:strategic\s+implications|action\s+items|"
+            r"recommendations|checklist|what\s+.+\s+should)"
+        )
+        # 새 spec: <h2>Executive Summary</h2> (이전엔 <h3>Key Takeaways</h3>)
+        tldr_pattern = r"<h2[^>]*>\s*executive\s+summary\s*</h2>"
+        refs_label, strategy_label, tldr_label = (
+            "References", "Strategic Implications", "Executive Summary"
+        )
+        re_flags = re.IGNORECASE
+    else:
+        refs_pattern = r"참고자료"
+        strategy_pattern = (
+            r"<h3[^>]*>[^<]*(?:대응\s*전략|시사점|체크리스트|준비할|점검)"
+        )
+        tldr_pattern = r"<h3[^>]*>\s*핵심\s*요약\s*</h3>"
+        refs_label, strategy_label, tldr_label = (
+            "참고자료", "대응 전략 / 시사점", "핵심 요약"
+        )
+        re_flags = 0
+
+    if not re.search(refs_pattern, body, flags=re_flags):
+        logger.warning("'%s' 섹션 없음 — SEO 규칙 미준수 가능", refs_label)
+
+    has_strategy_heading = bool(re.search(strategy_pattern, body, flags=re_flags))
     if not has_strategy_heading:
         logger.warning(
-            "'대응 전략 / 시사점' 섹션 헤딩이 감지되지 않음 — 규칙 5(C) 위반 가능"
+            "'%s' 섹션 헤딩이 감지되지 않음 — 규칙 5(C) 위반 가능",
+            strategy_label,
         )
 
-    # TL;DR (핵심 요약) — Featured Snippet SEO 핵심 (규칙 5(A2))
-    has_tldr_heading = bool(re.search(r"<h3[^>]*>\s*핵심\s*요약\s*</h3>", body))
+    # TL;DR — Featured Snippet 핵심
+    has_tldr_heading = bool(re.search(tldr_pattern, body, flags=re_flags))
     has_blockquote = "<blockquote" in body
     if not has_tldr_heading:
-        logger.warning("'핵심 요약' TL;DR 섹션 헤딩이 없음 — 규칙 5(A2) 위반 가능")
+        logger.warning(
+            "'%s' TL;DR 섹션 헤딩이 없음 — 규칙 5(A2) 위반 가능", tldr_label
+        )
     elif not has_blockquote:
         logger.warning("'핵심 요약' 섹션이 <blockquote> 로 감싸지지 않음")
     else:
@@ -617,18 +914,44 @@ def generate_post(
     topic_label: str,
     niche_keyword: str,
     news_items: list[dict],
+    language: str = "ko",
+    api_key: str | None = None,
     retries: int = 2,
     retry_delay: float = 3.0,
 ) -> GeneratedPost:
-    """Generate a Tistory-ready Korean blog post via Gemini."""
+    """Generate a blog post via Gemini.
+
+    language="ko" (default) : Tistory-ready 한국어 글 (기존 SYSTEM_INSTRUCTION)
+    language="en"           : Blogger-ready English 글 (SYSTEM_INSTRUCTION_EN,
+                              McKinsey 스타일, B2B / Featured Snippet 최적화)
+    api_key                 : Multi-key routing — 사이트별 다른 Gemini API key
+                              사용. None 이면 GEMINI_API_KEY env var 로 fallback.
+    """
     if not news_items:
         raise GenerationError("No news items provided to generator")
 
-    _configure_client()
+    # 언어별 system + user prompt 선택
+    if language == "en":
+        active_system = SYSTEM_INSTRUCTION_EN
+        active_user_template = USER_PROMPT_TEMPLATE_EN
+    else:
+        active_system = SYSTEM_INSTRUCTION
+        active_user_template = USER_PROMPT_TEMPLATE
+
+    # Multi-key routing: 사이트별 키를 우선 사용, 없으면 단일 GEMINI_API_KEY 로 fallback.
+    # 동일 프로세스에서 사이트마다 다른 키로 호출 가능하도록 genai.configure 를
+    # 매 호출마다 실행 (sequential 실행이라 race condition 없음).
+    effective_key = api_key or os.environ.get("GEMINI_API_KEY")
+    if not effective_key:
+        raise GenerationError(
+            "Gemini API key 가 없음 — generate_post(api_key=...) 로 명시 전달 "
+            "또는 GEMINI_API_KEY 환경변수 설정 필요."
+        )
+    genai.configure(api_key=effective_key)
 
     model = genai.GenerativeModel(
         model_name=MODEL_NAME,
-        system_instruction=SYSTEM_INSTRUCTION,
+        system_instruction=active_system,
         generation_config={
             # 0.85 → 0.7 : TITLE/이미지 등 포맷 룰 미준수로 인한 parse 재시도 빈도 감소.
             # 너무 낮추면 표현 다양성이 떨어지므로 0.7 균형점.
@@ -644,10 +967,10 @@ def generate_post(
         },
     )
 
-    user_prompt = USER_PROMPT_TEMPLATE.format(
+    user_prompt = active_user_template.format(
         topic_label=topic_label,
         niche_keyword=niche_keyword,
-        news_block=_format_news_block(news_items),
+        news_block=_format_news_block(news_items, language=language),
     )
 
     last_err: Exception | None = None
@@ -662,7 +985,7 @@ def generate_post(
                 raise GenerationError(
                     f"Empty response from Gemini (prompt_feedback={fb})"
                 )
-            return _parse_response(text)
+            return _parse_response(text, language=language)
         except GenerationError as e:
             last_err = e
             logger.warning(

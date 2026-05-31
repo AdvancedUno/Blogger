@@ -50,14 +50,24 @@ jobs:
 
       - name: Run daily pipeline
         env:
+          # --- AI (multi-key routing, GEMINI_API_KEY 는 fallback) ---
           GEMINI_API_KEY:       ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY_1:     ${{ secrets.GEMINI_API_KEY_1 }}
+          GEMINI_API_KEY_2:     ${{ secrets.GEMINI_API_KEY_2 }}
+          GEMINI_API_KEY_3:     ${{ secrets.GEMINI_API_KEY_3 }}
+          GEMINI_API_KEY_4:     ${{ secrets.GEMINI_API_KEY_4 }}
+          GEMINI_API_KEY_5:     ${{ secrets.GEMINI_API_KEY_5 }}
+          GEMINI_API_KEY_6:     ${{ secrets.GEMINI_API_KEY_6 }}
+          GEMINI_API_KEY_7:     ${{ secrets.GEMINI_API_KEY_7 }}
+          GEMINI_API_KEY_8:     ${{ secrets.GEMINI_API_KEY_8 }}
+          GEMINI_API_KEY_9:     ${{ secrets.GEMINI_API_KEY_9 }}
+          GEMINI_API_KEY_10:    ${{ secrets.GEMINI_API_KEY_10 }}
           # GEMINI_MODEL:       ${{ secrets.GEMINI_MODEL }}   # 모델명 오버라이드 시
           TISTORY_STATE_PATH:   state.json
           # --- Self-Healing 자동 재로그인용 자격증명 ---
-          # SessionExpiredError 발생 시 src/auto_login.renew_tistory_session 이
-          # 이 자격증명으로 카카오 로그인 → state.json 재생성 → 재발행.
           KAKAO_EMAIL:          ${{ secrets.KAKAO_EMAIL }}
           KAKAO_PASSWORD:       ${{ secrets.KAKAO_PASSWORD }}
+        # --group N 으로 특정 그룹만 실행 가능 (e.g., "python main.py --group 1")
         run: python main.py
 
       - name: Upload debug artifacts (screenshots + HTML dump)

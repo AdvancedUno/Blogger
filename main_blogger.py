@@ -1,12 +1,7 @@
-"""Daily multi-blog pipeline entrypoint.
+"""Daily Blogger pipeline entrypoint — Tistory pipeline 과 완전 분리.
 
-Loops over every blog profile defined in `config.yaml`:
-  1) Fetch top Google News RSS items for the blog's query
-  2) Generate a Tistory-ready Korean HTML post via Gemini
-  3) Publish to Tistory via Open API
-
-A failure in one blog does NOT abort the pipeline for the others.
-The process exits non-zero if any blog failed (so CI surfaces it).
+config.yaml 의 `blogger_sites` 섹션만 읽어서 영어 글을 생성하고 Blogger v3
+REST API 로 발행한다. Playwright/storage_state 의존 없음.
 """
 from __future__ import annotations
 
@@ -20,19 +15,19 @@ from pathlib import Path
 
 import yaml
 
-# Gemini 무료 티어 RPM 한도 회피용 블로그 간 sleep (초)
-INTER_BLOG_SLEEP_SECONDS = 25
+# Gemini free-tier RPM 회피용 사이트 간 sleep (초)
+INTER_SITE_SLEEP_SECONDS = 15
 
 from src.fetcher import FetchError, fetch_top_news
 from src.generator import GenerationError, generate_post
-from src.publisher import PublishError, publish_to_tistory
+from src.blogger_publisher import BloggerPublishError, publish_to_blogger
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
-logger = logging.getLogger("daily_post")
+logger = logging.getLogger("daily_blogger")
 
 CONFIG_PATH = Path(__file__).parent / "config.yaml"
 
@@ -44,16 +39,18 @@ def load_config() -> dict:
         return yaml.safe_load(f) or {}
 
 
-def run_one(blog: dict, defaults: dict) -> tuple[bool, str]:
-    name = blog.get("name", "<unnamed>")
+def run_one(site: dict, defaults: dict) -> tuple[bool, str]:
+    name = site.get("name", "<unnamed>")
     logger.info("================ START : %s ================", name)
 
-    # ----- 1. Fetch (Keyword Roulette: rss_queries 리스트 중 1개 랜덤 선택) -----
+    # ----- 1. Fetch (Keyword Roulette) --------------------------------
     try:
         news = fetch_top_news(
-            queries=blog["rss_queries"],
+            queries=site["rss_queries"],
             blog_name=name,
-            max_items=int(blog.get("max_news_items", defaults.get("max_news_items", 6))),
+            max_items=int(
+                site.get("max_news_items", defaults.get("max_news_items", 6))
+            ),
         )
         logger.info("[%s] Fetched %d news items", name, len(news))
     except (FetchError, KeyError) as e:
@@ -64,9 +61,9 @@ def run_one(blog: dict, defaults: dict) -> tuple[bool, str]:
                      name, e, traceback.format_exc())
         return False, f"fetcher-unexpected: {e}"
 
-    # ----- 2. Generate ------------------------------------------------
-    # Multi-key routing: 사이트별 api_key_env 환경변수에서 키 읽기 (없으면 None → fallback)
-    api_key_env = blog.get("api_key_env", "GEMINI_API_KEY")
+    # ----- 2. Generate (English prompt) -------------------------------
+    # Multi-key routing
+    api_key_env = site.get("api_key_env", "GEMINI_API_KEY")
     api_key = os.environ.get(api_key_env)
     if not api_key:
         logger.warning(
@@ -76,9 +73,10 @@ def run_one(blog: dict, defaults: dict) -> tuple[bool, str]:
 
     try:
         post = generate_post(
-            topic_label=blog["topic_label"],
-            niche_keyword=blog["niche_keyword"],
+            topic_label=site.get("topic_label", name),
+            niche_keyword=site.get("niche_keyword", "business"),
             news_items=news,
+            language=site.get("language", "en"),
             api_key=api_key,
         )
         logger.info(
@@ -93,10 +91,9 @@ def run_one(blog: dict, defaults: dict) -> tuple[bool, str]:
                      name, e, traceback.format_exc())
         return False, f"generator-unexpected: {e}"
 
-    # ----- 3. Publish (Playwright + storage_state 주입) ---------------
-    # 태그 우선순위: AI 가 생성한 5~7개 SEO 태그 → 비었으면 config 태그.
+    # ----- 3. Publish (Blogger v3 REST API) ---------------------------
     ai_tags = list(post.tags or [])
-    config_tags = list(blog.get("tags") or [])
+    config_tags = list(site.get("tags") or [])
     final_tags = ai_tags if ai_tags else config_tags
     logger.info(
         "[%s] Tag source: %s (ai=%d, config=%d) → %s",
@@ -106,16 +103,16 @@ def run_one(blog: dict, defaults: dict) -> tuple[bool, str]:
     )
 
     try:
-        url = publish_to_tistory(
-            blog_name=blog["blog_name"],
+        url = publish_to_blogger(
+            blog_id=site["blog_id"],
             title=post.title,
             html_content=post.html,
             tags=final_tags,
-            headless=bool(defaults.get("headless", True)),
+            is_draft=bool(site.get("draft", False)),
         )
         logger.info("[%s] Published OK -> %s", name, url)
         return True, url
-    except PublishError as e:
+    except BloggerPublishError as e:
         logger.error("[%s] Publisher failed: %s", name, e)
         return False, f"publisher: {e}"
     except Exception as e:
@@ -125,10 +122,10 @@ def run_one(blog: dict, defaults: dict) -> tuple[bool, str]:
 
 
 def _parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Daily Tistory pipeline")
+    p = argparse.ArgumentParser(description="Daily Blogger pipeline")
     p.add_argument(
         "--group", type=int, default=None,
-        help="run_group 일치하는 블로그만 실행. 미지정이면 전체.",
+        help="run_group 일치하는 사이트만 실행. 미지정이면 전체.",
     )
     return p.parse_args()
 
@@ -136,34 +133,33 @@ def _parse_args() -> argparse.Namespace:
 def main() -> int:
     args = _parse_args()
     cfg = load_config()
-    blogs = cfg.get("blogs") or []
+    sites = cfg.get("blogger_sites") or []
     defaults = cfg.get("defaults") or {}
 
-    if not blogs:
-        logger.error("No blogs configured in %s", CONFIG_PATH)
+    if not sites:
+        logger.error("No blogger_sites configured in %s", CONFIG_PATH)
         return 1
 
     # run_group 필터
     if args.group is not None:
-        blogs = [b for b in blogs if b.get("run_group") == args.group]
-        logger.info("Filtered by run_group=%d → %d blog(s)", args.group, len(blogs))
-        if not blogs:
-            logger.warning("No blogs matched run_group=%d", args.group)
+        sites = [s for s in sites if s.get("run_group") == args.group]
+        logger.info("Filtered by run_group=%d → %d site(s)", args.group, len(sites))
+        if not sites:
+            logger.warning("No sites matched run_group=%d", args.group)
             return 0
 
     results: list[tuple[str, bool, str]] = []
-    total = len(blogs)
-    for idx, blog in enumerate(blogs):
-        ok, info = run_one(blog, defaults)
-        results.append((blog.get("name", "<unnamed>"), ok, info))
+    total = len(sites)
+    for idx, site in enumerate(sites):
+        ok, info = run_one(site, defaults)
+        results.append((site.get("name", "<unnamed>"), ok, info))
 
-        # 마지막 블로그가 아니면 Gemini RPM 한도 회피용 대기.
         if idx < total - 1:
             logger.info(
-                "Sleeping %ds before next blog (Gemini free-tier RPM safeguard)",
-                INTER_BLOG_SLEEP_SECONDS,
+                "Sleeping %ds before next site (Gemini RPM safeguard)",
+                INTER_SITE_SLEEP_SECONDS,
             )
-            time.sleep(INTER_BLOG_SLEEP_SECONDS)
+            time.sleep(INTER_SITE_SLEEP_SECONDS)
 
     logger.info("=================== SUMMARY ===================")
     for name, ok, info in results:

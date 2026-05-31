@@ -1,0 +1,59 @@
+name: Daily Blogger Post
+
+# Tistory 워크플로(daily_post.yml) 와 완전 독립.
+# Blogger v3 REST API 만 사용 — Playwright/storage_state 불필요.
+
+on:
+  schedule:
+    # 매일 1회. Tistory cron 과 겹치지 않게 다른 시간대.
+    # 02:00 UTC = 11:00 KST = 22:00 EST (전일) — 영어권 아침 노출용
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: daily-blogger-post
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15        # Playwright 없으니 Tistory 보다 짧음
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Playwright 설치 step 없음 — Blogger v3 는 REST API 라 브라우저 불필요
+
+      - name: Run blogger pipeline
+        env:
+          # --- AI (multi-key routing, GEMINI_API_KEY 는 fallback) ---
+          GEMINI_API_KEY:       ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY_1:     ${{ secrets.GEMINI_API_KEY_1 }}
+          GEMINI_API_KEY_2:     ${{ secrets.GEMINI_API_KEY_2 }}
+          GEMINI_API_KEY_3:     ${{ secrets.GEMINI_API_KEY_3 }}
+          GEMINI_API_KEY_4:     ${{ secrets.GEMINI_API_KEY_4 }}
+          GEMINI_API_KEY_5:     ${{ secrets.GEMINI_API_KEY_5 }}
+          GEMINI_API_KEY_6:     ${{ secrets.GEMINI_API_KEY_6 }}
+          GEMINI_API_KEY_7:     ${{ secrets.GEMINI_API_KEY_7 }}
+          GEMINI_API_KEY_8:     ${{ secrets.GEMINI_API_KEY_8 }}
+          GEMINI_API_KEY_9:     ${{ secrets.GEMINI_API_KEY_9 }}
+          GEMINI_API_KEY_10:    ${{ secrets.GEMINI_API_KEY_10 }}
+          # GEMINI_MODEL:       ${{ secrets.GEMINI_MODEL }}   # 옵션
+          # --- Blogger OAuth ---
+          GOOGLE_CLIENT_ID:     ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+        # --group N 으로 특정 그룹만 실행 가능 (e.g., "python main_blogger.py --group 2")
+        run: python main_blogger.py
