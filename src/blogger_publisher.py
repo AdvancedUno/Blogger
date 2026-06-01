@@ -1,17 +1,17 @@
-"""Google Blogger v3 API 발행 모듈.
+"""Google Blogger v3 API publishing module.
 
-Tistory publisher 와 완전히 분리된 별도 트랙. Playwright 사용 없음.
-OAuth2 user credentials (refresh token) 으로 인증하여 REST API 호출.
+OAuth2 user credentials (refresh token) authenticate against the Blogger v3
+REST API. No Playwright / browser automation — pure HTTP.
 
-필요한 환경변수 (GitHub Secrets):
+Required environment variables (provided via GitHub Secrets in CI):
     GOOGLE_CLIENT_ID       — OAuth client id (Google Cloud Console)
     GOOGLE_CLIENT_SECRET   — OAuth client secret
-    GOOGLE_REFRESH_TOKEN   — 로컬에서 1회 OAuth flow 로 발급한 refresh token
+    GOOGLE_REFRESH_TOKEN   — Refresh token from a one-time local OAuth flow
 
-이미지 처리:
-    Tistory 는 외부 URL 자동 가져오기 데드락 때문에 base64 인라인이 필요했지만,
-    Blogger 는 그런 backend lock 이 없어서 외부 URL (Pollinations 등) 을 그대로
-    HTML 에 박아도 정상 렌더링됨. base64 변환 불필요.
+Image handling:
+    Blogger renders external image URLs (e.g., Pollinations.ai) directly
+    without any backend lock, so HTML <img> tags can use external URLs as-is.
+    No base64 inlining is needed.
 """
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ TOKEN_URI = "https://oauth2.googleapis.com/token"
 
 
 def _build_service():
-    """Refresh-token 기반 credentials 로 Blogger v3 서비스 객체 생성."""
+    """Build a Blogger v3 service object from refresh-token credentials."""
     client_id = os.environ.get("GOOGLE_CLIENT_ID")
     client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
     refresh_token = os.environ.get("GOOGLE_REFRESH_TOKEN")
@@ -47,8 +47,8 @@ def _build_service():
     ]
     if missing:
         raise BloggerPublishError(
-            f"필수 환경변수 누락: {', '.join(missing)} — "
-            "GitHub Secrets 에 설정해야 합니다."
+            f"Missing required environment variables: {', '.join(missing)} — "
+            "must be set in GitHub Secrets."
         )
 
     creds = Credentials(
@@ -59,7 +59,7 @@ def _build_service():
         client_secret=client_secret,
         scopes=SCOPES,
     )
-    # cache_discovery=False — GitHub Actions runner 같은 임시 환경에서 디스크 쓰기 회피
+    # cache_discovery=False avoids disk writes on ephemeral runners.
     return build("blogger", "v3", credentials=creds, cache_discovery=False)
 
 
@@ -70,24 +70,24 @@ def publish_to_blogger(
     tags: list[str] | None = None,
     is_draft: bool = False,
 ) -> str:
-    """Blogger v3 API 로 글 1편 발행. 발행된 글의 URL 반환.
+    """Publish a single post via the Blogger v3 API and return its URL.
 
     Args:
-        blog_id: Blogger 내부 blog id (숫자 문자열, e.g., "1234567890")
-        title: 글 제목 (plain text)
-        html_content: 본문 HTML
-        tags: labels 로 사용될 태그 리스트
-        is_draft: True 면 draft 로 저장 (기본 False = 즉시 공개)
+        blog_id: Internal numeric Blogger blog id (e.g., "1234567890").
+        title: Post title (plain text).
+        html_content: Post body HTML.
+        tags: List of labels to attach to the post.
+        is_draft: When True, save as draft (default False = publish live).
 
     Returns:
-        발행된 글의 공개 URL.
+        Public URL of the published post.
 
     Raises:
-        BloggerPublishError: 인증/API/네트워크 오류 전반.
+        BloggerPublishError: For auth / API / network errors.
     """
     if not blog_id or blog_id.startswith("["):
         raise BloggerPublishError(
-            f"blog_id 가 설정되지 않았거나 placeholder 상태: {blog_id!r}"
+            f"blog_id is unset or a placeholder: {blog_id!r}"
         )
     if not title or not html_content:
         raise BloggerPublishError("Empty title or content cannot be published")

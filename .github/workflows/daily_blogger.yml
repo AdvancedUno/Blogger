@@ -1,12 +1,11 @@
 name: Daily Blogger Post
 
-# Tistory 워크플로(daily_post.yml) 와 완전 독립.
-# Blogger v3 REST API 만 사용 — Playwright/storage_state 불필요.
+# Single track: Blogger v3 REST API only — no Playwright / storage_state.
 
 on:
   schedule:
-    # 매일 1회. Tistory cron 과 겹치지 않게 다른 시간대.
-    # 02:00 UTC = 11:00 KST = 22:00 EST (전일) — 영어권 아침 노출용
+    # Daily at 02:00 UTC = 11:00 KST = 22:00 EST (prev day)
+    # so the post is live for the US morning audience.
     - cron: '0 2 * * *'
   workflow_dispatch:
 
@@ -17,7 +16,7 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 15        # Playwright 없으니 Tistory 보다 짧음
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repo
@@ -34,11 +33,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Playwright 설치 step 없음 — Blogger v3 는 REST API 라 브라우저 불필요
+      # No Playwright install step — Blogger v3 is a pure REST API.
 
       - name: Run blogger pipeline
         env:
-          # --- AI (multi-key routing, GEMINI_API_KEY 는 fallback) ---
+          # --- AI (multi-key routing, GEMINI_API_KEY is the fallback) ---
           GEMINI_API_KEY:       ${{ secrets.GEMINI_API_KEY }}
           GEMINI_API_KEY_1:     ${{ secrets.GEMINI_API_KEY_1 }}
           GEMINI_API_KEY_2:     ${{ secrets.GEMINI_API_KEY_2 }}
@@ -50,10 +49,10 @@ jobs:
           GEMINI_API_KEY_8:     ${{ secrets.GEMINI_API_KEY_8 }}
           GEMINI_API_KEY_9:     ${{ secrets.GEMINI_API_KEY_9 }}
           GEMINI_API_KEY_10:    ${{ secrets.GEMINI_API_KEY_10 }}
-          # GEMINI_MODEL:       ${{ secrets.GEMINI_MODEL }}   # 옵션
+          # GEMINI_MODEL:       ${{ secrets.GEMINI_MODEL }}   # optional
           # --- Blogger OAuth ---
           GOOGLE_CLIENT_ID:     ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
-        # --group N 으로 특정 그룹만 실행 가능 (e.g., "python main_blogger.py --group 2")
+        # Use --group N to run only one batch (e.g., `python main_blogger.py --group 2`).
         run: python main_blogger.py

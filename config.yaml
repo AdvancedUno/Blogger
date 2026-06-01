@@ -1,125 +1,25 @@
 # =====================================================================
-# 다중 블로그 운영 설정 (Multi-Blog Profile Config)
+# Multi-Blog Profile Config (Blogger / English market)
 # =====================================================================
-# 인증은 storage_state(state.json) 주입으로 처리합니다.
-#   - 로컬: 프로젝트 루트에 state.json 파일 배치 (.gitignore 처리됨)
-#   - CI:   TISTORY_STATE_JSON Secret → workflow 단계에서 state.json 으로 기록
 #
-# state.json 경로를 바꾸려면 환경변수 TISTORY_STATE_PATH 로 오버라이드.
-#
-# Keyword Roulette: rss_queries 는 리스트로 정의하고, fetcher 가 실행 시
-# random.choice 로 단 하나의 키워드만 골라 Google News RSS 에 사용.
+# Keyword Roulette:
+#   rss_queries is a list. The fetcher / fallback loop in main_blogger.py
+#   shuffles the list and tries keywords sequentially until news is found.
 #
 # Multi-API Key Routing:
-#   - 각 사이트는 api_key_env 로 Gemini API 키 환경변수 이름을 지정.
-#     main_*.py 가 os.environ[api_key_env] 를 읽어 generate_post(api_key=...) 로 주입.
-#   - run_group: --group N 인자로 특정 그룹만 실행 가능 (배치 청킹).
+#   Each site declares an api_key_env naming the Gemini API key env var.
+#   main_blogger.py reads os.environ[api_key_env] and passes it through to
+#   generate_post(api_key=...). run_group lets you batch-chunk runs via
+#   `python main_blogger.py --group N`.
 # =====================================================================
 
 defaults:
   max_news_items: 6
-  headless: true
-
-blogs:
-  - name: "Tech Blog"
-    blog_name: "unobigtech"
-    niche_keyword: "technology"
-    run_group: 1
-    api_key_env: "GEMINI_API_KEY_1"
-    rss_queries:
-      - "B2B SaaS"
-      - "클라우드 보안"
-      - "AI 인프라"
-      - "데이터센터"
-      - "엔터프라이즈 솔루션"
-      - "자율주행"
-      - "로봇공학"
-      - "양자컴퓨터"
-      - "시스템 반도체"
-      - "핀테크"
-    topic_label: "IT/테크"
-    tags: ["IT", "테크", "AI", "기술트렌드", "스타트업"]
-
-  - name: "Economy Blog"
-    blog_name: "unoecon"
-    niche_keyword: "finance"
-    run_group: 1
-    api_key_env: "GEMINI_API_KEY_2"
-    rss_queries:
-      - "미국 배당 ETF"
-      - "연금저축펀드"
-      - "금리인하 수혜주"
-      - "채권 투자"
-      - "환율 전망"
-      - "원자재 시세"
-      - "글로벌 매크로"
-      - "IPO 공모주"
-      - "리츠 투자"
-      - "배당주"
-    topic_label: "경제/투자"
-    tags: ["경제", "주식", "투자", "재테크", "금융"]
-
-  - name: "Health Blog"
-    blog_name: "unohealth"
-    niche_keyword: "health"
-    run_group: 1
-    api_key_env: "GEMINI_API_KEY_3"
-    rss_queries:
-      - "임플란트"
-      - "비만치료제"
-      - "영양제"
-      - "당뇨 관리"
-      - "실손보험"
-      - "탈모 치료"
-      - "안티에이징"
-      - "치매 예방"
-      - "디지털 헬스케어"
-      - "헬스케어 AI"
-    topic_label: "건강/의료"
-    tags: ["건강", "의료", "영양제", "보험", "혈당관리"]
-
-  - name: "Real Estate Blog"
-    blog_name: "unohouse"
-    niche_keyword: "realestate"
-    run_group: 1
-    api_key_env: "GEMINI_API_KEY_4"
-    rss_queries:
-      - "아파트 청약"
-      - "주택담보대출"
-      - "전세사기"
-      - "디딤돌대출"
-      - "재건축"
-      - "신도시 발표"
-      - "상가 투자"
-      - "법원 경매"
-      - "청년주택"
-      - "GTX 개통"
-    topic_label: "부동산/정부지원"
-    tags: ["부동산", "청약", "주담대", "디딤돌대출", "정부지원금"]
-
-  - name: "Side Hustle Blog"
-    blog_name: "unohustle"
-    niche_keyword: "business"
-    run_group: 1
-    api_key_env: "GEMINI_API_KEY_5"
-    rss_queries:
-      - "스마트스토어"
-      - "크몽 프리랜서"
-      - "블로그 수익화"
-      - "N잡러"
-      - "국가공인자격증"
-      - "유튜브 수익"
-      - "인스타 공구"
-      - "전자책 출판"
-      - "이모티콘 작가"
-      - "무인점포"
-    topic_label: "부업/커리어"
-    tags: ["부업", "투잡", "1인창업", "자격증", "정부지원사업"]
 
 
 # =====================================================================
-# Google Blogger (Blogspot) — English-speaking market, REST API publish
-# 완전히 별도 파이프라인. main_blogger.py 가 이 섹션만 읽음.
+# Google Blogger (Blogspot) — English-speaking market, REST API publish.
+# main_blogger.py reads only this section.
 # =====================================================================
 blogger_sites:
   # ===== TECH & INFRASTRUCTURE (group 1, keys 1-5) =====
@@ -243,8 +143,6 @@ blogger_sites:
       - "Zero-knowledge proofs (ZKP) in enterprise"
       - "Digital asset AML compliance tools"
 
-######################################################
-
   - name: "WealthTech Systems"
     blog_id: "6726372500057065604"
     language: "en"
@@ -296,7 +194,7 @@ blogger_sites:
       - "AI in corporate fraud detection"
       - "Cloud-based ERP treasury modules"
 
-  # ===== HEALTHCARE + REAL ESTATE start (group 3, keys 1-5) =====
+  # ===== HEALTHCARE + REAL ESTATE (group 3, keys 1-5) =====
   - name: "Clinical Trial Tech"
     blog_id: "4562211352181339555"
     language: "en"
@@ -399,8 +297,6 @@ blogger_sites:
       - "Multi-echelon inventory optimization (MEIO)"
       - "Real-time ocean freight tracking"
       - "Supply chain risk management software"
-
-
 
   - name: "Autonomous Fleet Ops"
     blog_id: "3825945251873096901"

@@ -1,6 +1,7 @@
-"""Google News RSS fetcher (한국어).
+"""Google News RSS fetcher (US English locale).
 
-Returns top news entries for a given query, ranked by Google News.
+Returns top news entries for a given query, ranked by Google News. Used by
+the Blogger pipeline (main_blogger.py) to seed each post's source data.
 """
 from __future__ import annotations
 
@@ -13,15 +14,13 @@ import feedparser
 
 logger = logging.getLogger(__name__)
 
-# Google News RSS URL 은 language 에 따라 다른 hl/gl/ceid 사용.
-# - ko : 한국 시장 뉴스 (Tistory)
-# - en : 미국 시장 뉴스 (Blogger — US-centric C-suite 타깃)
-GOOGLE_NEWS_RSS_BY_LANG = {
-    "ko": "https://news.google.com/rss/search?q={query}&hl=ko&gl=KR&ceid=KR:ko",
-    "en": "https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en",
-}
+# US market RSS endpoint — hl/gl/ceid pin Google News to US English signals
+# so the model sees the audience-relevant headlines C-suite readers expect.
+GOOGLE_NEWS_RSS_URL = (
+    "https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
+)
 
-DEFAULT_POOL_SIZE = 10   # 상위 N 개 풀에서 max_items 만큼 랜덤 샘플링
+DEFAULT_POOL_SIZE = 10   # top-N candidate pool from which we sample max_items
 
 
 class FetchError(RuntimeError):
@@ -45,40 +44,34 @@ def _entry_to_item(entry) -> dict:
 def fetch_top_news(
     queries: list[str],
     *,
-    language: str = "ko",
     blog_name: str = "",
     max_items: int = 6,
     pool_size: int = DEFAULT_POOL_SIZE,
     retries: int = 2,
     retry_delay: float = 2.0,
 ) -> list[dict]:
-    """Keyword Roulette + 풀 샘플링 — Google News 결과 편향 회피.
+    """Keyword Roulette + pool sampling — defeats Google News result bias.
 
-    동작:
-      1) `queries` 리스트에서 random.choice 로 **단 하나의 키워드** 선택.
-      2) language 에 따른 locale 의 Google News RSS 호출
-         (ko → hl=ko&gl=KR&ceid=KR:ko, en → hl=en-US&gl=US&ceid=US:en).
-      3) 상위 `pool_size` 결과에서 `max_items` 개를 무작위 샘플.
+    Behavior:
+      1) Pick a single keyword via random.choice from `queries`.
+      2) Hit the US Google News RSS endpoint (hl=en-US, gl=US, ceid=US:en).
+      3) Take the top `pool_size` entries and randomly sample `max_items`.
 
     Args:
-        queries: 키워드 리스트 (config 의 rss_queries 필드).
-        language: "ko" (default, 한국 뉴스) 또는 "en" (US 뉴스).
-        blog_name: 로그 prefix 용 (e.g., "Tech Blog"). 선택.
+        queries: Keyword list (the rss_queries field from config.yaml).
+        blog_name: Log prefix (e.g., "AI Infra Insider"). Optional.
 
-    Returns: list of dicts with keys title/link/summary/published/source.
+    Returns:
+        List of dicts with keys: title, link, summary, published, source.
     """
     if not queries:
-        raise FetchError("rss_queries 리스트가 비어 있음 — 최소 1개 키워드 필요")
+        raise FetchError("rss_queries list is empty — need at least 1 keyword")
 
     chosen_keyword = random.choice(queries)
     prefix = f"[{blog_name}] " if blog_name else ""
-    logger.info("%sSelected Roulette Keyword: %s (lang=%s)",
-                prefix, chosen_keyword, language)
+    logger.info("%sSelected Roulette Keyword: %s", prefix, chosen_keyword)
 
-    rss_template = GOOGLE_NEWS_RSS_BY_LANG.get(
-        language, GOOGLE_NEWS_RSS_BY_LANG["ko"]
-    )
-    url = rss_template.format(query=quote_plus(chosen_keyword))
+    url = GOOGLE_NEWS_RSS_URL.format(query=quote_plus(chosen_keyword))
     logger.info("Fetching Google News RSS: %s", url)
 
     last_err: Exception | None = None
@@ -92,10 +85,11 @@ def fetch_top_news(
             if not feed.entries:
                 raise FetchError(f"No entries returned for query: {chosen_keyword!r}")
 
-            # 1) 최신 상위 pool_size 개를 후보 풀로 확보
+            # 1) Top pool_size entries as the candidate pool.
             pool = feed.entries[:pool_size]
 
-            # 2) 풀 크기가 요청 개수보다 많으면 무작위 샘플링, 아니면 그대로 사용
+            # 2) Sample max_items at random if the pool is larger; else use
+            # the full pool.
             if len(pool) > max_items:
                 selected = random.sample(pool, max_items)
                 logger.info(
@@ -106,7 +100,7 @@ def fetch_top_news(
             else:
                 selected = pool
                 logger.info(
-                    "Pool size %d ≤ requested %d — using all entries",
+                    "Pool size %d <= requested %d — using all entries",
                     len(pool), max_items,
                 )
 

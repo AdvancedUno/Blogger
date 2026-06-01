@@ -1,7 +1,8 @@
-"""Daily Blogger pipeline entrypoint — Tistory pipeline 과 완전 분리.
+"""Daily Blogger pipeline entrypoint.
 
-config.yaml 의 `blogger_sites` 섹션만 읽어서 영어 글을 생성하고 Blogger v3
-REST API 로 발행한다. Playwright/storage_state 의존 없음.
+Reads the `blogger_sites` section of config.yaml, generates an English
+analytical post via Gemini, and publishes it through the Blogger v3 REST
+API. No Playwright / storage_state dependency.
 """
 from __future__ import annotations
 
@@ -16,7 +17,7 @@ from pathlib import Path
 
 import yaml
 
-# Gemini free-tier RPM 회피용 사이트 간 sleep (초)
+# Sleep between sites to stay under the Gemini free-tier RPM ceiling.
 INTER_SITE_SLEEP_SECONDS = 15
 
 from src.fetcher import FetchError, fetch_top_news
@@ -45,9 +46,10 @@ def run_one(site: dict, defaults: dict) -> tuple[bool, str]:
     logger.info("================ START : %s ================", name)
 
     # ----- 1. Fetch (Keyword Fallback Loop) ---------------------------
-    # B2B 마이크로 니치 키워드는 그날 뉴스가 0건일 확률이 높아, random.choice
-    # 하나로는 자주 실패함. 그래서 rss_queries 를 셔플하고 순서대로 시도하면서
-    # 첫 번째 뉴스가 잡히는 키워드에서 break. 전부 0건이면 그 사이트만 skip.
+    # B2B micro-niche keywords have a high probability of zero news on any
+    # given day, so random.choice on a single keyword often fails. Shuffle
+    # rss_queries and try them sequentially; break on the first keyword
+    # that returns news. Skip the site only when every keyword is empty.
     try:
         queries = list(site["rss_queries"])
     except KeyError as e:
@@ -55,7 +57,7 @@ def run_one(site: dict, defaults: dict) -> tuple[bool, str]:
         return False, f"fetcher: {e}"
 
     if not queries:
-        logger.error("[%s] rss_queries 가 비어 있음", name)
+        logger.error("[%s] rss_queries is empty", name)
         return False, "fetcher: empty rss_queries"
 
     random.shuffle(queries)
@@ -67,11 +69,10 @@ def run_one(site: dict, defaults: dict) -> tuple[bool, str]:
         logger.info("[%s] Trying keyword: %r", name, kw)
         try:
             news = fetch_top_news(
-                queries=[kw],         # 단일 키워드로 호출 → fallback 다음 키워드 시도
-                language="en",        # US locale (hl=en-US, gl=US, ceid=US:en)
+                queries=[kw],         # single keyword — fallback to next on empty
                 blog_name=name,
                 max_items=max_items,
-                retries=0,            # 빠른 fail → 다음 키워드로 즉시 넘어감
+                retries=0,            # fail fast so we can try the next keyword
             )
             if news:
                 chosen_keyword = kw
@@ -100,12 +101,12 @@ def run_one(site: dict, defaults: dict) -> tuple[bool, str]:
     )
 
     # ----- 2. Generate (English prompt) -------------------------------
-    # Multi-key routing
+    # Multi-key routing — per-site Gemini key with single-key fallback.
     api_key_env = site.get("api_key_env", "GEMINI_API_KEY")
     api_key = os.environ.get(api_key_env)
     if not api_key:
         logger.warning(
-            "[%s] api_key_env=%s 의 환경변수가 비어 있음 — GEMINI_API_KEY fallback 시도",
+            "[%s] %s env var is empty — falling back to GEMINI_API_KEY",
             name, api_key_env,
         )
 
@@ -114,7 +115,6 @@ def run_one(site: dict, defaults: dict) -> tuple[bool, str]:
             topic_label=site.get("topic_label", name),
             niche_keyword=site.get("niche_keyword", "business"),
             news_items=news,
-            language=site.get("language", "en"),
             api_key=api_key,
             focus_keyword=chosen_keyword,
         )
@@ -135,7 +135,7 @@ def run_one(site: dict, defaults: dict) -> tuple[bool, str]:
     config_tags = list(site.get("tags") or [])
     final_tags = ai_tags if ai_tags else config_tags
     logger.info(
-        "[%s] Tag source: %s (ai=%d, config=%d) → %s",
+        "[%s] Tag source: %s (ai=%d, config=%d) -> %s",
         name,
         "AI" if ai_tags else "config-fallback",
         len(ai_tags), len(config_tags), final_tags,
@@ -164,7 +164,7 @@ def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Daily Blogger pipeline")
     p.add_argument(
         "--group", type=int, default=None,
-        help="run_group 일치하는 사이트만 실행. 미지정이면 전체.",
+        help="Run only sites with a matching run_group value. Default: all.",
     )
     return p.parse_args()
 
@@ -179,10 +179,10 @@ def main() -> int:
         logger.error("No blogger_sites configured in %s", CONFIG_PATH)
         return 1
 
-    # run_group 필터
+    # run_group filter
     if args.group is not None:
         sites = [s for s in sites if s.get("run_group") == args.group]
-        logger.info("Filtered by run_group=%d → %d site(s)", args.group, len(sites))
+        logger.info("Filtered by run_group=%d -> %d site(s)", args.group, len(sites))
         if not sites:
             logger.warning("No sites matched run_group=%d", args.group)
             return 0
@@ -203,7 +203,7 @@ def main() -> int:
     logger.info("=================== SUMMARY ===================")
     for name, ok, info in results:
         status = "OK  " if ok else "FAIL"
-        logger.info("  [%s] %s — %s", status, name, info)
+        logger.info("  [%s] %s -- %s", status, name, info)
 
     failed = [r for r in results if not r[1]]
     return 0 if not failed else 2
