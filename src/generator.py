@@ -64,7 +64,7 @@ TAGS: 5-7 high-CPC B2B tags (PascalCase / compounds, no spaces inside individual
 <h2>Executive Briefing & Macro Shift</h2>
 <p>[A powerful 2-paragraph opening that cuts through the noise. Explain why this trend is causing immediate strategic or financial shifts in the global market right now.]</p>
 
-[Insert First AI Image Block Here — use this exact pattern: <p align="center"><img src="https://image.pollinations.ai/prompt/{describe scene in 2-4 english words}?width=800&height=400&nologo=true" alt="Descriptive alt text" style="max-width: 100%; border-radius: 8px; margin: 20px 0;"></p>]
+[Insert First AI Image Block Here — use this exact pattern: <p align="center"><img src="https://image.pollinations.ai/prompt/[describe_scene_in_2_to_4_english_words_with_underscores]?width=800&height=400&nologo=true" alt="Descriptive alt text" style="max-width: 100%; border-radius: 8px; margin: 20px 0;"></p>]
 
 <h2>The Unfiltered Reality: Risks & Hidden Friction</h2>
 <p>[Multiple deep paragraphs exposing the hard truths. Why are enterprise deployments stalling? What are the massive hidden operational costs, integration friction points, or technical debt that vendors aren't talking about?]</p>
@@ -72,7 +72,7 @@ TAGS: 5-7 high-CPC B2B tags (PascalCase / compounds, no spaces inside individual
 <h2>Regulatory Pressures and Institutional Impact</h2>
 <p>[Analyze the specific compliance, regulatory (SEC, FTC, HIPAA, etc.), or corporate governance hurdles that executive boards must map out to survive this transition.]</p>
 
-[Insert Second AI Image Block Here — use this exact pattern: <p align="center"><img src="https://image.pollinations.ai/prompt/{describe scene in 2-4 english words}?width=800&height=400&nologo=true" alt="Descriptive alt text" style="max-width: 100%; border-radius: 8px; margin: 20px 0;"></p>]
+[Insert Second AI Image Block Here — use this exact pattern: <p align="center"><img src="https://image.pollinations.ai/prompt/[describe_scene_in_2_to_4_english_words_with_underscores]?width=800&height=400&nologo=true" alt="Descriptive alt text" style="max-width: 100%; border-radius: 8px; margin: 20px 0;"></p>]
 
 <h2>Strategic Vectors to Monitor</h2>
 <p>For executive leadership mapping out the upcoming fiscal quarters, pay immediate attention to these adjacent operational domains:</p>
