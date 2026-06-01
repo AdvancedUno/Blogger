@@ -17,8 +17,10 @@ from pathlib import Path
 
 import yaml
 
-# Sleep between sites to stay under the Gemini free-tier RPM ceiling.
-INTER_SITE_SLEEP_SECONDS = 15
+# Sleep between sites to stay under the Gemini free-tier RPM ceiling
+# (5 requests/min). 30s spreads the 20-site loop across enough quota
+# windows that the in-generator 65s quota-retry rarely needs to fire.
+INTER_SITE_SLEEP_SECONDS = 30
 
 from src.fetcher import FetchError, fetch_top_news
 from src.generator import GenerationError, generate_post

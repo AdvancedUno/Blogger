@@ -1,9 +1,9 @@
 """Google Gemini-based blog post generator (English / Blogger-optimized).
 
-Uses `google-generativeai` (gemini-3.5-flash by default, override via the
-`GEMINI_MODEL` env var) with a heavily engineered system instruction tuned
-for Blogger.com HTML, elite Wall-Street-style B2B journalism, E-E-A-T, and
-Featured Snippet capture.
+Uses the official `google-genai` SDK (gemini-3.5-flash by default, override
+via the `GEMINI_MODEL` env var) with a heavily engineered system instruction
+tuned for Blogger.com HTML, elite B2B journalism, E-E-A-T, and Featured
+Snippet capture.
 """
 from __future__ import annotations
 
@@ -14,7 +14,8 @@ import time
 from dataclasses import dataclass, field
 from urllib.parse import quote, unquote
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +109,8 @@ class GenerationError(RuntimeError):
 
 
 # Sleep duration (seconds) when the Gemini free-tier RPM (5/min) is exceeded.
-QUOTA_RETRY_DELAY = 30.0
+# 65s guarantees the retry lands in a fresh quota minute window.
+QUOTA_RETRY_DELAY = 65.0
 
 
 def _is_quota_error(err: BaseException) -> bool:
@@ -321,33 +323,43 @@ def generate_post(
         raise GenerationError("No news items provided to generator")
 
     # Multi-key routing: prefer the per-site key, fall back to a single
-    # GEMINI_API_KEY env var. genai.configure() runs per call because each
-    # site may use a different key. Calls are sequential — no race condition.
+    # GEMINI_API_KEY env var. Each site gets its own local Client so keys
+    # don't collide across sites in the same process (the old
+    # `genai.configure()` global-state pattern leaked keys).
     effective_key = api_key or os.environ.get("GEMINI_API_KEY")
     if not effective_key:
         raise GenerationError(
             "No Gemini API key available — pass api_key=... explicitly or "
             "set the GEMINI_API_KEY environment variable."
         )
-    genai.configure(api_key=effective_key)
+    client = genai.Client(api_key=effective_key)
 
-    model = genai.GenerativeModel(
-        model_name=MODEL_NAME,
+    gen_config = types.GenerateContentConfig(
         system_instruction=SYSTEM_INSTRUCTION_EN,
-        generation_config={
-            # 0.7 strikes a balance: lower than 0.85 cuts down TITLE / image
-            # format violations that trigger parse retries; high enough to
-            # preserve expressive variety.
-            "temperature": 0.7,
-            "top_p": 0.95,
-            "max_output_tokens": 8192,
-        },
-        safety_settings={
-            "HARASSMENT": "BLOCK_ONLY_HIGH",
-            "HATE_SPEECH": "BLOCK_ONLY_HIGH",
-            "SEXUAL": "BLOCK_ONLY_HIGH",
-            "DANGEROUS": "BLOCK_ONLY_HIGH",
-        },
+        # 0.7 strikes a balance: lower than 0.85 cuts down TITLE / image
+        # format violations that trigger parse retries; high enough to
+        # preserve expressive variety.
+        temperature=0.7,
+        top_p=0.95,
+        max_output_tokens=8192,
+        safety_settings=[
+            types.SafetySetting(
+                category="HARM_CATEGORY_HARASSMENT",
+                threshold="BLOCK_ONLY_HIGH",
+            ),
+            types.SafetySetting(
+                category="HARM_CATEGORY_HATE_SPEECH",
+                threshold="BLOCK_ONLY_HIGH",
+            ),
+            types.SafetySetting(
+                category="HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                threshold="BLOCK_ONLY_HIGH",
+            ),
+            types.SafetySetting(
+                category="HARM_CATEGORY_DANGEROUS_CONTENT",
+                threshold="BLOCK_ONLY_HIGH",
+            ),
+        ],
     )
 
     news_block_str = _format_news_block(news_items)
@@ -360,7 +372,11 @@ def generate_post(
     for attempt in range(retries + 1):
         delay = retry_delay   # sleep duration after a failed attempt
         try:
-            response = model.generate_content(user_prompt)
+            response = client.models.generate_content(
+                model=MODEL_NAME,
+                contents=user_prompt,
+                config=gen_config,
+            )
             text = getattr(response, "text", None)
             if not text:
                 # response.text raises if the call was blocked; surface the
