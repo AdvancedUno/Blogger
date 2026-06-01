@@ -49,7 +49,7 @@ jobs:
           GEMINI_API_KEY_8:     ${{ secrets.GEMINI_API_KEY_8 }}
           GEMINI_API_KEY_9:     ${{ secrets.GEMINI_API_KEY_9 }}
           GEMINI_API_KEY_10:    ${{ secrets.GEMINI_API_KEY_10 }}
-          # GEMINI_MODEL:       ${{ secrets.GEMINI_MODEL }}   # optional
+          GEMINI_MODEL:       ${{ secrets.GEMINI_MODEL }}   
           # --- Blogger OAuth ---
           GOOGLE_CLIENT_ID:     ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
