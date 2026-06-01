@@ -65,7 +65,7 @@ TAGS: 5-7 high-CPC B2B tags (PascalCase / compounds, no spaces inside individual
 <h2>Executive Briefing & Macro Shift</h2>
 <p>[A powerful 2-paragraph opening that cuts through the noise. Explain why this trend is causing immediate strategic or financial shifts in the global market right now.]</p>
 
-[Insert First AI Image Block Here — use this exact pattern: <p align="center"><img src="https://image.pollinations.ai/prompt/[describe_scene_in_2_to_4_english_words_with_underscores]?width=800&height=400&nologo=true" alt="Descriptive alt text" style="max-width: 100%; border-radius: 8px; margin: 20px 0;"></p>]
+[Insert First AI Image Block Here — use this exact pattern: <p align="center"><img src="https://image.pollinations.ai/prompt/[describe_scene_in_2_to_4_english_words_with_underscores]?width=800&amp;height=400&amp;nologo=true" alt="Descriptive alt text" style="max-width: 100%; border-radius: 8px; margin: 20px 0;"></p>]
 
 <h2>The Unfiltered Reality: Risks & Hidden Friction</h2>
 <p>[Multiple deep paragraphs exposing the hard truths. Why are enterprise deployments stalling? What are the massive hidden operational costs, integration friction points, or technical debt that vendors aren't talking about?]</p>
@@ -73,7 +73,7 @@ TAGS: 5-7 high-CPC B2B tags (PascalCase / compounds, no spaces inside individual
 <h2>Regulatory Pressures and Institutional Impact</h2>
 <p>[Analyze the specific compliance, regulatory (SEC, FTC, HIPAA, etc.), or corporate governance hurdles that executive boards must map out to survive this transition.]</p>
 
-[Insert Second AI Image Block Here — use this exact pattern: <p align="center"><img src="https://image.pollinations.ai/prompt/[describe_scene_in_2_to_4_english_words_with_underscores]?width=800&height=400&nologo=true" alt="Descriptive alt text" style="max-width: 100%; border-radius: 8px; margin: 20px 0;"></p>]
+[Insert Second AI Image Block Here — use this exact pattern: <p align="center"><img src="https://image.pollinations.ai/prompt/[describe_scene_in_2_to_4_english_words_with_underscores]?width=800&amp;height=400&amp;nologo=true" alt="Descriptive alt text" style="max-width: 100%; border-radius: 8px; margin: 20px 0;"></p>]
 
 <h2>Strategic Vectors to Monitor</h2>
 <p>For executive leadership mapping out the upcoming fiscal quarters, pay immediate attention to these adjacent operational domains:</p>
@@ -187,13 +187,16 @@ _POLLINATIONS_URL_RE = re.compile(
 
 
 def _normalize_pollinations_urls(body: str) -> str:
-    """URL-encode the prompt portion of every Pollinations.ai image URL.
+    """Make every Pollinations.ai image URL safe for Blogger's HTML pipeline.
 
-    The model may emit a URL like
-    `https://image.pollinations.ai/prompt/data center server?width=...`
-    with raw spaces. Embedded as-is the HTML breaks, so we extract just the
-    prompt token, run quote() on it, and reassemble. Already-encoded prompts
-    are decoded once and re-encoded to avoid double-encoding.
+    Two passes per URL:
+      1. URL-encode the prompt portion (handles raw spaces / special chars
+         the model may emit, e.g. `prompt/data center server`).
+      2. HTML-entity-encode raw `&` in the query string as `&amp;` so
+         Blogger's XML serializer doesn't have to escape it on its end —
+         that's the path that produced the broken `?width=800&amp;...` →
+         double-encoded URL on render. Skip any `&` already part of `&amp;`
+         to avoid creating `&amp;amp;`.
     """
     def _encode(m: re.Match) -> str:
         prefix = m.group(1)
@@ -204,6 +207,8 @@ def _normalize_pollinations_urls(body: str) -> str:
         except Exception:
             decoded = prompt
         encoded = quote(decoded, safe="")
+        if query:
+            query = re.sub(r"&(?!amp;)", "&amp;", query)
         return f"{prefix}{encoded}{query}"
 
     return _POLLINATIONS_URL_RE.sub(_encode, body)
