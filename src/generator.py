@@ -14,6 +14,7 @@ import time
 from dataclasses import dataclass, field
 from urllib.parse import quote, unquote
 
+import requests
 from google import genai
 from google.genai import types
 
@@ -44,7 +45,8 @@ CRITICAL WRITING LAWS FOR ELITE QUALITY & SEO:
 4. INLINE ANALOGIES: Unpack dense technical concepts using exactly one sharp, relatable corporate analogy.
 5. ZERO HALLUCINATIONS: Ground your analysis strictly in the provided [Source Data]. Never invent names, statistics, or metrics.
 6. NO "AI TELLS": Absolutely ban phrases like "In conclusion", "Furthermore", "Delve into", "Navigating the landscape", "Today we will discuss".
-7. RAW HTML ONLY: Output clean HTML paragraphs (max 3-4 sentences per paragraph), using <strong> tags to emphasize raw data and corporate entities.
+7. RAW HTML ONLY (theme-aware tag set): Output clean HTML paragraphs (max 3-4 sentences each). Allowed elements: <h1>, <h2>, <h3>, <h4>, <p>, <strong>, <b>, <em>, <ul>, <ol>, <li>, <blockquote>, <figure>, <figcaption>, <img>, <table>, <thead>, <tbody>, <tr>, <th>, <td>. Use <strong> liberally on real data, regulator names, and corporate entities so the reader's eye finds anchors.
+8. VISUAL RHYTHM (JetTheme-optimized layout): The blog runs on JetTheme v2.9, which styles semantic HTML distinctly. You MUST use this layout to break the wall of text: a <blockquote> TL;DR right after the <h1>, a <blockquote> pull quote inside the Risks section, a <figure><figcaption> wrap around each <img>, a comparison <table> in the Regulatory section, and a final <blockquote> "Bottom Line" callout before References. Match the user-prompt template structure exactly — do not skip any element.
 """.strip()
 
 
@@ -53,7 +55,7 @@ USER_PROMPT_TEMPLATE_EN = """Conduct a deeply researched, analytical, and strict
 [Source Data]:
 {news_context}
 
-You MUST follow this exact HTML structure to provide maximum clarity and value.
+You MUST follow this exact HTML structure to provide maximum clarity and visual rhythm on JetTheme v2.9. Do not skip any element — the <blockquote>, <figure>/<figcaption>, and <table> wrappers carry distinct theme styling that turns a wall of text into a scannable editorial layout.
 
 The first 3 lines below (TITLE / TAGS / ---) are required for downstream parsing. The TITLE line text MUST match the <h1> text exactly.
 
@@ -62,32 +64,70 @@ TAGS: 5-7 high-CPC B2B tags (PascalCase / compounds, no spaces inside individual
 ---
 <h1>[Generate a sharp, urgent, macro-focused B2B title. Absolutely ban the phrase "The Ultimate Guide".]</h1>
 
-<h2>Executive Briefing & Macro Shift</h2>
-<p>[A powerful 2-paragraph opening that cuts through the noise. Explain why this trend is causing immediate strategic or financial shifts in the global market right now.]</p>
+<blockquote>
+  <p><strong>TL;DR &mdash; The 60-Second Briefing</strong></p>
+  <ul>
+    <li><strong>The Catalyst:</strong> [One-line fact drawn strictly from the Source Data — what just happened.]</li>
+    <li><strong>The Stakes:</strong> [What is at risk for decision-makers if they ignore this signal this quarter.]</li>
+    <li><strong>The Move:</strong> [The single most actionable next step for leadership, framed as a verb-led directive.]</li>
+  </ul>
+</blockquote>
 
-[Insert First AI Image Block Here — use this exact pattern: <p align="center"><img src="https://image.pollinations.ai/prompt/[describe_scene_in_2_to_4_english_words_with_underscores]?width=800&amp;height=400&amp;nologo=true" alt="Descriptive alt text" style="max-width: 100%; border-radius: 8px; margin: 20px 0;"></p>]
+<h2>Executive Briefing & Macro Shift</h2>
+<p>[Powerful opening paragraph — lead with a concrete data point or named entity from the Source Data, not a generic preamble.]</p>
+<p>[Second paragraph — connect the news signal to the broader macro environment and explain why this matters now, this fiscal quarter, not in the abstract.]</p>
+
+<figure>
+  <img src="https://image.pollinations.ai/prompt/[describe_scene_in_2_to_4_english_words_with_underscores]?width=800&amp;height=400&amp;nologo=true" alt="Descriptive alt text rooted in the article topic" style="max-width: 100%; border-radius: 8px; margin: 20px 0;">
+  <figcaption><em>[A concise caption that connects the visual to the strategic implication of this section — not just a literal description of the image.]</em></figcaption>
+</figure>
 
 <h2>The Unfiltered Reality: Risks & Hidden Friction</h2>
-<p>[Multiple deep paragraphs exposing the hard truths. Why are enterprise deployments stalling? What are the massive hidden operational costs, integration friction points, or technical debt that vendors aren't talking about?]</p>
+<p>[Multiple deep paragraphs exposing hard truths. Why are enterprise deployments stalling? What hidden operational costs, integration friction, or technical debt do vendors gloss over?]</p>
+
+<h3>[Sub-topic heading — e.g., "Where the Vendor Pitch Breaks Down"]</h3>
+<p>[Drill into one specific friction point. Cite a real organization or regulator from the Source Data; never invent.]</p>
+
+<blockquote>
+  <p><em>"[A striking, analyst-grade pull quote — one sentence that crystallizes the section's core insight, written in the dynamic persona you adopted for this topic. No source attribution unless it appears verbatim in the Source Data.]"</em></p>
+</blockquote>
 
 <h2>Regulatory Pressures and Institutional Impact</h2>
-<p>[Analyze the specific compliance, regulatory (SEC, FTC, HIPAA, etc.), or corporate governance hurdles that executive boards must map out to survive this transition.]</p>
+<p>[Analyze the specific compliance, regulatory (SEC, FTC, HIPAA, GDPR, CISA, etc.), or corporate governance hurdles executive boards must map to survive this transition. Name the specific framework or agency — not "regulators" generically.]</p>
 
-[Insert Second AI Image Block Here — use this exact pattern: <p align="center"><img src="https://image.pollinations.ai/prompt/[describe_scene_in_2_to_4_english_words_with_underscores]?width=800&amp;height=400&amp;nologo=true" alt="Descriptive alt text" style="max-width: 100%; border-radius: 8px; margin: 20px 0;"></p>]
+<figure>
+  <img src="https://image.pollinations.ai/prompt/[describe_scene_in_2_to_4_english_words_with_underscores]?width=800&amp;height=400&amp;nologo=true" alt="Descriptive alt text rooted in regulatory/strategic context" style="max-width: 100%; border-radius: 8px; margin: 20px 0;">
+  <figcaption><em>[Caption that frames the regulatory or institutional angle of this section.]</em></figcaption>
+</figure>
+
+<table>
+  <thead>
+    <tr><th>Dimension</th><th>Status Quo (2025)</th><th>Trajectory (2026-2027)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>[Dimension 1 — e.g., Compliance Surface]</td><td>[Concrete current state grounded in Source Data]</td><td>[Likely direction with the named driver]</td></tr>
+    <tr><td>[Dimension 2]</td><td>[State]</td><td>[Direction]</td></tr>
+    <tr><td>[Dimension 3]</td><td>[State]</td><td>[Direction]</td></tr>
+  </tbody>
+</table>
 
 <h2>Strategic Vectors to Monitor</h2>
 <p>For executive leadership mapping out the upcoming fiscal quarters, pay immediate attention to these adjacent operational domains:</p>
 <ul>
-   <li><strong>[Adjacent Vector 1]:</strong> [1-sentence factual reason why it intersects with today's topic]</li>
-   <li><strong>[Adjacent Vector 2]:</strong> [1-sentence factual reason]</li>
-   <li><strong>[Adjacent Vector 3]:</strong> [1-sentence factual reason]</li>
+   <li><strong>[Adjacent Vector 1]:</strong> [One sentence on why it intersects with today's topic, grounded in observed signals.]</li>
+   <li><strong>[Adjacent Vector 2]:</strong> [One sentence factual reason.]</li>
+   <li><strong>[Adjacent Vector 3]:</strong> [One sentence factual reason.]</li>
 </ul>
 
 <h2>Frequently Asked Questions</h2>
 <h3>What is the primary operational blind spot with this transition?</h3>
-<p>[Provide a deeply professional, specific answer that reflects real enterprise infrastructure realities.]</p>
+<p>[Deeply professional, specific answer reflecting real enterprise infrastructure realities. Name systems, vendors, or regulators only when they appear in the Source Data.]</p>
 <h3>How should CFOs model the realistic timeline for measurable ROI?</h3>
-<p>[Provide a realistic, conservative financial perspective on deployment time versus dollar returns.]</p>
+<p>[Realistic, conservative financial perspective on deployment time versus dollar returns. Use ranges, not invented point estimates.]</p>
+
+<blockquote>
+  <p><strong>The Bottom Line &mdash;</strong> [Final analyst takeaway in 2-3 sentences. Crystallize the strategic implication for an executive who reads only this one paragraph. End with the move, not the warning.]</p>
+</blockquote>
 
 <h2>Industry References & Signals</h2>
 <p>This macro analysis is synthesized directly from active operational signals and news context within the international B2B tech sector.</p>
@@ -186,6 +226,100 @@ _POLLINATIONS_URL_RE = re.compile(
 )
 
 
+# Failover for any Pollinations URL that fails verification — picsum is
+# a free random-photo CDN with effectively 100% uptime. Same dimensions
+# as the Pollinations URLs so layout doesn't shift.
+FALLBACK_IMAGE_URL_TEMPLATE = "https://picsum.photos/seed/{seed}/800/400"
+
+# Regex that captures the full <img ... src="...pollinations..."> tag so
+# the verifier can rewrite just the src attribute on failure.
+_POLLINATIONS_IMG_TAG_RE = re.compile(
+    r'(<img\b[^>]*?\bsrc=["\'])'                        # group 1: open + src="
+    r'(https://image\.pollinations\.ai/prompt/[^"\']+)'  # group 2: the URL
+    r'(["\'][^>]*?/?>)',                                 # group 3: close
+    re.IGNORECASE,
+)
+
+
+def _warm_pollinations_images(
+    body: str,
+    *,
+    request_timeout: float = 15.0,
+    retries: int = 1,
+) -> str:
+    """Fetch every Pollinations image URL during the pipeline so the image
+    is already generated + CDN-cached by the time a reader visits the post.
+
+    Why this exists:
+      Pollinations.ai generates each image on-demand on the first request,
+      which can take 15-30s. If a reader's browser is the one that triggers
+      that generation, the browser often times out and shows a broken-image
+      icon. Pre-warming forces generation server-side here, before publish.
+
+    Strategy:
+      - GET each Pollinations URL with a 15s timeout.
+      - Verify 200 OK + content-type starts with 'image/' + at least one byte.
+      - One retry on failure (zero backoff to stay under the GitHub Actions
+        45-min budget).
+      - If verification still fails, rewrite the <img src> to a picsum.photos
+        URL keyed by a hash of the original prompt — the post still renders
+        a real photo instead of a broken icon.
+    """
+    counter = [0]
+
+    def _verify_or_fallback(m: re.Match) -> str:
+        prefix, url, suffix = m.group(1), m.group(2), m.group(3)
+        counter[0] += 1
+        # &amp; is correct HTML-entity encoding for the markup, but the live
+        # HTTP request needs the decoded form.
+        live_url = url.replace("&amp;", "&")
+
+        for attempt in range(retries + 1):
+            try:
+                r = requests.get(live_url, timeout=request_timeout, stream=True)
+                ct = (r.headers.get("content-type") or "").lower()
+                ok = r.status_code == 200 and ct.startswith("image/")
+                if ok:
+                    # Drain one chunk to confirm the stream actually delivers
+                    # bytes (Pollinations sometimes returns 200 then closes
+                    # the connection on internal error).
+                    chunk = next(r.iter_content(chunk_size=4096), None)
+                    r.close()
+                    if chunk:
+                        logger.info(
+                            "Pollinations warm-up OK (attempt %d): %s",
+                            attempt + 1, live_url[:90],
+                        )
+                        return m.group(0)
+                else:
+                    logger.warning(
+                        "Pollinations warm-up attempt %d: status=%s ct=%s",
+                        attempt + 1, r.status_code, ct,
+                    )
+                r.close()
+            except requests.RequestException as e:
+                logger.warning(
+                    "Pollinations warm-up attempt %d raised: %s", attempt + 1, e
+                )
+
+        # All attempts exhausted — fall back to picsum.
+        # Seed the fallback with the prompt slug so the same broken image
+        # is replaced by the same fallback every time (deterministic).
+        slug_match = re.search(r"prompt/([^?]+)", live_url)
+        seed = (
+            slug_match.group(1).replace("/", "_")[:40]
+            if slug_match else f"img{counter[0]}"
+        )
+        fallback = FALLBACK_IMAGE_URL_TEMPLATE.format(seed=seed)
+        logger.warning(
+            "Pollinations URL failed verification — falling back to %s",
+            fallback,
+        )
+        return f"{prefix}{fallback}{suffix}"
+
+    return _POLLINATIONS_IMG_TAG_RE.sub(_verify_or_fallback, body)
+
+
 def _normalize_pollinations_urls(body: str) -> str:
     """Make every Pollinations.ai image URL safe for Blogger's HTML pipeline.
 
@@ -258,6 +392,12 @@ def _parse_response(text: str) -> GeneratedPost:
     # URL-encode the prompt portion of Pollinations image URLs (handles the
     # case where the model emitted raw spaces inside the prompt).
     body = _normalize_pollinations_urls(body)
+
+    # Pre-warm each Pollinations URL (forces image generation + CDN cache so
+    # readers never trigger the slow first-request path). Any URL that fails
+    # verification gets rewritten to a picsum.photos fallback in-place so the
+    # post never publishes with a broken-image icon.
+    body = _warm_pollinations_images(body)
 
     # 4) Minimum structural validation
     img_count = len(re.findall(r"<img\b", body))

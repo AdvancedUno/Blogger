@@ -6,7 +6,7 @@ on:
   schedule:
     # Daily at 02:00 UTC = 11:00 KST = 22:00 EST (prev day)
     # so the post is live for the US morning audience.
-    - cron: '0 2 * * *'
+    - cron: '0 14 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -16,7 +16,9 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 20 sites x (~15s work + 30s inter-site sleep) = ~14 min best case.
+    # 45 min absorbs multiple 65s quota retries before GitHub auto-cancels.
+    timeout-minutes: 45
 
     steps:
       - name: Checkout repo
