@@ -1,10 +1,14 @@
-"""Daily content pipeline — generates English posts via Gemini and ships
-them to Blogger via the Mail-to-Blogger SMTP feature.
+"""Daily Blogger pipeline entrypoint.
 
-The Blogger v3 REST API was abandoned after hitting daily write quotas
-(repeated 429 errors). Each blog now has a `secret_email` in config.yaml
-configured at Blogger Settings -> Email -> "Posting using email". This
-script emails the post; Blogger publishes it on receipt.
+Reads the `blogger_sites` section of config.yaml, generates an English
+analytical post via Gemini, and publishes it through the Blogger v3 REST
+API. No Playwright / storage_state dependency, no SMTP — pure REST.
+
+Required environment variables (provided via GitHub Secrets in CI):
+    GEMINI_API_KEY (+ optional GEMINI_API_KEY_1..10 for multi-key routing)
+    GOOGLE_CLIENT_ID
+    GOOGLE_CLIENT_SECRET
+    GOOGLE_REFRESH_TOKEN
 """
 from __future__ import annotations
 
@@ -19,19 +23,14 @@ from pathlib import Path
 
 import yaml
 
-# Gemini free-tier RPM ceiling is 5/min. 30s between sites keeps the loop
-# in a comfortable quota window so the in-generator 65s quota-retry rarely
-# fires.
+# Sleep between sites to stay under the Gemini free-tier RPM ceiling
+# (5 requests/min). 30s spreads the loop across enough quota windows that
+# the in-generator 65s quota-retry rarely needs to fire.
 INTER_SITE_SLEEP_SECONDS = 30
-
-# Gmail's anti-spam heuristics throttle scripts that send 20 messages
-# back-to-back. Sleeping 15s after each successful send keeps the cadence
-# below Gmail's automated-bot threshold.
-POST_SEND_ANTISPAM_SLEEP_SECONDS = 15
 
 from src.fetcher import FetchError, fetch_top_news
 from src.generator import GenerationError, generate_post
-from src.mailer import MailPublishError, publish_via_email
+from src.blogger_publisher import BloggerPublishError, publish_to_blogger
 
 logging.basicConfig(
     level=logging.INFO,
@@ -54,17 +53,15 @@ def run_one(site: dict, defaults: dict) -> tuple[bool, str]:
     name = site.get("name", "<unnamed>")
     logger.info("================ START : %s ================", name)
 
-    # Validate the email target up-front so we fail fast before the
-    # expensive Gemini call when a config entry is missing its mail target.
-    target_email = (site.get("secret_email") or "").strip()
-    if not target_email:
+    # Validate the blog_id up-front so we fail fast before the expensive
+    # Gemini call when a config entry is missing its target.
+    blog_id = str(site.get("blog_id") or "").strip()
+    if not blog_id or blog_id.startswith("["):
         logger.error(
-            "[%s] `secret_email` is missing from config.yaml — skipping. "
-            "Add the Blogger Mail-to-Blogger address for this blog under "
-            "Settings -> Email.",
-            name,
+            "[%s] `blog_id` is missing or a placeholder (%r) — skipping.",
+            name, blog_id,
         )
-        return False, "config: secret_email missing"
+        return False, "config: blog_id missing"
 
     # ----- 1. Fetch (Keyword Fallback Loop) ---------------------------
     # B2B micro-niche keywords have a high probability of zero news on any
@@ -151,7 +148,7 @@ def run_one(site: dict, defaults: dict) -> tuple[bool, str]:
                      name, e, traceback.format_exc())
         return False, f"generator-unexpected: {e}"
 
-    # ----- 3. Publish via Mail-to-Blogger SMTP ------------------------
+    # ----- 3. Publish via Blogger v3 REST API -------------------------
     ai_tags = list(post.tags or [])
     config_tags = list(site.get("tags") or [])
     final_tags = ai_tags if ai_tags else config_tags
@@ -161,38 +158,28 @@ def run_one(site: dict, defaults: dict) -> tuple[bool, str]:
         "AI" if ai_tags else "config-fallback",
         len(ai_tags), len(config_tags), final_tags,
     )
-    # NOTE: Mail-to-Blogger does NOT set post labels from email metadata —
-    # the `final_tags` list is logged for traceability only. To attach
-    # labels you'd need to edit each post once in Blogger UI, or switch
-    # back to the API.
 
     try:
-        publish_via_email(
-            target_email=target_email,
-            post_title=post.title,
+        url = publish_to_blogger(
+            blog_id=blog_id,
+            title=post.title,
             html_content=post.html,
+            tags=final_tags,
+            is_draft=bool(site.get("draft", False)),
         )
-        logger.info("[%s] Emailed -> %s", name, target_email)
-    except MailPublishError as e:
-        logger.error("[%s] Mailer failed: %s", name, e)
-        return False, f"mailer: {e}"
+        logger.info("[%s] Published OK -> %s", name, url)
+        return True, url
+    except BloggerPublishError as e:
+        logger.error("[%s] Publisher failed: %s", name, e)
+        return False, f"publisher: {e}"
     except Exception as e:
-        logger.error("[%s] Mailer unexpected error: %s\n%s",
+        logger.error("[%s] Publisher unexpected error: %s\n%s",
                      name, e, traceback.format_exc())
-        return False, f"mailer-unexpected: {e}"
-
-    # Gmail anti-spam pause — fires only on a successful send.
-    logger.info(
-        "[%s] Sleeping %ds (Gmail anti-spam pause)",
-        name, POST_SEND_ANTISPAM_SLEEP_SECONDS,
-    )
-    time.sleep(POST_SEND_ANTISPAM_SLEEP_SECONDS)
-
-    return True, target_email
+        return False, f"publisher-unexpected: {e}"
 
 
 def _parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Daily content pipeline (Mail-to-Blogger)")
+    p = argparse.ArgumentParser(description="Daily Blogger pipeline (Blogger v3 REST API)")
     p.add_argument(
         "--group", type=int, default=None,
         help="Run only sites with a matching run_group value. Default: all.",
