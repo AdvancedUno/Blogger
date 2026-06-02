@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 # Model name can be overridden via the GEMINI_MODEL env var (e.g.,
 # gemini-2.5-flash). Default is gemini-3.5-flash per project preference.
-MODEL_NAME = "gemini-3.5-flash"
+MODEL_NAME = "gemini-2.5-flash"
 
 
 # =====================================================================
