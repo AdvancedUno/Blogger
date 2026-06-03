@@ -96,6 +96,7 @@ To go fully custom, a profile can later carry its own full prompt override
 | `ASSETS_REPO_PAT` | fine-grained PAT, `contents:write` on the image-hosting repo |
 | `SMTP_USER`, `SMTP_PASSWORD`, `BLOGGER_SECRET_EMAIL` | email fallback |
 | `RUN_WEBHOOK_URL` | optional — per-run digest to Discord/Slack |
+| `GSC_CLIENT_ID/SECRET/REFRESH_TOKEN` | optional — Search Console feedback (webmasters.readonly scope); falls back to `GOOGLE_*` |
 
 Images are generated once at publish time and embedded as an immutable jsDelivr
 CDN URL (real `https`, so Blogger homepage thumbnails work; bodies stay light).
@@ -105,6 +106,14 @@ CDN URL (real `https`, so Blogger homepage thumbnails work; bodies stay light).
 - `.github/workflows/ci.yml` — ruff + mypy + pytest on push/PR.
 - `.github/workflows/daily_blogger.yml` — scheduled `python -m blogkit run`.
 - `.github/workflows/email_fallback_run.yml` — manual email-fallback run.
+
+**AdSense setup:** `python setup_pages.py` creates About/Contact/Privacy/Terms
+pages on every blog; `python setup_pages.py --ads-txt pub-XXXX` prints the
+ads.txt line to paste into each blog's custom ads.txt.
+
+**Analytics feedback (opt-in):** set a profile's `analytics_site` to its Search
+Console property URL; with GSC creds present, the keyword roulette is biased
+toward themes already earning clicks/impressions.
 
 `config.yaml` is retained only as the bootstrap source for
 `tools/generate_profiles.py`; it is no longer read at runtime.

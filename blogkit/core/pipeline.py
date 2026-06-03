@@ -9,6 +9,7 @@ import os
 import random
 import traceback
 
+from blogkit.core.analytics import fetch_top_queries, prioritize_queries
 from blogkit.core.dedup import Ledger
 from blogkit.core.enrich import add_toc, reading_time_badge, related_posts_html
 from blogkit.core.fetcher import FetchError, fetch_top_news
@@ -49,8 +50,19 @@ def run_profile(
     logger.info("================ START : %s ================", name)
 
     # ----- 1. Fetch (keyword fallback loop + cross-blog de-dup) --------
+    # Bias the roulette toward Search Console winners when configured; else
+    # plain shuffle. Best-effort — GSC failure just falls back to shuffle.
     queries = list(profile.rss_queries)
-    random.shuffle(queries)
+    gsc_rows = (
+        fetch_top_queries(profile.analytics_site)
+        if (profile.analytics_site and not dry_run) else []
+    )
+    if gsc_rows:
+        queries = prioritize_queries(queries, gsc_rows)
+        logger.info("[%s] Keyword order biased by %d Search Console signals",
+                    name, len(gsc_rows))
+    else:
+        random.shuffle(queries)
     news: list[dict] = []
     chosen_keyword = ""
     for kw in queries:

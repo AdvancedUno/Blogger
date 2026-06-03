@@ -62,6 +62,11 @@ jobs:
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
           # --- Run digest webhook (Discord/Slack-compatible; optional) ---
           RUN_WEBHOOK_URL:      ${{ secrets.RUN_WEBHOOK_URL }}
+          # --- Search Console feedback (optional; needs webmasters.readonly
+          #     scope. Falls back to GOOGLE_* above if these are unset) ---
+          GSC_CLIENT_ID:        ${{ secrets.GSC_CLIENT_ID }}
+          GSC_CLIENT_SECRET:    ${{ secrets.GSC_CLIENT_SECRET }}
+          GSC_REFRESH_TOKEN:    ${{ secrets.GSC_REFRESH_TOKEN }}
         # Preflight first (fail fast on missing secrets), then run.
         # Use --group N to run only one batch (e.g., `python -m blogkit run --group 2`).
         run: |

@@ -46,6 +46,12 @@ class BlogProfile(BaseModel):
     # --- publish ---
     draft: bool = False
 
+    # --- analytics feedback (opt-in) ---
+    # Search Console property URL (e.g. "https://aiinfra.blogspot.com/"). When
+    # set (and GSC creds available), the keyword roulette is biased toward
+    # themes already earning impressions/clicks. Empty = feature dormant.
+    analytics_site: str = ""
+
     @field_validator("blog_id")
     @classmethod
     def _blog_id_real(cls, v: str) -> str:
