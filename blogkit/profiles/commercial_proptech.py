@@ -19,6 +19,12 @@ PROFILE = BlogProfile(
         'PropTech founders. Sharp analysis of lease admin automation, tenant '
         'experience platforms, and the ROI math behind smart-HVAC investments.'
     ),
+    tone='ROI-driven, operator-pragmatic',
+    voice_traits=[
+        'frame outcomes in NOI, cap rate, or occupancy terms',
+        'tie every technology claim back to cash flow',
+    ],
+    flow='open with asset-level economics, close with the portfolio implication',
     niche_keyword='commercial proptech',
     image_styles=[
         'architectural_wide',

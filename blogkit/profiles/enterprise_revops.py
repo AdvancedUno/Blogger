@@ -19,6 +19,12 @@ PROFILE = BlogProfile(
         'SaaS scale-ups. Direct analysis of CPQ platform economics, conversation '
         'intelligence accuracy, and the realistic ROI of pipeline-forecasting AI.'
     ),
+    tone='precise, risk- and process-oriented',
+    voice_traits=[
+        'frame in liability, audit-readiness, or efficiency terms',
+        'name the specific regulation, control, or process gap',
+    ],
+    flow='open with the exposure, close with the control or play to run',
     niche_keyword='enterprise revops',
     image_styles=[
         'editorial_illustration',

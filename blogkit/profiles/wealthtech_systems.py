@@ -19,6 +19,13 @@ PROFILE = BlogProfile(
         'technology and family-office systems. Strategic analysis of advisor tech '
         'stacks, direct indexing platforms, and AI-driven portfolio construction.'
     ),
+    tone='sharp, markets-savvy, contrarian',
+    voice_traits=[
+        'lead with a number, a flow, or a basis-point move',
+        'expose the risk the vendor pitch hides',
+        'think in TCO, ROI, and unit economics',
+    ],
+    flow='open with the catalyst, end with the move',
     niche_keyword='wealthtech systems',
     image_styles=[
         'editorial_illustration',

@@ -10,7 +10,7 @@ import random
 import traceback
 
 from blogkit.core.fetcher import FetchError, fetch_top_news
-from blogkit.core.generator import GenerationError, generate_post
+from blogkit.core.generator import GenerationError, Voice, generate_post
 from blogkit.core.imager import build_featured_image_html
 from blogkit.core.publisher import (
     BloggerPublishError,
@@ -67,8 +67,14 @@ def run_profile(profile: BlogProfile, publish_method: str = "api") -> tuple[bool
             news_items=news,
             api_key=api_key,
             focus_keyword=chosen_keyword,
-            persona=profile.persona,
-            persona_brief=profile.persona_brief,
+            voice=Voice(
+                persona=profile.persona,
+                persona_brief=profile.persona_brief,
+                tone=profile.tone,
+                voice_traits=profile.voice_traits,
+                flow=profile.flow,
+                banned_phrases=profile.banned_phrases,
+            ),
             blog_name=name,
         )
         logger.info("[%s] Generated — title=%s (%d chars)", name, post.title, len(post.html))

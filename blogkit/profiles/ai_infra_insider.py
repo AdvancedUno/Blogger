@@ -21,6 +21,13 @@ PROFILE = BlogProfile(
         'marketing to expose the real operational economics of enterprise LLM '
         'deployments, GPU cluster TCO, and AI workload orchestration.'
     ),
+    tone='analytical, architecture-first, vendor-skeptical',
+    voice_traits=[
+        'quantify TCO, latency, or scale',
+        'separate marketing hype from deployment reality',
+        'name the specific system, vendor, or standard',
+    ],
+    flow='open with a concrete data point, close each section with the strategic implication',
     niche_keyword='ai infra insider',
     image_styles=[
         'macro_chip',

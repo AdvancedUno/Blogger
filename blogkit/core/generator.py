@@ -13,9 +13,6 @@ import re
 import time
 from dataclasses import dataclass, field
 
-from google import genai
-from google.genai import types
-
 logger = logging.getLogger(__name__)
 
 # Model name can be overridden via the GEMINI_MODEL env var (e.g.,
@@ -48,37 +45,65 @@ CRITICAL WRITING LAWS FOR ELITE QUALITY & SEO:
 """.strip()
 
 
-# Per-blog voice lock appended to the base instruction when a profile supplies a
-# persona. Keeps the single shared, SEO-tuned template while giving each blog a
-# stable, distinct editorial identity (better E-E-A-T signal + brand voice).
-PERSONA_VOICE_LOCK = """
+@dataclass
+class Voice:
+    """Per-blog editorial identity injected into the shared prompt as a voice
+    lock. All fields optional — an empty Voice falls back to the base prompt's
+    dynamic adaptation."""
 
-PRIMARY VOICE LOCK — THIS PUBLICATION ONLY:
-You are the lead writer for "{blog_name}". Sustain this exact voice end to end: {persona}.
-Author/editorial context (grounds your expertise, diction, and which regulators or vendors you cite — never quote this text verbatim):
-{persona_brief}
-Where this specific voice and the generic adaptation list above conflict, THIS voice wins.
-""".rstrip()
+    persona: str = ""
+    persona_brief: str = ""
+    tone: str = ""
+    voice_traits: list[str] = field(default_factory=list)
+    flow: str = ""
+    banned_phrases: list[str] = field(default_factory=list)
+
+    def is_empty(self) -> bool:
+        return not any(
+            [self.persona, self.persona_brief, self.tone,
+             self.voice_traits, self.flow, self.banned_phrases]
+        )
 
 
 def _compose_system_instruction(
-    persona: str | None,
-    persona_brief: str,
+    voice: Voice | None,
     blog_name: str,
     override: str | None,
 ) -> str:
-    """Build the effective system instruction: a full per-blog override if the
-    profile supplies one, else the shared base + an optional persona voice lock.
+    """Build the effective system instruction: a full per-blog override if
+    supplied, else the shared base + an optional per-blog voice lock built from
+    whichever Voice fields are set.
     """
     if override:
         return override
-    if not persona:
+    if voice is None or voice.is_empty():
         return SYSTEM_INSTRUCTION_EN
-    return SYSTEM_INSTRUCTION_EN + PERSONA_VOICE_LOCK.format(
-        blog_name=blog_name,
-        persona=persona,
-        persona_brief=persona_brief or "—",
+
+    lines = [
+        "PRIMARY VOICE LOCK — THIS PUBLICATION ONLY:",
+        f'You are the lead writer for "{blog_name}". Sustain this exact voice end to end.',
+    ]
+    if voice.persona:
+        lines.append(f"- Persona: {voice.persona}.")
+    if voice.tone:
+        lines.append(f"- Tone: {voice.tone}.")
+    if voice.voice_traits:
+        lines.append("- Style directives: " + "; ".join(voice.voice_traits) + ".")
+    if voice.flow:
+        lines.append(f"- Flow & pacing: {voice.flow}.")
+    if voice.persona_brief:
+        lines.append(
+            "- Author/editorial context (grounds expertise and diction; never "
+            f"quote verbatim): {voice.persona_brief}"
+        )
+    if voice.banned_phrases:
+        bans = ", ".join(f'"{p}"' for p in voice.banned_phrases)
+        lines.append(f"- Additionally ban these phrases entirely: {bans}.")
+    lines.append(
+        "Where this specific voice and the generic adaptation list above "
+        "conflict, THIS voice wins."
     )
+    return SYSTEM_INSTRUCTION_EN + "\n\n" + "\n".join(lines)
 
 
 USER_PROMPT_TEMPLATE_EN = """Conduct a deeply researched, analytical, and strictly factual market briefing based on the following news signals regarding: "{keyword}"
@@ -325,8 +350,7 @@ def generate_post(
     news_items: list[dict],
     api_key: str | None = None,
     focus_keyword: str | None = None,
-    persona: str | None = None,
-    persona_brief: str = "",
+    voice: Voice | None = None,
     blog_name: str | None = None,
     system_instruction: str | None = None,
     retries: int = 2,
@@ -346,6 +370,11 @@ def generate_post(
         retry_delay: Base seconds between attempts (quota errors override
             this to QUOTA_RETRY_DELAY).
     """
+    # Imported lazily so the module's pure helpers (Voice, prompt composition,
+    # response parsing) can be imported and unit-tested without the SDK present.
+    from google import genai
+    from google.genai import types
+
     if not news_items:
         raise GenerationError("No news items provided to generator")
 
@@ -362,7 +391,7 @@ def generate_post(
     client = genai.Client(api_key=effective_key)
 
     effective_instruction = _compose_system_instruction(
-        persona, persona_brief, blog_name or topic_label, system_instruction
+        voice, blog_name or topic_label, system_instruction
     )
 
     gen_config = types.GenerateContentConfig(

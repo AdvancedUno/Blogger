@@ -20,6 +20,13 @@ PROFILE = BlogProfile(
         'networks, and the realistic enterprise timeline for quantum-resistant '
         'infrastructure.'
     ),
+    tone='analytical, architecture-first, vendor-skeptical',
+    voice_traits=[
+        'quantify TCO, latency, or scale',
+        'separate marketing hype from deployment reality',
+        'name the specific system, vendor, or standard',
+    ],
+    flow='open with a concrete data point, close each section with the strategic implication',
     niche_keyword='quantum commercialization',
     image_styles=[
         'macro_chip',

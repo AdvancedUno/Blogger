@@ -27,45 +27,100 @@ from build_themes import BLOGS  # noqa: E402  (persona bios, name -> bio)
 
 PROFILES_DIR = ROOT / "blogkit" / "profiles"
 
-# (substring matched against the blog name, persona voice, ordered style names).
-# First match wins, so put the more specific rules first.
-RULES: list[tuple[tuple[str, ...], str, list[str]]] = [
-    (
-        ("zero trust", "cyber", "meddevice", "security"),
-        "veteran CISO / Cyber Intelligence Director",
-        ["macro_chip", "server_room", "blueprint", "double_exposure", "surreal_business"],
-    ),
-    (
-        ("clinical", "health", "medtech"),
-        "seasoned Chief Medical Information Officer (CMIO) / FDA policy expert",
-        ["editorial_illustration", "conceptual_still_life", "macro_product", "double_exposure"],
-    ),
-    (
-        ("proptech", "building", "real estate", "estate"),
-        "commercial real estate / PropTech strategist",
-        ["architectural_wide", "low_poly", "isometric_3d", "conceptual_still_life"],
-    ),
-    (
-        ("supply", "fleet", "logistics"),
-        "Global VP of Operations",
-        ["architectural_wide", "isometric_3d", "data_flow", "low_poly"],
-    ),
-    (
-        ("legal", "compliance", "revops"),
-        "enterprise GRC / RevOps strategist",
-        ["editorial_illustration", "conceptual_still_life", "surreal_business", "papercraft"],
-    ),
-    (
-        ("payment", "asset", "wealth", "insur", "treasury", "fintech"),
-        "sharp Wall Street equities analyst / fintech VC",
-        ["editorial_illustration", "surreal_business", "conceptual_still_life", "data_flow",
-         "glassmorphism"],
-    ),
+# Per-category editorial identity (persona, image styles, tone, voice traits,
+# flow). These seed each blog's personality; hand-edit any profile afterwards.
+CATEGORIES: dict[str, dict] = {
+    "security": {
+        "persona": "veteran CISO / Cyber Intelligence Director",
+        "styles": ["macro_chip", "server_room", "blueprint", "double_exposure",
+                   "surreal_business"],
+        "tone": "skeptical, threat-aware, urgent but never fear-mongering",
+        "voice_traits": [
+            "lead with the attack surface, breach cost, or exposure window",
+            "name the specific CVE, framework, or agency when it appears in the data",
+            "no scare tactics without a number behind them",
+        ],
+        "flow": "open with the concrete risk, close each section with a mitigation directive",
+    },
+    "health": {
+        "persona": "seasoned Chief Medical Information Officer (CMIO) / FDA policy expert",
+        "styles": ["editorial_illustration", "conceptual_still_life", "macro_product",
+                   "double_exposure"],
+        "tone": "measured, evidence-led, regulatory-aware",
+        "voice_traits": [
+            "cite the trial endpoint, study, or FDA pathway when present",
+            "quantify patient-safety or clinical-throughput impact",
+            "avoid hype; flag what is not yet proven",
+        ],
+        "flow": "open with the clinical or operational stake, end with the compliance implication",
+    },
+    "realestate": {
+        "persona": "commercial real estate / PropTech strategist",
+        "styles": ["architectural_wide", "low_poly", "isometric_3d", "conceptual_still_life"],
+        "tone": "ROI-driven, operator-pragmatic",
+        "voice_traits": [
+            "frame outcomes in NOI, cap rate, or occupancy terms",
+            "tie every technology claim back to cash flow",
+        ],
+        "flow": "open with asset-level economics, close with the portfolio implication",
+    },
+    "logistics": {
+        "persona": "Global VP of Operations",
+        "styles": ["architectural_wide", "isometric_3d", "data_flow", "low_poly"],
+        "tone": "operational, throughput-focused, no-nonsense",
+        "voice_traits": [
+            "quantify lead time, cost-per-mile, or fill rate",
+            "expose the hidden friction vendors gloss over",
+        ],
+        "flow": "open with the bottleneck, end with the throughput lever",
+    },
+    "compliance": {
+        "persona": "enterprise GRC / RevOps strategist",
+        "styles": ["editorial_illustration", "conceptual_still_life", "surreal_business",
+                   "papercraft"],
+        "tone": "precise, risk- and process-oriented",
+        "voice_traits": [
+            "frame in liability, audit-readiness, or efficiency terms",
+            "name the specific regulation, control, or process gap",
+        ],
+        "flow": "open with the exposure, close with the control or play to run",
+    },
+    "finance": {
+        "persona": "sharp Wall Street equities analyst / fintech VC",
+        "styles": ["editorial_illustration", "surreal_business", "conceptual_still_life",
+                   "data_flow", "glassmorphism"],
+        "tone": "sharp, markets-savvy, contrarian",
+        "voice_traits": [
+            "lead with a number, a flow, or a basis-point move",
+            "expose the risk the vendor pitch hides",
+            "think in TCO, ROI, and unit economics",
+        ],
+        "flow": "open with the catalyst, end with the move",
+    },
+    "tech": {  # default
+        "persona": "Enterprise CTO / Lead Systems Architect",
+        "styles": ["macro_chip", "server_room", "blueprint", "isometric_3d", "data_flow",
+                   "hologram_ar", "low_poly"],
+        "tone": "analytical, architecture-first, vendor-skeptical",
+        "voice_traits": [
+            "quantify TCO, latency, or scale",
+            "separate marketing hype from deployment reality",
+            "name the specific system, vendor, or standard",
+        ],
+        "flow": ("open with a concrete data point, close each section with the "
+                 "strategic implication"),
+    },
+}
+
+# First match wins; (substrings, category). Anything unmatched -> "tech".
+KEYWORD_RULES: list[tuple[tuple[str, ...], str]] = [
+    (("zero trust", "cyber", "meddevice", "security"), "security"),
+    (("clinical", "health", "medtech"), "health"),
+    (("proptech", "building", "real estate", "estate"), "realestate"),
+    (("supply", "fleet", "logistics"), "logistics"),
+    (("legal", "compliance", "revops"), "compliance"),
+    (("payment", "asset", "wealth", "insur", "treasury", "fintech"), "finance"),
 ]
-# Default: enterprise tech / infrastructure.
-DEFAULT_PERSONA = "Enterprise CTO / Lead Systems Architect"
-DEFAULT_STYLES = ["macro_chip", "server_room", "blueprint", "isometric_3d", "data_flow",
-                  "hologram_ar", "low_poly"]
 
 
 def slugify(name: str) -> str:
@@ -73,12 +128,12 @@ def slugify(name: str) -> str:
     return re.sub(r"_+", "_", s)
 
 
-def classify(name: str) -> tuple[str, list[str]]:
+def classify(name: str) -> dict:
     low = name.lower()
-    for keywords, persona, styles in RULES:
+    for keywords, category in KEYWORD_RULES:
         if any(k in low for k in keywords):
-            return persona, styles
-    return DEFAULT_PERSONA, DEFAULT_STYLES
+            return CATEGORIES[category]
+    return CATEGORIES["tech"]
 
 
 def py_multiline(value: str, indent: int) -> str:
@@ -118,6 +173,9 @@ PROFILE = BlogProfile(
     api_key_env={api_key_env!r},
     persona={persona!r},
     persona_brief={persona_brief},
+    tone={tone!r},
+    voice_traits={voice_traits},
+    flow={flow!r},
     niche_keyword={niche!r},
     image_styles={image_styles},
     featured_image=True,
@@ -135,7 +193,7 @@ def main() -> int:
     for site in sites:
         name = site["name"]
         slug = slugify(name)
-        persona, styles = classify(name)
+        cat = classify(name)
         bio = BLOGS.get(name, "")
         niche = re.sub(r"[^a-z0-9 ]+", "", name.lower()).strip()
 
@@ -146,15 +204,18 @@ def main() -> int:
             blog_id=str(site.get("blog_id", "")),
             run_group=int(site.get("run_group", 1)),
             api_key_env=site.get("api_key_env", "GEMINI_API_KEY"),
-            persona=persona,
+            persona=cat["persona"],
             persona_brief=py_multiline(bio, indent=8),
+            tone=cat["tone"],
+            voice_traits=py_list(cat["voice_traits"], indent=8),
+            flow=cat["flow"],
             niche=niche,
-            image_styles=py_list(styles, indent=8),
+            image_styles=py_list(cat["styles"], indent=8),
             rss_queries=py_list(list(site.get("rss_queries", [])), indent=8),
         )
         (PROFILES_DIR / f"{slug}.py").write_text(module, encoding="utf-8")
         written += 1
-        print(f"  wrote blogkit/profiles/{slug}.py  ({persona})")
+        print(f"  wrote blogkit/profiles/{slug}.py  ({cat['persona']})")
 
     print(f"Generated {written} profile module(s).")
     return 0

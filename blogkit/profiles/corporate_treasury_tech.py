@@ -20,6 +20,13 @@ PROFILE = BlogProfile(
         'management software, FX hedging platforms, and multibank connectivity '
         'APIs.'
     ),
+    tone='sharp, markets-savvy, contrarian',
+    voice_traits=[
+        'lead with a number, a flow, or a basis-point move',
+        'expose the risk the vendor pitch hides',
+        'think in TCO, ROI, and unit economics',
+    ],
+    flow='open with the catalyst, end with the move',
     niche_keyword='corporate treasury tech',
     image_styles=[
         'editorial_illustration',

@@ -20,6 +20,12 @@ PROFILE = BlogProfile(
         'guidance on Scope 3 reporting, LEED tracking software, and net-zero '
         'strategy execution.'
     ),
+    tone='ROI-driven, operator-pragmatic',
+    voice_traits=[
+        'frame outcomes in NOI, cap rate, or occupancy terms',
+        'tie every technology claim back to cash flow',
+    ],
+    flow='open with asset-level economics, close with the portfolio implication',
     niche_keyword='smart building esg',
     image_styles=[
         'architectural_wide',

@@ -28,6 +28,12 @@ class BlogProfile(BaseModel):
     # --- editorial voice ---
     persona: str
     persona_brief: str = ""
+    # Per-blog personality knobs (all optional; empty = rely on the shared
+    # prompt's dynamic adaptation). These sharpen each blog's distinct identity.
+    tone: str = ""                                       # e.g. "contrarian, punchy"
+    voice_traits: list[str] = Field(default_factory=list)  # concrete style directives
+    flow: str = ""                                       # pacing / structure guidance
+    banned_phrases: list[str] = Field(default_factory=list)  # extra per-blog bans
     niche_keyword: str = "business"
     rss_queries: list[str] = Field(min_length=1)
     tags: list[str] = Field(default_factory=list)

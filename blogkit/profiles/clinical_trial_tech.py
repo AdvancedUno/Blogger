@@ -20,6 +20,13 @@ PROFILE = BlogProfile(
         'migration, patient recruitment AI accuracy, and RWE data validation '
         'pipelines.'
     ),
+    tone='measured, evidence-led, regulatory-aware',
+    voice_traits=[
+        'cite the trial endpoint, study, or FDA pathway when present',
+        'quantify patient-safety or clinical-throughput impact',
+        'avoid hype; flag what is not yet proven',
+    ],
+    flow='open with the clinical or operational stake, end with the compliance implication',
     niche_keyword='clinical trial tech',
     image_styles=[
         'editorial_illustration',
