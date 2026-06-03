@@ -86,7 +86,27 @@ def cmd_run(args: argparse.Namespace) -> int:
     logger.info("=================== SUMMARY ===================")
     for slug, ok, info in results:
         logger.info("  [%s] %s -- %s", "OK  " if ok else "FAIL", slug, info)
+
+    # Run digest to webhook (best-effort; no-op without RUN_WEBHOOK_URL).
+    if not dry_run:
+        from blogkit.core.notify import format_digest, send_digest
+        if send_digest(format_digest(results)):
+            logger.info("Run digest sent to webhook")
+
     return 0 if all(ok for _, ok, _ in results) else 2
+
+
+def cmd_doctor(args: argparse.Namespace) -> int:
+    from blogkit.core.health import all_ok, check_environment, format_checks
+
+    checks = check_environment(
+        publish_method=args.publish_method, need_image=not args.no_image
+    )
+    print(f"blogkit doctor — publish={args.publish_method}, image={not args.no_image}")
+    print(format_checks(checks))
+    ok = all_ok(checks)
+    print("OK — ready to run." if ok else "NOT READY — fix the FAIL items above.")
+    return 0 if ok else 1
 
 
 def cmd_selftest_image(args: argparse.Namespace) -> int:
@@ -140,6 +160,11 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     st = sub.add_parser("selftest-image", help="Test the HF+GitHub image path only")
     st.add_argument("--blog", help="Use this blog's style pool (else the default sample)")
 
+    doc = sub.add_parser("doctor", help="Preflight: validate secrets/config before a run")
+    doc.add_argument("--publish-method", choices=["api", "email"], default="api")
+    doc.add_argument("--no-image", action="store_true",
+                     help="Skip the featured-image (HF/PAT) checks")
+
     return p.parse_args(argv)
 
 
@@ -151,6 +176,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_run(args)
     if args.command == "selftest-image":
         return cmd_selftest_image(args)
+    if args.command == "doctor":
+        return cmd_doctor(args)
     return 1
 
 

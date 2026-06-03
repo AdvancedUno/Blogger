@@ -41,12 +41,20 @@ pip install -e ".[dev]"     # package + ruff/mypy/pytest
 
 ```bash
 python -m blogkit list                      # show all blog profiles
+python -m blogkit doctor                     # preflight: validate secrets/config
 python -m blogkit run --blog zero_trust_enterprise
 python -m blogkit run --group 2             # all blogs in run_group 2
 python -m blogkit run --all                 # every blog (default)
+python -m blogkit run --all --dry-run        # generate + assemble, do NOT publish
 python -m blogkit run --group 2 --publish-method email   # 429-day fallback
 python -m blogkit selftest-image --blog zero_trust_enterprise  # image path only
 ```
+
+**Content integrity & SEO (automatic):** a cross-blog de-dup ledger skips source
+articles already used network-wide (duplicate-content guard), each post gets
+JSON-LD (Article + FAQPage) and a real "Sources" citation list, and each blog
+carries its own tone/voice/flow. A run posts a digest to `RUN_WEBHOOK_URL`
+(Discord/Slack) if set.
 
 ## Adding / customizing a blog
 
@@ -87,6 +95,7 @@ To go fully custom, a profile can later carry its own full prompt override
 | `HF_API_TOKEN` | Hugging Face image gen (Inference Providers permission) |
 | `ASSETS_REPO_PAT` | fine-grained PAT, `contents:write` on the image-hosting repo |
 | `SMTP_USER`, `SMTP_PASSWORD`, `BLOGGER_SECRET_EMAIL` | email fallback |
+| `RUN_WEBHOOK_URL` | optional — per-run digest to Discord/Slack |
 
 Images are generated once at publish time and embedded as an immutable jsDelivr
 CDN URL (real `https`, so Blogger homepage thumbnails work; bodies stay light).

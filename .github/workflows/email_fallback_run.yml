@@ -47,4 +47,6 @@ jobs:
           BLOGGER_SECRET_EMAIL: ${{ secrets.BLOGGER_SECRET_EMAIL }}
           SMTP_USER:            ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD:        ${{ secrets.SMTP_PASSWORD }}
+          # --- Run digest webhook (Discord/Slack-compatible; optional) ---
+          RUN_WEBHOOK_URL:      ${{ secrets.RUN_WEBHOOK_URL }}
         run: python -m blogkit run --group ${{ github.event.inputs.group }} --publish-method email

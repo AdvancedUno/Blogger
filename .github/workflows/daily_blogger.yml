@@ -60,5 +60,10 @@ jobs:
           GOOGLE_CLIENT_ID:     ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          # --- Run digest webhook (Discord/Slack-compatible; optional) ---
+          RUN_WEBHOOK_URL:      ${{ secrets.RUN_WEBHOOK_URL }}
+        # Preflight first (fail fast on missing secrets), then run.
         # Use --group N to run only one batch (e.g., `python -m blogkit run --group 2`).
-        run: python -m blogkit run
+        run: |
+          python -m blogkit doctor
+          python -m blogkit run
