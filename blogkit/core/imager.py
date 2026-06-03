@@ -24,6 +24,7 @@ import os
 import re
 import time
 from datetime import datetime, timezone
+from typing import Any
 
 import requests
 
@@ -106,7 +107,7 @@ def _hf_generate_png(prompt: str, seed: int, hf_token: str) -> bytes | None:
     """POST to the HF endpoint, honoring the cold-model 503 retry. Returns the
     raw PNG bytes, or None if the model is still loading after all retries."""
     headers = {"Authorization": f"Bearer {hf_token}"}
-    payload = {
+    payload: dict[str, Any] = {
         "inputs": prompt,
         "parameters": {"width": HF_IMAGE_WIDTH, "height": HF_IMAGE_HEIGHT, "seed": seed},
     }

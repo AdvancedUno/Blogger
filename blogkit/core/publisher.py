@@ -174,6 +174,8 @@ def publish_via_email(
             f"Missing required env vars: {', '.join(missing)} — "
             "must be set (GitHub Secrets in CI)."
         )
+    # Narrow Optional[str] -> str now that presence is guaranteed.
+    assert user and password and recipient
     if not title or not html_content:
         raise EmailPublishError("Empty title or content cannot be emailed")
 
