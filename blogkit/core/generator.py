@@ -7,6 +7,7 @@ Snippet capture.
 """
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import re
@@ -14,6 +15,22 @@ import time
 from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
+
+# Rotating editorial lens — picked deterministically per piece so the network
+# doesn't read like the same template 20 times (originality / helpful-content).
+EDITORIAL_ANGLES = [
+    "a contrarian investigation that challenges the prevailing consensus",
+    "a forward-looking forecast of where this trend heads over the next 4-8 fiscal quarters",
+    "a myth-busting analysis that dismantles the misconceptions executives hold",
+    "an operator's playbook centered on concrete, sequenced implementation steps",
+    "a follow-the-money breakdown of who captures the value and who quietly loses",
+    "a post-mortem lens on why deployments stall and what the failure modes teach",
+]
+
+
+def _pick_angle(seed_text: str) -> str:
+    h = int(hashlib.sha256(seed_text.encode("utf-8")).hexdigest(), 16)
+    return EDITORIAL_ANGLES[h % len(EDITORIAL_ANGLES)]
 
 # Model name can be overridden via the GEMINI_MODEL env var (e.g.,
 # gemini-2.5-flash). Default is gemini-3.5-flash per project preference.
@@ -423,7 +440,15 @@ def generate_post(
     )
 
     news_block_str = _format_news_block(news_items)
-    user_prompt = USER_PROMPT_TEMPLATE_EN.format(
+    angle = _pick_angle(
+        (focus_keyword or topic_label) + (news_items[0].get("title", "") if news_items else "")
+    )
+    angle_directive = (
+        f"EDITORIAL ANGLE FOR THIS PIECE: Frame the entire analysis as {angle}. "
+        "Commit to this angle in the headline and throughout — do not retreat "
+        "into a neutral, balanced summary.\n\n"
+    )
+    user_prompt = angle_directive + USER_PROMPT_TEMPLATE_EN.format(
         keyword=focus_keyword or topic_label,
         news_context=news_block_str,
     )

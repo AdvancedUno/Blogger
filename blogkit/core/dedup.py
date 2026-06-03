@@ -103,14 +103,26 @@ class Ledger:
                 return prior
         return None
 
-    def record(self, *, slug: str, keyword: str, title: str, links: list[str]) -> None:
+    def record(self, *, slug: str, keyword: str, title: str, links: list[str],
+               url: str = "") -> None:
         self.entries.append({
             "ts": _today().isoformat(),
             "slug": slug,
             "keyword": keyword,
             "title": title,
+            "url": url,
             "links": [link_hash(u) for u in links],
         })
+
+    def recent_posts(self, slug: str, *, days: int = 90,
+                     limit: int = 5) -> list[tuple[str, str]]:
+        """(title, url) for this blog's recent posts that have a URL, newest
+        first — for internal "related posts" linking."""
+        rows = [e for e in self.entries
+                if e.get("slug") == slug and e.get("url")
+                and _days_ago(e.get("ts", "")) <= days]
+        rows.sort(key=lambda e: e.get("ts", ""), reverse=True)
+        return [(e["title"], e["url"]) for e in rows[:limit]]
 
     def prune(self, max_age_days: int = LEDGER_MAX_AGE_DAYS) -> None:
         self.entries = [e for e in self.entries if _days_ago(e.get("ts", "")) <= max_age_days]

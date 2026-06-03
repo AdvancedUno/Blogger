@@ -59,3 +59,16 @@ def test_json_roundtrip_and_prune():
 def test_from_json_tolerates_garbage():
     assert Ledger.from_json("not json").entries == []
     assert Ledger.from_json("{}").entries == []
+
+
+def test_recent_posts_returns_titled_urls_newest_first():
+    led = Ledger()
+    led.record(slug="b", keyword="k", title="Old", links=[], url="https://b/old")
+    led.entries[-1]["ts"] = "2026-06-01T00:00:00+00:00"
+    led.record(slug="b", keyword="k", title="New", links=[], url="https://b/new")
+    led.record(slug="b", keyword="k", title="NoUrl", links=[])  # excluded (no url)
+    led.record(slug="other", keyword="k", title="OtherBlog", links=[], url="https://x/y")
+    posts = led.recent_posts("b")
+    assert posts[0] == ("New", "https://b/new")  # newest first
+    assert len(posts) == 2                         # NoUrl excluded
+    assert all(url.startswith("https://b/") for _, url in posts)  # other blog excluded

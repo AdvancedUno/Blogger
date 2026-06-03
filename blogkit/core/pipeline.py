@@ -10,6 +10,7 @@ import random
 import traceback
 
 from blogkit.core.dedup import Ledger
+from blogkit.core.enrich import add_toc, reading_time_badge, related_posts_html
 from blogkit.core.fetcher import FetchError, fetch_top_news
 from blogkit.core.generator import GenerationError, Voice, generate_post
 from blogkit.core.imager import build_featured_image_html
@@ -121,20 +122,28 @@ def run_profile(
         if clash:
             logger.warning("[%s] Title near-dupe of recent %r — publishing anyway", name, clash)
 
-    def _record() -> None:
+    def _record(url: str = "") -> None:
         if ledger is not None:
             ledger.record(
                 slug=profile.slug, keyword=chosen_keyword, title=post.title,
-                links=[n["link"] for n in news if n.get("link")],
+                links=[n["link"] for n in news if n.get("link")], url=url,
             )
 
-    # ----- 2.5 SEO enrichment: real source citations + JSON-LD --------
-    body = post.html
+    # ----- 2.5 Engagement + SEO enrichment ----------------------------
+    # reading-time + clickable ToC (with heading anchors) at the top; internal
+    # related-posts links + real source citations + JSON-LD at the bottom.
+    body = reading_time_badge(post.html) + "\n" + add_toc(post.html)
+    if ledger is not None:
+        related = related_posts_html(ledger.recent_posts(profile.slug))
+        if related:
+            body += "\n" + related
     refs = build_references_html(news)
     if refs:
         body += "\n" + refs
-    body += "\n" + build_jsonld(title=post.title, html_body=post.html, blog_name=name,
-                                news_items=news)
+    body += "\n" + build_jsonld(
+        title=post.title, html_body=post.html, blog_name=name, news_items=news,
+        tags=list(post.tags or profile.tags), section=profile.niche_keyword,
+    )
 
     # ----- 2.6 Featured image (per-blog style pool; skipped in dry-run) ---
     html_content = body
@@ -175,7 +184,7 @@ def run_profile(
             is_draft=profile.draft,
         )
         logger.info("[%s] Published OK -> %s", name, url)
-        _record()
+        _record(url)
         return True, url
     except BloggerPublishError as e:
         logger.error("[%s] Publisher failed: %s", name, e)

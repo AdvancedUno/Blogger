@@ -61,19 +61,31 @@ def make_description(html_body: str, title: str, limit: int = 155) -> str:
     return text[:limit].rsplit(" ", 1)[0].rstrip(",.;:") + "…"
 
 
+def _word_count(html_body: str) -> int:
+    return len(_text(html_body).split())
+
+
 def build_jsonld(*, title: str, html_body: str, blog_name: str,
-                 news_items: list[dict] | None = None) -> str:
+                 news_items: list[dict] | None = None,
+                 tags: list[str] | None = None,
+                 section: str | None = None) -> str:
     """Return a JSON-LD <script> block: Article + (if FAQs found) FAQPage."""
     now = datetime.now(timezone.utc).isoformat()
-    graph: list[dict] = [{
+    article: dict = {
         "@type": "Article",
         "headline": _text(title)[:110],
         "description": make_description(html_body, title),
         "datePublished": now,
         "dateModified": now,
+        "wordCount": _word_count(html_body),
         "author": {"@type": "Organization", "name": blog_name},
         "publisher": {"@type": "Organization", "name": blog_name},
-    }]
+    }
+    if tags:
+        article["keywords"] = ", ".join(tags)
+    if section:
+        article["articleSection"] = section
+    graph: list[dict] = [article]
     faqs = extract_faqs(html_body)
     if faqs:
         graph.append({
