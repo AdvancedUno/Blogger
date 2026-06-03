@@ -17,9 +17,12 @@ import base64
 import logging
 import os
 import random
+import smtplib
 import sys
 import time
 import traceback
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from pathlib import Path
 
 import requests
@@ -49,6 +52,69 @@ def load_config() -> dict:
         raise FileNotFoundError(f"Missing config file: {CONFIG_PATH}")
     with CONFIG_PATH.open("r", encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
+
+
+# =====================================================================
+# Email publishing (fallback for Blogger API 429 daily-quota days)
+# =====================================================================
+# Mail-to-Blogger: each blog has a unique secret "Mail2Blogger" address;
+# an email sent to it is published as a post (Subject -> title, HTML body
+# -> content). Use `--publish-method email` to route here instead of the
+# REST API. Credentials come from env (GitHub Secrets in CI):
+#   SMTP_USER             — Gmail address used to send
+#   SMTP_PASSWORD         — Gmail App Password (NOT the account password)
+#   BLOGGER_SECRET_EMAIL  — the blog's Mail2Blogger address
+SMTP_HOST = "smtp.gmail.com"
+SMTP_PORT = 587
+SMTP_POST_SEND_SLEEP = 10   # avoid Gmail spam-filter rate flags between sends
+
+
+class EmailPublishError(RuntimeError):
+    """Raised when SMTP / mail-to-Blogger publishing fails."""
+
+
+def publish_via_email(title: str, html_content: str) -> str:
+    """Publish a post by emailing it to the blog's Mail2Blogger address.
+
+    Returns the recipient address on success; raises EmailPublishError on
+    any failure (missing creds, SMTP/auth error) so the caller can record
+    the site as failed.
+    """
+    user = os.environ.get("SMTP_USER")
+    password = os.environ.get("SMTP_PASSWORD")
+    recipient = os.environ.get("BLOGGER_SECRET_EMAIL")
+    missing = [
+        k for k, v in {
+            "SMTP_USER": user,
+            "SMTP_PASSWORD": password,
+            "BLOGGER_SECRET_EMAIL": recipient,
+        }.items() if not v
+    ]
+    if missing:
+        raise EmailPublishError(
+            f"Missing required env vars: {', '.join(missing)} — "
+            "must be set (GitHub Secrets in CI)."
+        )
+    if not title or not html_content:
+        raise EmailPublishError("Empty title or content cannot be emailed")
+
+    msg = MIMEMultipart()
+    msg["From"] = user
+    msg["To"] = recipient
+    msg["Subject"] = title
+    msg.attach(MIMEText(html_content, "html", "utf-8"))
+
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as server:
+            server.starttls()
+            server.login(user, password)
+            server.sendmail(user, [recipient], msg.as_string())
+    except Exception as e:
+        raise EmailPublishError(f"SMTP send failed: {e}") from e
+
+    # Space out sends so Gmail doesn't flag the burst as spam.
+    time.sleep(SMTP_POST_SEND_SLEEP)
+    return recipient
 
 
 # =====================================================================
@@ -324,7 +390,7 @@ def build_gemini_featured_image_html(
         return None
 
 
-def run_one(site: dict, defaults: dict) -> tuple[bool, str]:
+def run_one(site: dict, defaults: dict, publish_method: str = "api") -> tuple[bool, str]:
     name = site.get("name", "<unnamed>")
     logger.info("================ START : %s ================", name)
 
@@ -444,7 +510,22 @@ def run_one(site: dict, defaults: dict) -> tuple[bool, str]:
         else:
             logger.info("[%s] Featured image failed — publishing text-only", name)
 
-    # ----- 3. Publish via Blogger v3 REST API -------------------------
+    # ----- 3. Publish (route on --publish-method) ---------------------
+    # Email fallback (Mail2Blogger) — for days the REST API is 429'd.
+    if publish_method == "email":
+        try:
+            recipient = publish_via_email(post.title, html_content)
+            logger.info("[%s] Emailed to Mail2Blogger (%s) OK", name, recipient)
+            return True, f"emailed:{recipient}"
+        except EmailPublishError as e:
+            logger.error("[%s] Email publish failed: %s", name, e)
+            return False, f"email: {e}"
+        except Exception as e:
+            logger.error("[%s] Email publish unexpected error: %s\n%s",
+                         name, e, traceback.format_exc())
+            return False, f"email-unexpected: {e}"
+
+    # Default: Blogger v3 REST API.
     ai_tags = list(post.tags or [])
     config_tags = list(site.get("tags") or [])
     final_tags = ai_tags if ai_tags else config_tags
