@@ -19,6 +19,7 @@ from blogkit.core.publisher import (
     publish_to_blogger,
     publish_via_email,
 )
+from blogkit.core.seo import build_jsonld, build_references_html
 from blogkit.profiles.base import BlogProfile
 
 logger = logging.getLogger(__name__)
@@ -122,13 +123,21 @@ def run_profile(
                 links=[n["link"] for n in news if n.get("link")],
             )
 
-    # ----- 2.5 Featured image (per-blog style pool) -------------------
-    html_content = post.html
+    # ----- 2.5 SEO enrichment: real source citations + JSON-LD --------
+    body = post.html
+    refs = build_references_html(news)
+    if refs:
+        body += "\n" + refs
+    body += "\n" + build_jsonld(title=post.title, html_body=post.html, blog_name=name,
+                                news_items=news)
+
+    # ----- 2.6 Featured image (per-blog style pool) -------------------
+    html_content = body
     if profile.featured_image:
         hf_token = os.environ.get("HF_API_TOKEN")
         featured = build_featured_image_html(post.title, hf_token, styles=profile.style_pool())
         if featured:
-            html_content = featured + "\n" + post.html
+            html_content = featured + "\n" + body
             logger.info("[%s] Prepended hosted featured image", name)
         else:
             logger.info("[%s] No featured image — text-only", name)
