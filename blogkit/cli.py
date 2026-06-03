@@ -49,6 +49,7 @@ def cmd_list(_args: argparse.Namespace) -> int:
 
 
 def cmd_run(args: argparse.Namespace) -> int:
+    from blogkit.core.dedup import GitHubLedgerStore
     from blogkit.core.imager import warm_up_hf_model
     from blogkit.core.pipeline import INTER_SITE_SLEEP_SECONDS, run_profile
 
@@ -56,6 +57,10 @@ def cmd_run(args: argparse.Namespace) -> int:
     if not profiles:
         return 0
     logger.info("Publish method: %s | %d blog(s)", args.publish_method, len(profiles))
+
+    # Cross-blog de-dup ledger (best-effort; empty if no ASSETS_REPO_PAT).
+    store = GitHubLedgerStore()
+    ledger = store.load()
 
     # One-shot warm-up if any selected blog wants an image.
     hf_token = os.environ.get("HF_API_TOKEN")
@@ -65,11 +70,13 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     results = []
     for idx, profile in enumerate(profiles):
-        ok, info = run_profile(profile, publish_method=args.publish_method)
+        ok, info = run_profile(profile, publish_method=args.publish_method, ledger=ledger)
         results.append((profile.slug, ok, info))
         if idx < len(profiles) - 1:
             logger.info("Sleeping %ds before next blog", INTER_SITE_SLEEP_SECONDS)
             time.sleep(INTER_SITE_SLEEP_SECONDS)
+
+    store.save(ledger)   # persist what we used this run
 
     logger.info("=================== SUMMARY ===================")
     for slug, ok, info in results:
