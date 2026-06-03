@@ -37,7 +37,7 @@ import yaml
 from googleapiclient.errors import HttpError
 
 # Reuse the OAuth helper the daily pipeline already uses.
-from src.blogger_publisher import _build_service
+from blogkit.core.publisher import _build_service
 
 logging.basicConfig(
     level=logging.INFO,
