@@ -21,7 +21,7 @@ defaults:
   # When on, main_blogger.py generates a unique pollinations.ai image per post,
   # downloads it at publish time, and inlines it as base64 (no live external
   # image links). Any failure falls back to text-only automatically.
-  featured_image: false
+  featured_image: true
 
 
 # =====================================================================
