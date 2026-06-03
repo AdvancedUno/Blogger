@@ -1,0 +1,50 @@
+name: Email Fallback Publish
+
+# Manual fallback for Blogger API 429 daily-quota days: generates posts and
+# publishes them via Mail2Blogger (SMTP) instead of the Blogger v3 REST API.
+
+on:
+  workflow_dispatch:
+    inputs:
+      group:
+        description: 'run_group to publish (matches config.yaml run_group)'
+        required: true
+        default: '1'
+
+concurrency:
+  group: email-fallback-publish
+  cancel-in-progress: false
+
+jobs:
+  publish-email:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: pip
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run blogger pipeline (email fallback)
+        env:
+          # --- Featured image (Hugging Face FLUX.1-schnell, free tier) ---
+          HF_API_TOKEN:         ${{ secrets.HF_API_TOKEN }}
+          # PAT (contents:write on AdvancedUno/blog-assets) for hosting images.
+          ASSETS_REPO_PAT:      ${{ secrets.ASSETS_REPO_PAT }}
+          # --- AI text generation ---
+          GEMINI_API_KEY_1:     ${{ secrets.GEMINI_API_KEY_1 }}
+          # --- Mail2Blogger SMTP publishing ---
+          BLOGGER_SECRET_EMAIL: ${{ secrets.BLOGGER_SECRET_EMAIL }}
+          SMTP_USER:            ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD:        ${{ secrets.SMTP_PASSWORD }}
+        run: python main_blogger.py --group ${{ github.event.inputs.group }} --publish-method email

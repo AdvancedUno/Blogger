@@ -54,6 +54,8 @@ jobs:
           GEMINI_MODEL:       ${{ secrets.GEMINI_MODEL }}
           # --- Featured image (Hugging Face FLUX.1-schnell, free tier) ---
           HF_API_TOKEN:         ${{ secrets.HF_API_TOKEN }}
+          # PAT (contents:write on AdvancedUno/blog-assets) for hosting images.
+          ASSETS_REPO_PAT:      ${{ secrets.ASSETS_REPO_PAT }}
           # --- Blogger OAuth ---
           GOOGLE_CLIENT_ID:     ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
