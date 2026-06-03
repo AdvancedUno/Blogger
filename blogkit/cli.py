@@ -19,7 +19,7 @@ import re
 import sys
 import time
 
-from blogkit.profiles.registry import all_profiles, by_group, get_profile
+from blogkit.profiles.registry import all_profiles, by_group, get_profile, runnable
 
 logging.basicConfig(
     level=logging.INFO,
@@ -29,22 +29,42 @@ logging.basicConfig(
 logger = logging.getLogger("blogkit")
 
 
+def _disabled_slugs() -> set[str]:
+    """Runtime disable list from BLOGKIT_DISABLE (comma-separated slugs)."""
+    return {s.strip() for s in os.environ.get("BLOGKIT_DISABLE", "").split(",") if s.strip()}
+
+
 def _select(args: argparse.Namespace):
-    """Resolve the profiles a run/selftest targets from --blog/--group/--all."""
+    """Resolve the profiles a run targets from --blog/--group/--all.
+
+    --blog runs that blog explicitly (even if disabled). --group/--all skip
+    disabled + BLOGKIT_DISABLE blogs unless --include-disabled is set.
+    """
     if getattr(args, "blog", None):
         return [get_profile(args.blog)]
-    if getattr(args, "group", None) is not None:
-        profs = by_group(args.group)
-        if not profs:
-            logger.warning("No blogs in run_group=%d", args.group)
+    profs = by_group(args.group) if getattr(args, "group", None) is not None else all_profiles()
+    if getattr(args, "group", None) is not None and not profs:
+        logger.warning("No blogs in run_group=%d", args.group)
+    if getattr(args, "include_disabled", False):
         return profs
-    return all_profiles()
+    selected = runnable(profs, _disabled_slugs())
+    skipped = len(profs) - len(selected)
+    if skipped:
+        logger.info("Skipping %d disabled blog(s) (enabled=False or BLOGKIT_DISABLE)", skipped)
+    return selected
 
 
 def cmd_list(_args: argparse.Namespace) -> int:
+    disabled = _disabled_slugs()
     for p in all_profiles():
-        img = ",".join(p.image_styles) if p.image_styles else "(all)"
-        print(f"g{p.run_group}  {p.slug:32}  {p.persona:46}  styles={img}")
+        if not p.enabled:
+            status = "off "
+        elif p.slug in disabled:
+            status = "off*"   # runtime-disabled via BLOGKIT_DISABLE
+        else:
+            status = "ON  "
+        print(f"[{status}] g{p.run_group}  {p.slug:32}  {p.persona}")
+    print("\n(off = enabled:false in profile; off* = BLOGKIT_DISABLE)")
     return 0
 
 
@@ -156,6 +176,8 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     run.add_argument("--dry-run", action="store_true",
                      help="Generate + assemble but do not publish; ledger untouched, "
                           "featured image skipped. For safe testing.")
+    run.add_argument("--include-disabled", action="store_true",
+                     help="Also run blogs marked enabled=false / in BLOGKIT_DISABLE.")
 
     st = sub.add_parser("selftest-image", help="Test the HF+GitHub image path only")
     st.add_argument("--blog", help="Use this blog's style pool (else the default sample)")

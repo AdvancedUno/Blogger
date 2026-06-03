@@ -8,7 +8,7 @@ producing a broken post.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from blogkit.core.styles import STYLE_PRESETS
 
@@ -45,6 +45,11 @@ class BlogProfile(BaseModel):
 
     # --- publish ---
     draft: bool = False
+    # Pipeline on/off switch. Disabled blogs are skipped by `run --all` /
+    # `--group` (and can also be toggled at runtime via BLOGKIT_DISABLE).
+    # A disabled blog may be "staged" with a TODO blog_id until its Blogger
+    # site exists; an *enabled* blog must have a real blog_id.
+    enabled: bool = True
 
     # --- analytics feedback (opt-in) ---
     # Search Console property URL (e.g. "https://aiinfra.blogspot.com/"). When
@@ -52,12 +57,18 @@ class BlogProfile(BaseModel):
     # themes already earning impressions/clicks. Empty = feature dormant.
     analytics_site: str = ""
 
-    @field_validator("blog_id")
-    @classmethod
-    def _blog_id_real(cls, v: str) -> str:
-        if not v or v.startswith("["):
-            raise ValueError(f"blog_id is missing or a placeholder: {v!r}")
-        return v
+    @model_validator(mode="after")
+    def _enabled_needs_real_blog_id(self) -> BlogProfile:
+        # Staged (disabled) blogs may carry a placeholder/TODO id; an enabled
+        # blog must point at a real Blogger blog_id.
+        if self.enabled:
+            bid = self.blog_id
+            if not bid or bid.startswith("[") or bid.upper().startswith("TODO"):
+                raise ValueError(
+                    f"enabled blog {self.slug!r} needs a real blog_id (got {bid!r}); "
+                    "set enabled=False to stage it without one"
+                )
+        return self
 
     @field_validator("image_styles")
     @classmethod

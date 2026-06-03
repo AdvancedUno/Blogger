@@ -8,6 +8,11 @@ on:
     # so the post is live for the US morning audience.
     - cron: '0 14 * * *'
   workflow_dispatch:
+    inputs:
+      disable:
+        description: 'Comma-separated blog slugs to skip this run (optional)'
+        required: false
+        default: ''
 
 concurrency:
   group: daily-blogger-post
@@ -67,6 +72,8 @@ jobs:
           GSC_CLIENT_ID:        ${{ secrets.GSC_CLIENT_ID }}
           GSC_CLIENT_SECRET:    ${{ secrets.GSC_CLIENT_SECRET }}
           GSC_REFRESH_TOKEN:    ${{ secrets.GSC_REFRESH_TOKEN }}
+          # --- Skip specific blogs this run (manual dispatch input) ---
+          BLOGKIT_DISABLE:      ${{ github.event.inputs.disable }}
         # Preflight first (fail fast on missing secrets), then run.
         # Use --group N to run only one batch (e.g., `python -m blogkit run --group 2`).
         run: |

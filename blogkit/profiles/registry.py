@@ -46,3 +46,10 @@ def get_profile(slug: str) -> BlogProfile:
 
 def by_group(group: int) -> list[BlogProfile]:
     return [p for p in all_profiles() if p.run_group == group]
+
+
+def runnable(profiles: list[BlogProfile], disabled: set[str] | None = None) -> list[BlogProfile]:
+    """Filter to blogs the pipeline should actually post to: enabled, and not
+    in the runtime `disabled` slug set (BLOGKIT_DISABLE)."""
+    dis = disabled or set()
+    return [p for p in profiles if p.enabled and p.slug not in dis]
