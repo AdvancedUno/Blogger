@@ -12,9 +12,7 @@ import os
 import re
 import time
 from dataclasses import dataclass, field
-from urllib.parse import quote, unquote
 
-import requests
 from google import genai
 from google.genai import types
 
@@ -22,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 # Model name can be overridden via the GEMINI_MODEL env var (e.g.,
 # gemini-2.5-flash). Default is gemini-3.5-flash per project preference.
-MODEL_NAME = "gemini-2.5-flash"
+MODEL_NAME = "gemini-3.5-flash"
 
 
 # =====================================================================
@@ -45,8 +43,8 @@ CRITICAL WRITING LAWS FOR ELITE QUALITY & SEO:
 4. INLINE ANALOGIES: Unpack dense technical concepts using exactly one sharp, relatable corporate analogy.
 5. ZERO HALLUCINATIONS: Ground your analysis strictly in the provided [Source Data]. Never invent names, statistics, or metrics.
 6. NO "AI TELLS": Absolutely ban phrases like "In conclusion", "Furthermore", "Delve into", "Navigating the landscape", "Today we will discuss".
-7. RAW HTML ONLY (theme-aware tag set): Output clean HTML paragraphs (max 3-4 sentences each). Allowed elements: <h1>, <h2>, <h3>, <h4>, <p>, <strong>, <b>, <em>, <ul>, <ol>, <li>, <blockquote>, <figure>, <figcaption>, <img>, <table>, <thead>, <tbody>, <tr>, <th>, <td>. Use <strong> liberally on real data, regulator names, and corporate entities so the reader's eye finds anchors.
-8. VISUAL RHYTHM (JetTheme-optimized layout): The blog runs on JetTheme v2.9, which styles semantic HTML distinctly. You MUST use this layout to break the wall of text: a <blockquote> TL;DR right after the <h1>, a <blockquote> pull quote inside the Risks section, a <figure><figcaption> wrap around each <img>, a comparison <table> in the Regulatory section, and a final <blockquote> "Bottom Line" callout before References. Match the user-prompt template structure exactly — do not skip any element.
+7. RAW HTML ONLY (theme-aware tag set): Output clean HTML paragraphs (max 3-4 sentences each). Allowed elements: <h1>, <h2>, <h3>, <h4>, <p>, <strong>, <b>, <em>, <ul>, <ol>, <li>, <blockquote>, <table>, <thead>, <tbody>, <tr>, <th>, <td>. Do NOT emit any <img>, <figure>, or <figcaption> tags — this blog is text-only. Use <strong> liberally on real data, regulator names, and corporate entities so the reader's eye finds anchors.
+8. VISUAL RHYTHM (JetTheme-optimized layout): The blog runs on JetTheme v2.9, which styles semantic HTML distinctly. You MUST use this layout to break the wall of text: a <blockquote> TL;DR right after the <h1>, a <blockquote> pull quote inside the Risks section, a comparison <table> in the Regulatory section, and a final <blockquote> "Bottom Line" callout before References. Match the user-prompt template structure exactly — do not skip any element.
 """.strip()
 
 
@@ -55,7 +53,7 @@ USER_PROMPT_TEMPLATE_EN = """Conduct a deeply researched, analytical, and strict
 [Source Data]:
 {news_context}
 
-You MUST follow this exact HTML structure to provide maximum clarity and visual rhythm on JetTheme v2.9. Do not skip any element — the <blockquote>, <figure>/<figcaption>, and <table> wrappers carry distinct theme styling that turns a wall of text into a scannable editorial layout.
+You MUST follow this exact HTML structure to provide maximum clarity and visual rhythm on JetTheme v2.9. Do not skip any element — the <blockquote> and <table> wrappers carry distinct theme styling that turns a wall of text into a scannable editorial layout. This blog is text-only: do NOT emit any <img>, <figure>, or <figcaption> tags.
 
 The first 3 lines below (TITLE / TAGS / ---) are required for downstream parsing. The TITLE line text MUST match the <h1> text exactly.
 
@@ -77,11 +75,6 @@ TAGS: 5-7 high-CPC B2B tags (PascalCase / compounds, no spaces inside individual
 <p>[Powerful opening paragraph — lead with a concrete data point or named entity from the Source Data, not a generic preamble.]</p>
 <p>[Second paragraph — connect the news signal to the broader macro environment and explain why this matters now, this fiscal quarter, not in the abstract.]</p>
 
-<figure>
-  <img src="https://image.pollinations.ai/prompt/[describe_scene_in_2_to_4_english_words_with_underscores]?width=800&amp;height=400&amp;nologo=true" alt="Descriptive alt text rooted in the article topic" style="max-width: 100%; border-radius: 8px; margin: 20px 0;">
-  <figcaption><em>[A concise caption that connects the visual to the strategic implication of this section — not just a literal description of the image.]</em></figcaption>
-</figure>
-
 <h2>The Unfiltered Reality: Risks & Hidden Friction</h2>
 <p>[Multiple deep paragraphs exposing hard truths. Why are enterprise deployments stalling? What hidden operational costs, integration friction, or technical debt do vendors gloss over?]</p>
 
@@ -94,11 +87,6 @@ TAGS: 5-7 high-CPC B2B tags (PascalCase / compounds, no spaces inside individual
 
 <h2>Regulatory Pressures and Institutional Impact</h2>
 <p>[Analyze the specific compliance, regulatory (SEC, FTC, HIPAA, GDPR, CISA, etc.), or corporate governance hurdles executive boards must map to survive this transition. Name the specific framework or agency — not "regulators" generically.]</p>
-
-<figure>
-  <img src="https://image.pollinations.ai/prompt/[describe_scene_in_2_to_4_english_words_with_underscores]?width=800&amp;height=400&amp;nologo=true" alt="Descriptive alt text rooted in regulatory/strategic context" style="max-width: 100%; border-radius: 8px; margin: 20px 0;">
-  <figcaption><em>[Caption that frames the regulatory or institutional angle of this section.]</em></figcaption>
-</figure>
 
 <table>
   <thead>
@@ -220,134 +208,6 @@ def _strip_emoji(s: str) -> str:
     return re.sub(r"\s{2,}", " ", cleaned).strip()
 
 
-_POLLINATIONS_URL_RE = re.compile(
-    r'(https://image\.pollinations\.ai/prompt/)([^"\'?\s]+)(\?[^"\'\s]*)?',
-    re.IGNORECASE,
-)
-
-
-# Failover for any Pollinations URL that fails verification — picsum is
-# a free random-photo CDN with effectively 100% uptime. Same dimensions
-# as the Pollinations URLs so layout doesn't shift.
-FALLBACK_IMAGE_URL_TEMPLATE = "https://picsum.photos/seed/{seed}/800/400"
-
-# Regex that captures the full <img ... src="...pollinations..."> tag so
-# the verifier can rewrite just the src attribute on failure.
-_POLLINATIONS_IMG_TAG_RE = re.compile(
-    r'(<img\b[^>]*?\bsrc=["\'])'                        # group 1: open + src="
-    r'(https://image\.pollinations\.ai/prompt/[^"\']+)'  # group 2: the URL
-    r'(["\'][^>]*?/?>)',                                 # group 3: close
-    re.IGNORECASE,
-)
-
-
-def _warm_pollinations_images(
-    body: str,
-    *,
-    request_timeout: float = 15.0,
-    retries: int = 1,
-) -> str:
-    """Fetch every Pollinations image URL during the pipeline so the image
-    is already generated + CDN-cached by the time a reader visits the post.
-
-    Why this exists:
-      Pollinations.ai generates each image on-demand on the first request,
-      which can take 15-30s. If a reader's browser is the one that triggers
-      that generation, the browser often times out and shows a broken-image
-      icon. Pre-warming forces generation server-side here, before publish.
-
-    Strategy:
-      - GET each Pollinations URL with a 15s timeout.
-      - Verify 200 OK + content-type starts with 'image/' + at least one byte.
-      - One retry on failure (zero backoff to stay under the GitHub Actions
-        45-min budget).
-      - If verification still fails, rewrite the <img src> to a picsum.photos
-        URL keyed by a hash of the original prompt — the post still renders
-        a real photo instead of a broken icon.
-    """
-    counter = [0]
-
-    def _verify_or_fallback(m: re.Match) -> str:
-        prefix, url, suffix = m.group(1), m.group(2), m.group(3)
-        counter[0] += 1
-        # &amp; is correct HTML-entity encoding for the markup, but the live
-        # HTTP request needs the decoded form.
-        live_url = url.replace("&amp;", "&")
-
-        for attempt in range(retries + 1):
-            try:
-                r = requests.get(live_url, timeout=request_timeout, stream=True)
-                ct = (r.headers.get("content-type") or "").lower()
-                ok = r.status_code == 200 and ct.startswith("image/")
-                if ok:
-                    # Drain one chunk to confirm the stream actually delivers
-                    # bytes (Pollinations sometimes returns 200 then closes
-                    # the connection on internal error).
-                    chunk = next(r.iter_content(chunk_size=4096), None)
-                    r.close()
-                    if chunk:
-                        logger.info(
-                            "Pollinations warm-up OK (attempt %d): %s",
-                            attempt + 1, live_url[:90],
-                        )
-                        return m.group(0)
-                else:
-                    logger.warning(
-                        "Pollinations warm-up attempt %d: status=%s ct=%s",
-                        attempt + 1, r.status_code, ct,
-                    )
-                r.close()
-            except requests.RequestException as e:
-                logger.warning(
-                    "Pollinations warm-up attempt %d raised: %s", attempt + 1, e
-                )
-
-        # All attempts exhausted — fall back to picsum.
-        # Seed the fallback with the prompt slug so the same broken image
-        # is replaced by the same fallback every time (deterministic).
-        slug_match = re.search(r"prompt/([^?]+)", live_url)
-        seed = (
-            slug_match.group(1).replace("/", "_")[:40]
-            if slug_match else f"img{counter[0]}"
-        )
-        fallback = FALLBACK_IMAGE_URL_TEMPLATE.format(seed=seed)
-        logger.warning(
-            "Pollinations URL failed verification — falling back to %s",
-            fallback,
-        )
-        return f"{prefix}{fallback}{suffix}"
-
-    return _POLLINATIONS_IMG_TAG_RE.sub(_verify_or_fallback, body)
-
-
-def _normalize_pollinations_urls(body: str) -> str:
-    """Make every Pollinations.ai image URL safe for Blogger's HTML pipeline.
-
-    Two passes per URL:
-      1. URL-encode the prompt portion (handles raw spaces / special chars
-         the model may emit, e.g. `prompt/data center server`).
-      2. HTML-entity-encode raw `&` in the query string as `&amp;` so
-         Blogger's XML serializer doesn't have to escape it on its end —
-         that's the path that produced the broken `?width=800&amp;...` →
-         double-encoded URL on render. Skip any `&` already part of `&amp;`
-         to avoid creating `&amp;amp;`.
-    """
-    def _encode(m: re.Match) -> str:
-        prefix = m.group(1)
-        prompt = m.group(2)
-        query = m.group(3) or ""
-        try:
-            decoded = unquote(prompt)
-        except Exception:
-            decoded = prompt
-        encoded = quote(decoded, safe="")
-        if query:
-            query = re.sub(r"&(?!amp;)", "&amp;", query)
-        return f"{prefix}{encoded}{query}"
-
-    return _POLLINATIONS_URL_RE.sub(_encode, body)
-
-
 def _parse_response(text: str) -> GeneratedPost:
     text = text.strip()
     # Defensive strip of any code fence the model may have wrapped output in.
@@ -381,7 +241,7 @@ def _parse_response(text: str) -> GeneratedPost:
     else:
         last_meta = m_tags.end() if m_tags else m_title.end()
         rest = text[last_meta:].lstrip()
-        html_match = re.search(r"<(?:h1|h2|h3|p|img|ul|ol)\b", rest)
+        html_match = re.search(r"<(?:h1|h2|h3|p|ul|ol)\b", rest)
         body = rest[html_match.start():] if html_match else rest
 
     # Strip residual code fences and any emoji from the body.
@@ -389,22 +249,7 @@ def _parse_response(text: str) -> GeneratedPost:
     body = re.sub(r"\n```\s*$", "", body)
     body = _strip_emoji(body)
 
-    # URL-encode the prompt portion of Pollinations image URLs (handles the
-    # case where the model emitted raw spaces inside the prompt).
-    body = _normalize_pollinations_urls(body)
-
-    # Pre-warm each Pollinations URL (forces image generation + CDN cache so
-    # readers never trigger the slow first-request path). Any URL that fails
-    # verification gets rewritten to a picsum.photos fallback in-place so the
-    # post never publishes with a broken-image icon.
-    body = _warm_pollinations_images(body)
-
-    # 4) Minimum structural validation
-    img_count = len(re.findall(r"<img\b", body))
-    if img_count < 2:
-        raise GenerationError(
-            f"Insufficient body images — need 2-3, found {img_count}"
-        )
+    # 4) Minimum structural validation (text-only blog — no image checks)
     if "<h2" not in body:
         raise GenerationError("<h2> heading missing from generated HTML")
 

@@ -15,6 +15,13 @@
 
 defaults:
   max_news_items: 6
+  # Featured image: OFF by default = text-only posts (light, AdSense-friendly,
+  # no external image dependency). Set to true here to enable for ALL blogs,
+  # or add `featured_image: true` under an individual site to enable just one.
+  # When on, main_blogger.py generates a unique pollinations.ai image per post,
+  # downloads it at publish time, and inlines it as base64 (no live external
+  # image links). Any failure falls back to text-only automatically.
+  featured_image: false
 
 
 # =====================================================================

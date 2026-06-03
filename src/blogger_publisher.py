@@ -8,10 +8,7 @@ Required environment variables (provided via GitHub Secrets in CI):
     GOOGLE_CLIENT_SECRET   — OAuth client secret
     GOOGLE_REFRESH_TOKEN   — Refresh token from a one-time local OAuth flow
 
-Image handling:
-    Blogger renders external image URLs (e.g., Pollinations.ai) directly
-    without any backend lock, so HTML <img> tags can use external URLs as-is.
-    No base64 inlining is needed.
+Content is text-only HTML — the generator emits no <img>/<figure> tags.
 """
 from __future__ import annotations
 

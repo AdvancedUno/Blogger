@@ -13,6 +13,8 @@ Required environment variables (provided via GitHub Secrets in CI):
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
 import logging
 import os
 import random
@@ -20,7 +22,9 @@ import sys
 import time
 import traceback
 from pathlib import Path
+from urllib.parse import quote
 
+import requests
 import yaml
 
 # Sleep between sites to stay under the Gemini free-tier RPM ceiling
@@ -47,6 +51,79 @@ def load_config() -> dict:
         raise FileNotFoundError(f"Missing config file: {CONFIG_PATH}")
     with CONFIG_PATH.open("r", encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
+
+
+# =====================================================================
+# Featured image (opt-in via the `featured_image` config flag)
+# =====================================================================
+# Disabled by default: the blog is text-only, which keeps post bodies
+# light (AdSense / page-speed friendly) and never depends on a flaky
+# external image CDN. When enabled, we generate a unique pollinations.ai
+# image PER POST, download it HERE (at publish time), and inline it as
+# base64 — so the *live* post never makes an external image request.
+# Any failure falls back to text-only (see build_featured_image_html).
+POLLINATIONS_ENDPOINT = "https://image.pollinations.ai/prompt/{prompt}"
+IMAGE_PROMPT_TEMPLATE = (
+    "Abstract minimalist 3D geometric rendering representing {title}, "
+    "dark corporate tech aesthetic, professional lighting, high detail, no text"
+)
+IMAGE_REQUEST_TIMEOUT = 30.0   # pollinations generates on first request (slow)
+
+
+def build_featured_image_html(generated_title: str) -> str | None:
+    """Generate a unique pollinations.ai image for this post, download it,
+    and return a JetTheme-styled <div> with the image inlined as base64.
+
+    Best-effort: returns None on any failure so the caller can publish
+    text-only without crashing.
+    """
+    try:
+        # Deterministic seed from the title: distinct titles -> distinct
+        # images, and re-running the same post reproduces the same image.
+        seed = int(
+            hashlib.sha256(generated_title.encode("utf-8")).hexdigest(), 16
+        ) % (10 ** 8)
+
+        prompt = IMAGE_PROMPT_TEMPLATE.format(title=generated_title)
+        url = POLLINATIONS_ENDPOINT.format(prompt=quote(prompt, safe=""))
+        params = {
+            "width": 1200,
+            "height": 630,
+            "seed": seed,
+            "nologo": "true",
+            "model": "flux",
+        }
+
+        resp = requests.get(url, params=params, timeout=IMAGE_REQUEST_TIMEOUT)
+        resp.raise_for_status()
+
+        # Use the real content-type rather than assuming jpeg — pollinations
+        # sometimes returns PNG, and a mismatched data-URI prefix renders
+        # broken in some browsers.
+        content_type = (
+            resp.headers.get("content-type") or "image/jpeg"
+        ).split(";")[0].strip()
+        if not content_type.startswith("image/"):
+            raise ValueError(f"unexpected content-type: {content_type!r}")
+        if not resp.content:
+            raise ValueError("empty image body")
+
+        b64 = base64.b64encode(resp.content).decode("ascii")
+        alt = generated_title.replace('"', "&quot;")   # safe in attr context
+        logger.info(
+            "Featured image OK — %s, %d KB base64", content_type, len(b64) // 1024
+        )
+        return (
+            '<div class="mb-5">'
+            f'<img src="data:{content_type};base64,{b64}" '
+            f'class="img-fluid rounded shadow-sm w-100" alt="{alt}" />'
+            '</div>'
+        )
+    except Exception as e:
+        logger.warning(
+            "Featured image generation failed (%s) — publishing text-only", e
+        )
+        return None
 
 
 def run_one(site: dict, defaults: dict) -> tuple[bool, str]:
@@ -148,6 +225,23 @@ def run_one(site: dict, defaults: dict) -> tuple[bool, str]:
                      name, e, traceback.format_exc())
         return False, f"generator-unexpected: {e}"
 
+    # ----- 2.5 Featured image (opt-in, base64-embedded) ---------------
+    # Off unless `featured_image: true` is set on the site or in defaults.
+    html_content = post.html
+    featured_enabled = bool(
+        site.get("featured_image", defaults.get("featured_image", False))
+    )
+    if featured_enabled:
+        featured_html = build_featured_image_html(post.title)
+        if featured_html:
+            html_content = featured_html + "\n" + post.html
+            logger.info(
+                "[%s] Prepended base64 featured image (body now %d chars)",
+                name, len(html_content),
+            )
+        else:
+            logger.info("[%s] Featured image failed — publishing text-only", name)
+
     # ----- 3. Publish via Blogger v3 REST API -------------------------
     ai_tags = list(post.tags or [])
     config_tags = list(site.get("tags") or [])
@@ -163,7 +257,7 @@ def run_one(site: dict, defaults: dict) -> tuple[bool, str]:
         url = publish_to_blogger(
             blog_id=blog_id,
             title=post.title,
-            html_content=post.html,
+            html_content=html_content,
             tags=final_tags,
             is_draft=bool(site.get("draft", False)),
         )
