@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 # Model name can be overridden via the GEMINI_MODEL env var (e.g.,
 # gemini-2.5-flash). Default is gemini-3.5-flash per project preference.
-MODEL_NAME = "gemini-3.5-flash"
+MODEL_NAME = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
 
 
 # =====================================================================
@@ -46,6 +46,39 @@ CRITICAL WRITING LAWS FOR ELITE QUALITY & SEO:
 7. RAW HTML ONLY (theme-aware tag set): Output clean HTML paragraphs (max 3-4 sentences each). Allowed elements: <h1>, <h2>, <h3>, <h4>, <p>, <strong>, <b>, <em>, <ul>, <ol>, <li>, <blockquote>, <table>, <thead>, <tbody>, <tr>, <th>, <td>. Do NOT emit any <img>, <figure>, or <figcaption> tags — this blog is text-only. Use <strong> liberally on real data, regulator names, and corporate entities so the reader's eye finds anchors.
 8. VISUAL RHYTHM (JetTheme-optimized layout): The blog runs on JetTheme v2.9, which styles semantic HTML distinctly. You MUST use this layout to break the wall of text: a <blockquote> TL;DR right after the <h1>, a <blockquote> pull quote inside the Risks section, a comparison <table> in the Regulatory section, and a final <blockquote> "Bottom Line" callout before References. Match the user-prompt template structure exactly — do not skip any element.
 """.strip()
+
+
+# Per-blog voice lock appended to the base instruction when a profile supplies a
+# persona. Keeps the single shared, SEO-tuned template while giving each blog a
+# stable, distinct editorial identity (better E-E-A-T signal + brand voice).
+PERSONA_VOICE_LOCK = """
+
+PRIMARY VOICE LOCK — THIS PUBLICATION ONLY:
+You are the lead writer for "{blog_name}". Sustain this exact voice end to end: {persona}.
+Author/editorial context (grounds your expertise, diction, and which regulators or vendors you cite — never quote this text verbatim):
+{persona_brief}
+Where this specific voice and the generic adaptation list above conflict, THIS voice wins.
+""".rstrip()
+
+
+def _compose_system_instruction(
+    persona: str | None,
+    persona_brief: str,
+    blog_name: str,
+    override: str | None,
+) -> str:
+    """Build the effective system instruction: a full per-blog override if the
+    profile supplies one, else the shared base + an optional persona voice lock.
+    """
+    if override:
+        return override
+    if not persona:
+        return SYSTEM_INSTRUCTION_EN
+    return SYSTEM_INSTRUCTION_EN + PERSONA_VOICE_LOCK.format(
+        blog_name=blog_name,
+        persona=persona,
+        persona_brief=persona_brief or "—",
+    )
 
 
 USER_PROMPT_TEMPLATE_EN = """Conduct a deeply researched, analytical, and strictly factual market briefing based on the following news signals regarding: "{keyword}"
@@ -292,6 +325,10 @@ def generate_post(
     news_items: list[dict],
     api_key: str | None = None,
     focus_keyword: str | None = None,
+    persona: str | None = None,
+    persona_brief: str = "",
+    blog_name: str | None = None,
+    system_instruction: str | None = None,
     retries: int = 2,
     retry_delay: float = 3.0,
 ) -> GeneratedPost:
@@ -324,8 +361,12 @@ def generate_post(
         )
     client = genai.Client(api_key=effective_key)
 
+    effective_instruction = _compose_system_instruction(
+        persona, persona_brief, blog_name or topic_label, system_instruction
+    )
+
     gen_config = types.GenerateContentConfig(
-        system_instruction=SYSTEM_INSTRUCTION_EN,
+        system_instruction=effective_instruction,
         # 0.7 strikes a balance: lower than 0.85 cuts down TITLE / image
         # format violations that trigger parse retries; high enough to
         # preserve expressive variety.
