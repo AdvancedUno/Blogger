@@ -61,35 +61,44 @@ def load_config() -> dict:
 # — so the *live* post makes no external image request. Any failure falls
 # back to text-only.
 #
-# ACTIVE ENGINE: Hugging Face Inference API (Stable Diffusion XL) — free,
-# rate-limited. The Gemini engine below is kept parked for future use.
+# ACTIVE ENGINE: Hugging Face Inference Providers (router.huggingface.co),
+# first-party `hf-inference` provider, model black-forest-labs/FLUX.1-schnell
+# — free / rate-limited. The Gemini engine below is kept parked for future use.
+#
+# NOTE: the legacy api-inference.huggingface.co host was deprecated (its DNS no
+# longer resolves) and SDXL is no longer on the free tier — text-to-image on
+# hf-inference is now FLUX.1-schnell. The token must be a fine-grained token
+# with the "Inference Providers" permission.
 # =====================================================================
 HF_IMAGE_ENDPOINT = (
-    "https://api-inference.huggingface.co/models/"
-    "stabilityai/stable-diffusion-xl-base-1.0"
+    "https://router.huggingface.co/hf-inference/models/"
+    "black-forest-labs/FLUX.1-schnell"
 )
 HF_IMAGE_PROMPT_TEMPLATE = (
     "Abstract minimalist 3D geometric rendering representing {title}, "
     "dark corporate tech aesthetic, glowing blue and cyan accents, "
-    "8k resolution, highly detailed, strictly 16:9 aspect ratio landscape."
+    "8k resolution, highly detailed, cinematic wide landscape composition."
 )
+HF_IMAGE_WIDTH = 1024           # 16:9 landscape (multiples of 16 for FLUX)
+HF_IMAGE_HEIGHT = 576
 HF_MAX_RETRIES = 3              # free model is often cold (503 while loading)
 HF_DEFAULT_COLD_WAIT = 20.0     # used when the 503 body has no estimated_time
 HF_COLD_WAIT_BUFFER = 5.0       # extra seconds on top of estimated_time
-HF_REQUEST_TIMEOUT = 120.0      # cold load + SDXL generation can be slow
+HF_REQUEST_TIMEOUT = 120.0      # cold load + generation can be slow
 
 
 def build_hf_featured_image_html(title: str, hf_token: str | None) -> str | None:
     """Generate a unique image for this post via the Hugging Face Inference
-    API (Stable Diffusion XL) and return a JetTheme-styled <div> with it
-    inlined as base64.
+    Providers router (hf-inference / FLUX.1-schnell) and return a JetTheme-
+    styled <div> with it inlined as base64.
 
-    The free Inference API returns 503 while a cold model loads; we honor the
+    The free tier may return 503 while a cold model loads; we honor the
     `estimated_time` from the body and retry up to HF_MAX_RETRIES times.
 
     Args:
         title: Post title — embedded in the prompt for uniqueness.
-        hf_token: Hugging Face access token (HF_API_TOKEN env var).
+        hf_token: Hugging Face token with Inference Providers permission
+            (HF_API_TOKEN env var).
 
     Best-effort: returns None on any failure (still loading after all retries,
     timeout, HTTP error) so the caller can publish text-only without crashing.
@@ -99,11 +108,14 @@ def build_hf_featured_image_html(title: str, hf_token: str | None) -> str | None
             raise ValueError("no Hugging Face token available (HF_API_TOKEN)")
 
         prompt = HF_IMAGE_PROMPT_TEMPLATE.format(title=title)
-        headers = {
-            "Authorization": f"Bearer {hf_token}",
-            "Accept": "image/jpeg",
+        headers = {"Authorization": f"Bearer {hf_token}"}
+        payload = {
+            "inputs": prompt,
+            "parameters": {
+                "width": HF_IMAGE_WIDTH,
+                "height": HF_IMAGE_HEIGHT,
+            },
         }
-        payload = {"inputs": prompt}
 
         for attempt in range(HF_MAX_RETRIES):
             resp = requests.post(
@@ -133,12 +145,18 @@ def build_hf_featured_image_html(title: str, hf_token: str | None) -> str | None
             if not resp.content:
                 raise ValueError("empty image body from Hugging Face")
 
+            # FLUX.1-schnell on hf-inference returns PNG bytes. Use the real
+            # content-type so the data URI matches the actual format.
+            mime = (resp.headers.get("content-type") or "image/png").split(";")[0].strip()
+            if not mime.startswith("image/"):
+                raise ValueError(f"unexpected content-type: {mime!r}")
+
             b64 = base64.b64encode(resp.content).decode("ascii")
             alt = title.replace('"', "&quot;")   # safe in attr context
-            logger.info("HF featured image OK — %d KB base64", len(b64) // 1024)
+            logger.info("HF featured image OK — %s, %d KB base64", mime, len(b64) // 1024)
             return (
                 '<div class="mb-5">'
-                f'<img src="data:image/jpeg;base64,{b64}" '
+                f'<img src="data:{mime};base64,{b64}" '
                 f'class="img-fluid rounded shadow-sm w-100" alt="{alt}" />'
                 '</div>'
             )
@@ -159,9 +177,9 @@ WARM_UP_PROMPT = "warm up the model, a simple blue cube"
 
 
 def warm_up_hf_model(hf_token: str | None) -> None:
-    """Fire a dummy generation at the HF SDXL endpoint so the model is loaded
-    into memory BEFORE the per-blog loop — absorbing the cold-start 503/load
-    delay once, up front, instead of inside the first blog's publish.
+    """Fire a dummy generation at the HF endpoint so the model is loaded into
+    memory BEFORE the per-blog loop — absorbing the cold-start 503/load delay
+    once, up front, instead of inside the first blog's publish.
 
     Uses the same 503 retry/sleep logic as build_hf_featured_image_html. We
     discard the image; the only goal is to make the model hot. Returns once it
@@ -412,7 +430,7 @@ def run_one(site: dict, defaults: dict) -> tuple[bool, str]:
         site.get("featured_image", defaults.get("featured_image", False))
     )
     if featured_enabled:
-        # Active engine: Hugging Face SDXL (free). Token from HF_API_TOKEN.
+        # Active engine: Hugging Face FLUX.1-schnell (free). Token: HF_API_TOKEN.
         # (Gemini engine is preserved but not wired in — see
         # build_gemini_featured_image_html.)
         hf_token = os.environ.get("HF_API_TOKEN")
@@ -484,15 +502,15 @@ def main() -> int:
             return 0
 
     # One-shot HF warm-up: if any site in this run will request a featured
-    # image, pre-load the SDXL model once so the per-blog calls get fast 200s
-    # instead of each paying the cold-start 503/load delay.
+    # image, pre-load the FLUX.1-schnell model once so the per-blog calls get
+    # fast 200s instead of each paying the cold-start 503/load delay.
     featured_default = bool(defaults.get("featured_image", False))
     featured_any = featured_default or any(
         s.get("featured_image", featured_default) for s in sites
     )
     hf_token = os.environ.get("HF_API_TOKEN")
     if featured_any and hf_token:
-        logger.info("Warming up Hugging Face SDXL model...")
+        logger.info("Warming up Hugging Face FLUX.1-schnell model...")
         warm_up_hf_model(hf_token)
 
     results: list[tuple[str, bool, str]] = []
