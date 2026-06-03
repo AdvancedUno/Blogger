@@ -155,6 +155,67 @@ def build_hf_featured_image_html(title: str, hf_token: str | None) -> str | None
         return None
 
 
+WARM_UP_PROMPT = "warm up the model, a simple blue cube"
+
+
+def warm_up_hf_model(hf_token: str | None) -> None:
+    """Fire a dummy generation at the HF SDXL endpoint so the model is loaded
+    into memory BEFORE the per-blog loop — absorbing the cold-start 503/load
+    delay once, up front, instead of inside the first blog's publish.
+
+    Uses the same 503 retry/sleep logic as build_hf_featured_image_html. We
+    discard the image; the only goal is to make the model hot. Returns once it
+    gets a 200 (or exhausts retries). Never raises — warm-up is best-effort,
+    so a failure here must not abort the run.
+    """
+    if not hf_token:
+        logger.warning("HF warm-up skipped — no HF_API_TOKEN")
+        return
+
+    headers = {"Authorization": f"Bearer {hf_token}", "Accept": "image/jpeg"}
+    payload = {"inputs": WARM_UP_PROMPT}
+    try:
+        for attempt in range(HF_MAX_RETRIES):
+            resp = requests.post(
+                HF_IMAGE_ENDPOINT,
+                headers=headers,
+                json=payload,
+                timeout=HF_REQUEST_TIMEOUT,
+            )
+
+            # 503 = model cold/loading. Back off for estimated_time + buffer.
+            if resp.status_code == 503:
+                try:
+                    wait = float(resp.json().get("estimated_time",
+                                                 HF_DEFAULT_COLD_WAIT))
+                except Exception:
+                    wait = HF_DEFAULT_COLD_WAIT
+                wait += HF_COLD_WAIT_BUFFER
+                logger.info(
+                    "HF warm-up: model loading (503), attempt %d/%d — "
+                    "sleeping %.0fs", attempt + 1, HF_MAX_RETRIES, wait,
+                )
+                time.sleep(wait)
+                continue
+
+            if resp.ok:
+                logger.info("HF warm-up: model is hot (HTTP %d)", resp.status_code)
+            else:
+                logger.warning(
+                    "HF warm-up: unexpected HTTP %d — continuing anyway",
+                    resp.status_code,
+                )
+            return
+
+        logger.warning(
+            "HF warm-up: model still loading after %d retries — continuing "
+            "anyway (first blog may absorb the remaining load time)",
+            HF_MAX_RETRIES,
+        )
+    except Exception as e:
+        logger.warning("HF warm-up failed (%s) — continuing anyway", e)
+
+
 # =====================================================================
 # Preserved for future use when Google Cloud Billing is enabled
 # =====================================================================
@@ -421,6 +482,18 @@ def main() -> int:
         if not sites:
             logger.warning("No sites matched run_group=%d", args.group)
             return 0
+
+    # One-shot HF warm-up: if any site in this run will request a featured
+    # image, pre-load the SDXL model once so the per-blog calls get fast 200s
+    # instead of each paying the cold-start 503/load delay.
+    featured_default = bool(defaults.get("featured_image", False))
+    featured_any = featured_default or any(
+        s.get("featured_image", featured_default) for s in sites
+    )
+    hf_token = os.environ.get("HF_API_TOKEN")
+    if featured_any and hf_token:
+        logger.info("Warming up Hugging Face SDXL model...")
+        warm_up_hf_model(hf_token)
 
     results: list[tuple[str, bool, str]] = []
     total = len(sites)
