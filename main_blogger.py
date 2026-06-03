@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import argparse
 import base64
-import hashlib
 import logging
 import os
 import random
@@ -22,7 +21,6 @@ import sys
 import time
 import traceback
 from pathlib import Path
-from urllib.parse import quote
 
 import requests
 import yaml
@@ -56,66 +54,187 @@ def load_config() -> dict:
 # =====================================================================
 # Featured image (opt-in via the `featured_image` config flag)
 # =====================================================================
-# Disabled by default: the blog is text-only, which keeps post bodies
-# light (AdSense / page-speed friendly) and never depends on a flaky
-# external image CDN. When enabled, we generate a unique pollinations.ai
-# image PER POST, download it HERE (at publish time), and inline it as
-# base64 — so the *live* post never makes an external image request.
-# Any failure falls back to text-only (see build_featured_image_html).
-POLLINATIONS_ENDPOINT = "https://image.pollinations.ai/prompt/{prompt}"
+# Disabled by default: text-only posts stay light (AdSense / page-speed
+# friendly) and depend on no external image service at read time.
+#
+# When enabled, we generate a unique image PER POST and inline it as base64
+# — so the *live* post makes no external image request. Any failure falls
+# back to text-only.
+#
+# ACTIVE ENGINE: Hugging Face Inference API (Stable Diffusion XL) — free,
+# rate-limited. The Gemini engine below is kept parked for future use.
+# =====================================================================
+HF_IMAGE_ENDPOINT = (
+    "https://api-inference.huggingface.co/models/"
+    "stabilityai/stable-diffusion-xl-base-1.0"
+)
+HF_IMAGE_PROMPT_TEMPLATE = (
+    "Abstract minimalist 3D geometric rendering representing {title}, "
+    "dark corporate tech aesthetic, glowing blue and cyan accents, "
+    "8k resolution, highly detailed, strictly 16:9 aspect ratio landscape."
+)
+HF_MAX_RETRIES = 3              # free model is often cold (503 while loading)
+HF_DEFAULT_COLD_WAIT = 20.0     # used when the 503 body has no estimated_time
+HF_COLD_WAIT_BUFFER = 5.0       # extra seconds on top of estimated_time
+HF_REQUEST_TIMEOUT = 120.0      # cold load + SDXL generation can be slow
+
+
+def build_hf_featured_image_html(title: str, hf_token: str | None) -> str | None:
+    """Generate a unique image for this post via the Hugging Face Inference
+    API (Stable Diffusion XL) and return a JetTheme-styled <div> with it
+    inlined as base64.
+
+    The free Inference API returns 503 while a cold model loads; we honor the
+    `estimated_time` from the body and retry up to HF_MAX_RETRIES times.
+
+    Args:
+        title: Post title — embedded in the prompt for uniqueness.
+        hf_token: Hugging Face access token (HF_API_TOKEN env var).
+
+    Best-effort: returns None on any failure (still loading after all retries,
+    timeout, HTTP error) so the caller can publish text-only without crashing.
+    """
+    try:
+        if not hf_token:
+            raise ValueError("no Hugging Face token available (HF_API_TOKEN)")
+
+        prompt = HF_IMAGE_PROMPT_TEMPLATE.format(title=title)
+        headers = {
+            "Authorization": f"Bearer {hf_token}",
+            "Accept": "image/jpeg",
+        }
+        payload = {"inputs": prompt}
+
+        for attempt in range(HF_MAX_RETRIES):
+            resp = requests.post(
+                HF_IMAGE_ENDPOINT,
+                headers=headers,
+                json=payload,
+                timeout=HF_REQUEST_TIMEOUT,
+            )
+
+            # 503 = model cold/loading. Back off for estimated_time + buffer.
+            if resp.status_code == 503:
+                try:
+                    wait = float(resp.json().get("estimated_time",
+                                                 HF_DEFAULT_COLD_WAIT))
+                except Exception:
+                    wait = HF_DEFAULT_COLD_WAIT
+                wait += HF_COLD_WAIT_BUFFER
+                logger.warning(
+                    "HF model loading (503), attempt %d/%d — sleeping %.0fs",
+                    attempt + 1, HF_MAX_RETRIES, wait,
+                )
+                time.sleep(wait)
+                continue
+
+            resp.raise_for_status()   # any other non-2xx -> outer except
+
+            if not resp.content:
+                raise ValueError("empty image body from Hugging Face")
+
+            b64 = base64.b64encode(resp.content).decode("ascii")
+            alt = title.replace('"', "&quot;")   # safe in attr context
+            logger.info("HF featured image OK — %d KB base64", len(b64) // 1024)
+            return (
+                '<div class="mb-5">'
+                f'<img src="data:image/jpeg;base64,{b64}" '
+                f'class="img-fluid rounded shadow-sm w-100" alt="{alt}" />'
+                '</div>'
+            )
+
+        logger.warning(
+            "HF image still loading after %d retries — publishing text-only",
+            HF_MAX_RETRIES,
+        )
+        return None
+    except Exception as e:
+        logger.warning(
+            "HF featured image generation failed (%s) — publishing text-only", e
+        )
+        return None
+
+
+# =====================================================================
+# Preserved for future use when Google Cloud Billing is enabled
+# =====================================================================
+# gemini-2.5-flash-image is a Gemini model (uses :generateContent, NOT
+# :predict / :generateImages — those are Imagen's predict API). The image
+# returns as an inlineData part on the first candidate, already base64.
+# This is a BILLED image model, not part of the free text tier — that's why
+# the active engine above is Hugging Face. Not called in the main loop.
+IMAGE_MODEL = "gemini-2.5-flash-image"
+GENAI_IMAGE_ENDPOINT = (
+    "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+)
 IMAGE_PROMPT_TEMPLATE = (
     "Abstract minimalist 3D geometric rendering representing {title}, "
     "dark corporate tech aesthetic, professional lighting, high detail, no text"
 )
-IMAGE_REQUEST_TIMEOUT = 30.0   # pollinations generates on first request (slow)
+IMAGE_ASPECT_RATIO = "16:9"     # blog-thumbnail friendly
+IMAGE_REQUEST_TIMEOUT = 60.0    # image generation is slower than text
 
 
-def build_featured_image_html(generated_title: str) -> str | None:
-    """Generate a unique pollinations.ai image for this post, download it,
-    and return a JetTheme-styled <div> with the image inlined as base64.
+def build_gemini_featured_image_html(
+    generated_title: str, api_key: str | None
+) -> str | None:
+    """Generate a unique image for this post via the gemini-2.5-flash-image
+    REST endpoint and return a JetTheme-styled <div> with it inlined as base64.
 
-    Best-effort: returns None on any failure so the caller can publish
-    text-only without crashing.
+    Args:
+        generated_title: Post title — embedded in the prompt for uniqueness.
+        api_key: The per-site Gemini key resolved by the caller (falls back
+            to the GEMINI_API_KEY env var, same as the text generator).
+
+    Best-effort: returns None on any failure (quota, timeout, malformed
+    response) so the caller can publish text-only without crashing.
     """
     try:
-        # Deterministic seed from the title: distinct titles -> distinct
-        # images, and re-running the same post reproduces the same image.
-        seed = int(
-            hashlib.sha256(generated_title.encode("utf-8")).hexdigest(), 16
-        ) % (10 ** 8)
+        effective_key = api_key or os.environ.get("GEMINI_API_KEY")
+        if not effective_key:
+            raise ValueError("no Gemini API key available for image generation")
 
         prompt = IMAGE_PROMPT_TEMPLATE.format(title=generated_title)
-        url = POLLINATIONS_ENDPOINT.format(prompt=quote(prompt, safe=""))
-        params = {
-            "width": 1200,
-            "height": 630,
-            "seed": seed,
-            "nologo": "true",
-            "model": "flux",
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "responseModalities": ["IMAGE"],
+                "imageConfig": {"aspectRatio": IMAGE_ASPECT_RATIO},
+            },
         }
 
-        resp = requests.get(url, params=params, timeout=IMAGE_REQUEST_TIMEOUT)
+        resp = requests.post(
+            GENAI_IMAGE_ENDPOINT.format(model=IMAGE_MODEL),
+            params={"key": effective_key},
+            json=payload,
+            timeout=IMAGE_REQUEST_TIMEOUT,
+        )
         resp.raise_for_status()
+        data = resp.json()
 
-        # Use the real content-type rather than assuming jpeg — pollinations
-        # sometimes returns PNG, and a mismatched data-URI prefix renders
-        # broken in some browsers.
-        content_type = (
-            resp.headers.get("content-type") or "image/jpeg"
-        ).split(";")[0].strip()
-        if not content_type.startswith("image/"):
-            raise ValueError(f"unexpected content-type: {content_type!r}")
-        if not resp.content:
-            raise ValueError("empty image body")
+        # The base64 image is an inlineData part on the first candidate.
+        parts = (
+            data.get("candidates", [{}])[0]
+            .get("content", {})
+            .get("parts", [])
+        )
+        inline = next(
+            (p["inlineData"] for p in parts
+             if p.get("inlineData", {}).get("data")),
+            None,
+        )
+        if not inline:
+            raise ValueError(f"no inline image in response: {str(data)[:200]}")
 
-        b64 = base64.b64encode(resp.content).decode("ascii")
+        b64 = inline["data"]                       # already base64
+        mime = inline.get("mimeType", "image/png")  # model returns PNG
         alt = generated_title.replace('"', "&quot;")   # safe in attr context
         logger.info(
-            "Featured image OK — %s, %d KB base64", content_type, len(b64) // 1024
+            "Featured image OK — %s, %d KB base64", mime, len(b64) // 1024
         )
         return (
             '<div class="mb-5">'
-            f'<img src="data:{content_type};base64,{b64}" '
+            f'<img src="data:{mime};base64,{b64}" '
             f'class="img-fluid rounded shadow-sm w-100" alt="{alt}" />'
             '</div>'
         )
@@ -232,7 +351,11 @@ def run_one(site: dict, defaults: dict) -> tuple[bool, str]:
         site.get("featured_image", defaults.get("featured_image", False))
     )
     if featured_enabled:
-        featured_html = build_featured_image_html(post.title)
+        # Active engine: Hugging Face SDXL (free). Token from HF_API_TOKEN.
+        # (Gemini engine is preserved but not wired in — see
+        # build_gemini_featured_image_html.)
+        hf_token = os.environ.get("HF_API_TOKEN")
+        featured_html = build_hf_featured_image_html(post.title, hf_token)
         if featured_html:
             html_content = featured_html + "\n" + post.html
             logger.info(

@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     # 20 sites x (~15s work + 30s inter-site sleep) = ~14 min best case.
     # 45 min absorbs multiple 65s quota retries before GitHub auto-cancels.
-    timeout-minutes: 45
+    timeout-minutes: 70
 
     steps:
       - name: Checkout repo
