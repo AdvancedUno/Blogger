@@ -22,10 +22,6 @@ import time
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
-
 logger = logging.getLogger(__name__)
 
 
@@ -43,6 +39,11 @@ TOKEN_URI = "https://oauth2.googleapis.com/token"
 
 def _build_service():
     """Build a Blogger v3 service object from refresh-token credentials."""
+    # Lazy import so the module is importable (and the pipeline unit-testable)
+    # without the Google client libraries present.
+    from google.oauth2.credentials import Credentials
+    from googleapiclient.discovery import build
+
     client_id = os.environ.get("GOOGLE_CLIENT_ID")
     client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
     refresh_token = os.environ.get("GOOGLE_REFRESH_TOKEN")
@@ -99,6 +100,8 @@ def publish_to_blogger(
         )
     if not title or not html_content:
         raise BloggerPublishError("Empty title or content cannot be published")
+
+    from googleapiclient.errors import HttpError
 
     service = _build_service()
 

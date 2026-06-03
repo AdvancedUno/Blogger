@@ -1,0 +1,17 @@
+# Run: pre-commit install   (then hooks run on each commit)
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff            # lint
+        args: [--fix]
+      - id: ruff-format     # format
+
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy (blogkit)
+        entry: mypy blogkit
+        language: system
+        pass_filenames: false
+        types: [python]

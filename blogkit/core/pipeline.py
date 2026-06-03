@@ -32,12 +32,17 @@ def run_profile(
     profile: BlogProfile,
     publish_method: str = "api",
     ledger: Ledger | None = None,
+    dry_run: bool = False,
 ) -> tuple[bool, str]:
     """Run the full pipeline for one blog. Returns (ok, info).
 
     When a `ledger` is supplied, source articles already used network-wide
     within the recency window are filtered out (duplicate-content guard), and
     the published title/links are recorded back into it.
+
+    With `dry_run=True`, the post is generated and assembled but NOT published,
+    the ledger is NOT updated, and the (costly) featured image is skipped — for
+    safe, cheap end-to-end testing.
     """
     name = profile.name
     logger.info("================ START : %s ================", name)
@@ -131,8 +136,15 @@ def run_profile(
     body += "\n" + build_jsonld(title=post.title, html_body=post.html, blog_name=name,
                                 news_items=news)
 
-    # ----- 2.6 Featured image (per-blog style pool) -------------------
+    # ----- 2.6 Featured image (per-blog style pool; skipped in dry-run) ---
     html_content = body
+    if dry_run:
+        logger.info(
+            "[%s] DRY-RUN — would publish %d-char post titled %r (image skipped). "
+            "Not published, ledger untouched.", name, len(html_content), post.title,
+        )
+        return True, f"dry-run:{len(html_content)} chars"
+
     if profile.featured_image:
         hf_token = os.environ.get("HF_API_TOKEN")
         featured = build_featured_image_html(post.title, hf_token, styles=profile.style_pool())

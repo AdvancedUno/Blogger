@@ -58,25 +58,30 @@ def cmd_run(args: argparse.Namespace) -> int:
         return 0
     logger.info("Publish method: %s | %d blog(s)", args.publish_method, len(profiles))
 
+    dry_run = getattr(args, "dry_run", False)
+
     # Cross-blog de-dup ledger (best-effort; empty if no ASSETS_REPO_PAT).
     store = GitHubLedgerStore()
     ledger = store.load()
 
-    # One-shot warm-up if any selected blog wants an image.
+    # One-shot warm-up if any selected blog wants an image (not in dry-run).
     hf_token = os.environ.get("HF_API_TOKEN")
-    if hf_token and any(p.featured_image for p in profiles):
+    if not dry_run and hf_token and any(p.featured_image for p in profiles):
         logger.info("Warming up Hugging Face FLUX.1-schnell model...")
         warm_up_hf_model(hf_token)
 
     results = []
     for idx, profile in enumerate(profiles):
-        ok, info = run_profile(profile, publish_method=args.publish_method, ledger=ledger)
+        ok, info = run_profile(
+            profile, publish_method=args.publish_method, ledger=ledger, dry_run=dry_run,
+        )
         results.append((profile.slug, ok, info))
         if idx < len(profiles) - 1:
             logger.info("Sleeping %ds before next blog", INTER_SITE_SLEEP_SECONDS)
             time.sleep(INTER_SITE_SLEEP_SECONDS)
 
-    store.save(ledger)   # persist what we used this run
+    if not dry_run:
+        store.save(ledger)   # persist what we used this run
 
     logger.info("=================== SUMMARY ===================")
     for slug, ok, info in results:
@@ -128,6 +133,9 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     sel.add_argument("--all", action="store_true", help="Run every blog (default)")
     run.add_argument("--publish-method", choices=["api", "email"], default="api",
                      help="api = Blogger v3 REST (default); email = Mail2Blogger SMTP")
+    run.add_argument("--dry-run", action="store_true",
+                     help="Generate + assemble but do not publish; ledger untouched, "
+                          "featured image skipped. For safe testing.")
 
     st = sub.add_parser("selftest-image", help="Test the HF+GitHub image path only")
     st.add_argument("--blog", help="Use this blog's style pool (else the default sample)")
