@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 from blogkit.core.archetypes import ARCHETYPES, build_archetype_directive
-from blogkit.core.craft import BANNED_BUZZWORDS, CRAFT_LAWS, buzzword_hits
+from blogkit.core.craft import (
+    BANNED_BUZZWORDS,
+    CRAFT_LAWS,
+    PRACTITIONER_LAWS,
+    buzzword_hits,
+)
 from blogkit.core.personas import PERSONAS, build_persona_directive
 
 
@@ -31,8 +36,26 @@ def test_craft_laws_keep_the_faq_carveout():
 def test_persona_and_archetype_directives_inject_the_laws():
     p = build_persona_directive(PERSONAS["matt_levine"])
     a = build_archetype_directive(ARCHETYPES["the_engineer"])
-    assert "NON-NEGOTIABLE CRAFT LAWS" in p
-    assert "NON-NEGOTIABLE CRAFT LAWS" in a
+    for out in (p, a):
+        assert "NON-NEGOTIABLE CRAFT LAWS" in out
+        assert "PRACTITIONER LAWS" in out
+
+
+def test_practitioner_laws_cover_all_five_rules():
+    out = PRACTITIONER_LAWS.lower()
+    for marker in ("engineering & financial granularity", "messy case numbers",
+                   "one analogy maximum", "operator's caveat", "incident-grade faq"):
+        assert marker in out, marker
+    # The hard engineering vocabulary the user asked for.
+    for term in ("p95", "recall@k", "qps", "cache hit", "audit trail", "sox controls"):
+        assert term in out, term
+
+
+def test_practitioner_laws_cap_analogies_and_ban_vague_arch():
+    out = PRACTITIONER_LAWS.lower()
+    assert "single analogy" in out or "one analogy" in out
+    assert "infrastructure orchestration" in out
+    assert "intelligent context routers" in out
 
 
 def test_buzzword_hits_counts_case_insensitively():

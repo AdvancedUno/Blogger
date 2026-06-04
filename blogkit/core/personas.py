@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from blogkit.core.craft import CRAFT_LAWS
+from blogkit.core.craft import CRAFT_LAWS, PRACTITIONER_LAWS
 
 
 @dataclass(frozen=True)
@@ -105,6 +105,8 @@ def build_persona_directive(p: StylePersona) -> str:
         f"SIGNATURE QUIRKS (use naturally; don't cram them all in): {quirks}.",
         "",
         CRAFT_LAWS,
+        "",
+        PRACTITIONER_LAWS,
         "",
         _ANTI_AI,
         "",

@@ -103,9 +103,9 @@ _BRIEFING_BODY = """<blockquote>
 </ul>
 
 <h2>Frequently Asked Questions</h2>
-<h3>What is the primary operational blind spot with this transition?</h3>
+<h3>[An incident-grade question phrased like a real client escalation or production failure — not a theme restatement. E.g. what breaks operationally when this transition goes sideways mid-quarter.]</h3>
 <p>[Deeply professional, specific answer reflecting real enterprise realities. Name systems, vendors, or regulators only when they appear in the Source Data.]</p>
-<h3>How should CFOs model the realistic timeline for measurable ROI?</h3>
+<h3>[A second incident-grade question a CFO or operator would actually fire off — about cost overruns, audit-trail gaps, or a realistic ROI timeline under stress.]</h3>
 <p>[Realistic, conservative financial perspective on deployment time versus dollar returns. Use ranges, not invented point estimates.]</p>
 
 <blockquote>
