@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from blogkit.core.craft import CRAFT_LAWS
+
 
 @dataclass(frozen=True)
 class Archetype:
@@ -279,4 +281,6 @@ def build_archetype_directive(arch: Archetype) -> str:
         "This author persona OVERRIDES the generic tone-adaptation list above "
         "wherever they conflict. The reader must feel a real, opinionated human "
         "wrote this — never a balanced, templated summary.",
+        "",
+        CRAFT_LAWS,
     ])

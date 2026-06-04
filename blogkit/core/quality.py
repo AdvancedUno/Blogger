@@ -6,7 +6,9 @@ publish a post that is:
 
   * too thin  — under ``MIN_WORDS`` words of real body text, or
   * too similar — its content fingerprint overlaps a recently published post
-    (network-wide) above ``MAX_BODY_SIMILARITY``.
+    (network-wide) above ``MAX_BODY_SIMILARITY``, or
+  * buzzword-stuffed — overuses the banned corporate filler from core/craft.py
+    above ``MAX_BUZZWORD_HITS`` (a backstop behind the prompt-level ban).
 
 Pure, dependency-free logic (token-set Jaccard over the body text), so it runs
 before the costly image/publish steps and is fully unit-testable. The fingerprint
@@ -20,9 +22,15 @@ import html as _html
 import re
 from collections import Counter
 
+from blogkit.core.craft import buzzword_hits
+
 MIN_WORDS = 1000            # minimum real body words to publish
 MAX_BODY_SIMILARITY = 0.82  # Jaccard over content fingerprints that's "too similar"
 FINGERPRINT_TOKENS = 50     # cap fingerprint size (keeps the ledger small)
+# Buzzword backstop: the prompt forbids the banned phrases (core/craft.py), so a
+# compliant post has zero. We tolerate the odd incidental slip and only reject on
+# clear overuse, so this never silently kills an otherwise-good daily run.
+MAX_BUZZWORD_HITS = 3       # total banned-buzzword occurrences allowed before reject
 
 _TAG_RE = re.compile(r"<[^>]+>")
 _WORD_RE = re.compile(r"[a-z0-9]+")
@@ -86,12 +94,13 @@ def check_quality(
     *,
     min_words: int = MIN_WORDS,
     max_similarity_threshold: float = MAX_BODY_SIMILARITY,
+    max_buzzword_hits: int = MAX_BUZZWORD_HITS,
 ) -> tuple[bool, str]:
     """Return (ok, reason). ``ok=False`` means do NOT publish.
 
     Checks word count first (cheap), then near-duplication against recent
-    fingerprints. The reason string is safe to log and to surface in the run
-    summary.
+    fingerprints, then a backstop for overused banned buzzwords. The reason
+    string is safe to log and to surface in the run summary.
     """
     wc = word_count(html_body)
     if wc < min_words:
@@ -101,5 +110,11 @@ def check_quality(
     sim = max_similarity(fp, recent_fingerprints or [])
     if sim >= max_similarity_threshold:
         return False, f"near-duplicate: {sim:.2f} similarity (>= {max_similarity_threshold})"
+
+    hits = buzzword_hits(extract_text(html_body))
+    total_hits = sum(hits.values())
+    if total_hits > max_buzzword_hits:
+        worst = ", ".join(f"{p!r}x{n}" for p, n in sorted(hits.items(), key=lambda kv: -kv[1]))
+        return False, f"buzzword overuse: {total_hits} hits (> {max_buzzword_hits}) — {worst}"
 
     return True, f"ok: {wc} words, max similarity {sim:.2f}"

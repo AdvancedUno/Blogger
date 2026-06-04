@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from blogkit.core.quality import (
+    MAX_BUZZWORD_HITS,
     MIN_WORDS,
     check_quality,
     content_fingerprint,
@@ -49,6 +50,18 @@ def test_distinct_post_passes_against_priors():
     prior = content_fingerprint(_post(1200, vocab=120))
     other = "<h2>X</h2>\n<p>" + " ".join(f"unrelated{i % 120}" for i in range(1200)) + "</p>"
     ok, why = check_quality(other, [prior])
+    assert ok, why
+
+
+def test_buzzword_overuse_is_rejected():
+    body = _post(MIN_WORDS + 200) + "<p>" + ("smart capital " * (MAX_BUZZWORD_HITS + 1)) + "</p>"
+    ok, why = check_quality(body)
+    assert not ok and "buzzword" in why
+
+
+def test_one_incidental_buzzword_still_passes():
+    body = _post(MIN_WORDS + 200) + "<p>a single smart capital mention</p>"
+    ok, why = check_quality(body)
     assert ok, why
 
 
