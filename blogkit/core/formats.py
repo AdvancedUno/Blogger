@@ -82,17 +82,7 @@ _BRIEFING_BODY = """<blockquote>
 
 <h2>Regulatory Pressures and Institutional Impact</h2>
 <p>[Analyze the specific compliance, regulatory (SEC, FTC, HIPAA, GDPR, CISA, etc.), or governance hurdles boards must map. Name the specific framework or agency — not "regulators" generically.]</p>
-
-<table>
-  <thead>
-    <tr><th>Dimension</th><th>Status Quo (2025)</th><th>Trajectory (2026-2027)</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>[Dimension 1 — e.g., Compliance Surface]</td><td>[Concrete current state grounded in Source Data]</td><td>[Likely direction with the named driver]</td></tr>
-    <tr><td>[Dimension 2]</td><td>[State]</td><td>[Direction]</td></tr>
-    <tr><td>[Dimension 3]</td><td>[State]</td><td>[Direction]</td></tr>
-  </tbody>
-</table>
+<p>[A second paragraph tracing where each pressure stands now versus where it is heading, with the named driver — written as prose, not a chart.]</p>
 
 <h2>Strategic Vectors to Monitor</h2>
 <p>For executive leadership mapping the upcoming fiscal quarters, pay immediate attention to these adjacent operational domains:</p>
@@ -149,16 +139,11 @@ _PLAYBOOK_BODY = """<blockquote>
 </ol>
 
 <h2>Tooling & Trade-offs</h2>
-<table>
-  <thead>
-    <tr><th>Option</th><th>Best For</th><th>The Catch</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>[Approach / tool 1]</td><td>[Where it fits]</td><td>[The cost or limit]</td></tr>
-    <tr><td>[Approach / tool 2]</td><td>[Where it fits]</td><td>[The cost or limit]</td></tr>
-    <tr><td>[Approach / tool 3]</td><td>[Where it fits]</td><td>[The cost or limit]</td></tr>
-  </tbody>
-</table>
+<ul>
+  <li><strong>[Approach / tool 1]:</strong> [Where it fits — and the cost or limit you accept for it.]</li>
+  <li><strong>[Approach / tool 2]:</strong> [Where it fits — and the catch.]</li>
+  <li><strong>[Approach / tool 3]:</strong> [Where it fits — and the catch.]</li>
+</ul>
 
 <h2>Pitfalls & Anti-Patterns</h2>
 <ul>
@@ -208,16 +193,12 @@ _DEEP_DIVE_BODY = """<blockquote>
 <p>[Map who is exposed and under what conditions. Be specific about systems and triggers.]</p>
 
 <h2>Governance, Standards & Compliance</h2>
-<table>
-  <thead>
-    <tr><th>Dimension</th><th>Where It Stands Today</th><th>Where It's Heading</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>[Dimension 1 — e.g., Standard / Framework]</td><td>[Current state from Source Data]</td><td>[Trajectory + named driver]</td></tr>
-    <tr><td>[Dimension 2]</td><td>[State]</td><td>[Direction]</td></tr>
-    <tr><td>[Dimension 3]</td><td>[State]</td><td>[Direction]</td></tr>
-  </tbody>
-</table>
+<p>[Where the rules stand and where they're heading. Name the specific framework, standard, or agency from the Source Data — never "regulators" generically.]</p>
+<ul>
+  <li><strong>[Dimension 1 — e.g., Standard / Framework]:</strong> [Where it stands now versus where it's heading, with the named driver.]</li>
+  <li><strong>[Dimension 2]:</strong> [Now versus next.]</li>
+  <li><strong>[Dimension 3]:</strong> [Now versus next.]</li>
+</ul>
 
 <h2>What to Watch Next</h2>
 <ul>
@@ -320,16 +301,11 @@ _MARKET_OUTLOOK_BODY = """<blockquote>
 </blockquote>
 
 <h2>Capital, Policy & Incentives</h2>
-<table>
-  <thead>
-    <tr><th>Lever</th><th>Today (2025)</th><th>Trajectory (2026-2027)</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>[Lever 1 — e.g., Subsidy / Policy]</td><td>[Current state from Source Data]</td><td>[Direction + named driver]</td></tr>
-    <tr><td>[Lever 2 — e.g., Cost curve]</td><td>[State]</td><td>[Direction]</td></tr>
-    <tr><td>[Lever 3 — e.g., Demand]</td><td>[State]</td><td>[Direction]</td></tr>
-  </tbody>
-</table>
+<ul>
+  <li><strong>[Lever 1 — e.g., Subsidy / Policy]:</strong> [Where it stands today and the trajectory, with the named driver.]</li>
+  <li><strong>[Lever 2 — e.g., Cost curve]:</strong> [Today versus the trajectory.]</li>
+  <li><strong>[Lever 3 — e.g., Demand]:</strong> [Today versus the trajectory.]</li>
+</ul>
 
 <h2>Risks & Bottlenecks</h2>
 <ul>
@@ -380,16 +356,11 @@ _EXPLAINER_BODY = """<blockquote>
 
 <h2>A Worked Example</h2>
 <p>[Make it concrete with a realistic, illustrative walk-through grounded in the Source Data.]</p>
-<table>
-  <thead>
-    <tr><th>Step</th><th>What Happens</th><th>Why It Matters</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>[Step 1]</td><td>[What happens]</td><td>[Why it matters]</td></tr>
-    <tr><td>[Step 2]</td><td>[What happens]</td><td>[Why it matters]</td></tr>
-    <tr><td>[Step 3]</td><td>[What happens]</td><td>[Why it matters]</td></tr>
-  </tbody>
-</table>
+<ol>
+  <li><strong>[Step 1]:</strong> [What happens, and why it matters.]</li>
+  <li><strong>[Step 2]:</strong> [What happens, and why it matters.]</li>
+  <li><strong>[Step 3]:</strong> [What happens, and why it matters.]</li>
+</ol>
 
 <h2>Common Misconceptions</h2>
 <ul>

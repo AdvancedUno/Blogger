@@ -47,6 +47,14 @@ def test_every_format_has_required_structure():
         assert "<h3>" in fmt.body, name
 
 
+def test_tables_only_where_they_belong():
+    # A comparison <table> should NOT appear in every layout (it read as
+    # repetitive across the network). Keep it only where a table is the
+    # natural form: buyers_guide (criteria) and case_study (before/after).
+    with_table = {n for n, f in FORMATS.items() if "<table" in f.body}
+    assert with_table == {"buyers_guide", "case_study"}, with_table
+
+
 def test_no_two_blogs_share_format_and_archetype():
     # Imported here to keep the format-only tests independent of archetypes.
     from blogkit.core.archetypes import resolve_archetype_name
