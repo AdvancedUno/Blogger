@@ -24,7 +24,8 @@ from blogkit.core.publisher import (
     publish_to_blogger,
     publish_via_email,
 )
-from blogkit.core.seo import build_jsonld, build_references_html
+from blogkit.core.quality import check_quality, content_fingerprint
+from blogkit.core.seo import build_jsonld, build_references_html, make_description
 from blogkit.profiles.base import BlogProfile
 
 logger = logging.getLogger(__name__)
@@ -140,11 +141,24 @@ def run_profile(
         if clash:
             logger.warning("[%s] Title near-dupe of recent %r — publishing anyway", name, clash)
 
+    # ----- 2.1 Quality gate (thin / near-duplicate) — fail BEFORE publish ---
+    # Runs before enrichment/image/publish so a weak post wastes nothing and
+    # never ships (protects against Google scaled-content / thin-content flags).
+    recent_fps = ledger.recent_fingerprints() if ledger is not None else []
+    ok_quality, why = check_quality(post.html, recent_fps)
+    if not ok_quality:
+        logger.warning("[%s] Quality gate REJECTED post: %s — not publishing", name, why)
+        return False, f"quality-gate: {why}"
+    logger.info("[%s] Quality gate passed (%s)", name, why)
+
+    post_fingerprint = content_fingerprint(post.html)
+
     def _record(url: str = "") -> None:
         if ledger is not None:
             ledger.record(
                 slug=profile.slug, keyword=chosen_keyword, title=post.title,
                 links=[n["link"] for n in news if n.get("link")], url=url,
+                fingerprint=post_fingerprint,
             )
 
     # ----- 2.5 Engagement + SEO enrichment ----------------------------
@@ -161,6 +175,7 @@ def run_profile(
     body += "\n" + build_jsonld(
         title=post.title, html_body=post.html, blog_name=name, news_items=news,
         tags=list(post.tags or profile.tags), section=profile.niche_keyword,
+        site_url=(profile.site_url or profile.analytics_site),
     )
 
     # ----- 2.6 Featured image (per-blog style pool; skipped in dry-run) ---
@@ -200,6 +215,7 @@ def run_profile(
             html_content=html_content,
             tags=tags,
             is_draft=profile.draft,
+            search_description=make_description(post.html, post.title),
         )
         logger.info("[%s] Published OK -> %s", name, url)
         _record(url)

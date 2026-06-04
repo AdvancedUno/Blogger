@@ -104,15 +104,24 @@ class Ledger:
         return None
 
     def record(self, *, slug: str, keyword: str, title: str, links: list[str],
-               url: str = "") -> None:
-        self.entries.append({
+               url: str = "", fingerprint: list[str] | None = None) -> None:
+        entry = {
             "ts": _today().isoformat(),
             "slug": slug,
             "keyword": keyword,
             "title": title,
             "url": url,
             "links": [link_hash(u) for u in links],
-        })
+        }
+        if fingerprint:
+            entry["fp"] = fingerprint
+        self.entries.append(entry)
+
+    def recent_fingerprints(self, days: int = TITLE_RECENCY_DAYS) -> list[list[str]]:
+        """Content fingerprints of posts published network-wide within `days`,
+        for the pre-publish near-duplicate quality gate."""
+        return [e["fp"] for e in self.entries
+                if e.get("fp") and _days_ago(e.get("ts", "")) <= days]
 
     def recent_posts(self, slug: str, *, days: int = 90,
                      limit: int = 5) -> list[tuple[str, str]]:

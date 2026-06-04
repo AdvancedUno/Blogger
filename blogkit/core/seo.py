@@ -65,11 +65,31 @@ def _word_count(html_body: str) -> int:
     return len(_text(html_body).split())
 
 
+def _site_nodes(blog_name: str, site_url: str, section: str | None, title: str) -> list[dict]:
+    """Sitewide schema that needs the blog's home URL: WebSite, Organization,
+    and a BreadcrumbList (Home > Section > current page). Omitted entirely when
+    no site_url is known (the post URL isn't available pre-publish, so the
+    current page is a name-only breadcrumb leaf, which Google accepts)."""
+    url = site_url.rstrip("/") + "/"
+    org = {"@type": "Organization", "name": blog_name, "url": url}
+    website = {"@type": "WebSite", "name": blog_name, "url": url}
+    crumbs = [{"@type": "ListItem", "position": 1, "name": "Home", "item": url}]
+    pos = 2
+    if section:
+        crumbs.append({"@type": "ListItem", "position": pos, "name": _text(section)})
+        pos += 1
+    crumbs.append({"@type": "ListItem", "position": pos, "name": _text(title)[:110]})
+    breadcrumb = {"@type": "BreadcrumbList", "itemListElement": crumbs}
+    return [website, org, breadcrumb]
+
+
 def build_jsonld(*, title: str, html_body: str, blog_name: str,
                  news_items: list[dict] | None = None,
                  tags: list[str] | None = None,
-                 section: str | None = None) -> str:
-    """Return a JSON-LD <script> block: Article + (if FAQs found) FAQPage."""
+                 section: str | None = None,
+                 site_url: str | None = None) -> str:
+    """Return a JSON-LD <script> block: Article + (if FAQs found) FAQPage, plus
+    WebSite + Organization + BreadcrumbList when ``site_url`` is provided."""
     now = datetime.now(timezone.utc).isoformat()
     article: dict = {
         "@type": "Article",
@@ -96,6 +116,8 @@ def build_jsonld(*, title: str, html_body: str, blog_name: str,
                 for q, a in faqs
             ],
         })
+    if site_url:
+        graph.extend(_site_nodes(blog_name, site_url, section, title))
     payload = {"@context": "https://schema.org", "@graph": graph}
     # </ inside a JSON string would prematurely close the <script>; escape it.
     body = json.dumps(payload, ensure_ascii=False).replace("</", "<\\/")

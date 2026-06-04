@@ -22,6 +22,9 @@ PROFILE = BlogProfile(
 
 NEWS = [{"title": "Story A", "link": "https://ex.com/a", "source": "Reuters", "summary": "s"}]
 
+# A body long + varied enough to clear the 1000-word quality gate.
+LONG_BODY = "<h2>Body</h2>\n<p>" + " ".join(f"insight{i % 80}" for i in range(1100)) + "</p>"
+
 
 @pytest.fixture
 def patched(monkeypatch):
@@ -29,8 +32,7 @@ def patched(monkeypatch):
     monkeypatch.setattr(pipeline, "fetch_top_news", lambda **k: list(NEWS))
     monkeypatch.setattr(
         pipeline, "generate_post",
-        lambda **k: GeneratedPost(title="A Sharp B2B Title", html="<h2>Body</h2><p>x</p>",
-                                  tags=["TagA"]),
+        lambda **k: GeneratedPost(title="A Sharp B2B Title", html=LONG_BODY, tags=["TagA"]),
     )
     calls: dict = {}
 
@@ -78,3 +80,19 @@ def test_email_method_routes_to_email(patched):
     ok, info = pipeline.run_profile(PROFILE, publish_method="email", ledger=Ledger())
     assert ok and info.startswith("emailed:")
     assert "email" in patched and "api" not in patched
+
+
+def test_quality_gate_blocks_thin_post(monkeypatch):
+    monkeypatch.setattr(pipeline, "fetch_top_news", lambda **k: list(NEWS))
+    monkeypatch.setattr(
+        pipeline, "generate_post",
+        lambda **k: GeneratedPost(title="Too Thin", html="<h2>Hi</h2><p>short</p>", tags=[]),
+    )
+    published = {}
+    monkeypatch.setattr(pipeline, "publish_to_blogger",
+                        lambda **k: published.setdefault("called", True))
+    led = Ledger()
+    ok, info = pipeline.run_profile(PROFILE, ledger=led)
+    assert not ok and info.startswith("quality-gate:")
+    assert "called" not in published        # never reached publish
+    assert led.entries == []                # nothing recorded

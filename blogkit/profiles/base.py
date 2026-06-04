@@ -72,6 +72,10 @@ class BlogProfile(BaseModel):
     # set (and GSC creds available), the keyword roulette is biased toward
     # themes already earning impressions/clicks. Empty = feature dormant.
     analytics_site: str = ""
+    # Public homepage URL of the blog (e.g. "https://aiinfra.blogspot.com/").
+    # When set, enables sitewide JSON-LD (WebSite + Organization + Breadcrumb).
+    # Falls back to analytics_site when empty. Both empty = those nodes omitted.
+    site_url: str = ""
 
     @model_validator(mode="after")
     def _enabled_needs_real_blog_id(self) -> BlogProfile:

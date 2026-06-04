@@ -78,6 +78,7 @@ def publish_to_blogger(
     html_content: str,
     tags: list[str] | None = None,
     is_draft: bool = False,
+    search_description: str = "",
 ) -> str:
     """Publish a single post via the Blogger v3 API and return its URL.
 
@@ -87,6 +88,10 @@ def publish_to_blogger(
         html_content: Post body HTML.
         tags: List of labels to attach to the post.
         is_draft: When True, save as draft (default False = publish live).
+        search_description: Meta/search description for the post. Blogger's v3
+            API does not officially expose this field, so it is attempted as
+            ``searchDescription`` and silently dropped (with a retry) if the API
+            rejects it — the post still publishes either way.
 
     Returns:
         Public URL of the published post.
@@ -112,13 +117,32 @@ def publish_to_blogger(
     }
     if tags:
         body["labels"] = list(tags)
+    if search_description:
+        body["searchDescription"] = search_description
 
-    try:
-        result = (
+    def _insert(post_body: dict) -> dict:
+        return (
             service.posts()
-            .insert(blogId=blog_id, body=body, isDraft=is_draft)
+            .insert(blogId=blog_id, body=post_body, isDraft=is_draft)
             .execute()
         )
+
+    try:
+        try:
+            result = _insert(body)
+        except HttpError as e:
+            # Blogger v3 may reject the unofficial searchDescription field with a
+            # 400. Drop it and retry once so the post still publishes.
+            status = getattr(e.resp, "status", None)
+            if search_description and str(status) == "400":
+                logger.warning(
+                    "Blogger rejected searchDescription (HTTP 400) — "
+                    "retrying without it for blog_id=%s", blog_id,
+                )
+                body.pop("searchDescription", None)
+                result = _insert(body)
+            else:
+                raise
     except HttpError as e:
         status = getattr(e.resp, "status", "?")
         raise BloggerPublishError(
