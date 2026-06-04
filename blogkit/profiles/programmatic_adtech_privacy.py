@@ -22,13 +22,13 @@ PROFILE = BlogProfile(
         'the ad dollar through retail media, CTV, and the cookieless transition '
         'without the signal-loss hysteria.'
     ),
-    tone='sharp, follow-the-spend, privacy-realist',
+    tone='plain, clear, morally direct',
     voice_traits=[
         'follow the ad dollar and the take rate',
         'name the privacy regulation or standard',
         'separate signal-loss hype from reality',
     ],
-    flow='open with the signal-loss catalyst, end with the budget-shift move',
+    flow='open with a plain indicting line, name the real issue, evidence, then a moral point',
     niche_keyword='programmatic advertising',
     image_styles=[
         'data_flow',

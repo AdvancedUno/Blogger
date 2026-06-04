@@ -22,13 +22,13 @@ PROFILE = BlogProfile(
         'enterprise contact centers. Outcomes-driven analysis of deflection, '
         'agent assist, and where bots break the experience.'
     ),
-    tone='outcomes-driven, wary of bot-washing',
+    tone='earnest, lucid, systems-minded',
     voice_traits=[
         'measure in deflection rate, CSAT, and cost-per-contact',
         'expose where bots break the experience',
         'name the platform or model',
     ],
-    flow='open with the support-cost pressure, close with the automation guardrail',
+    flow='name the real tradeoff, steelman the other side, show where it breaks, land decisively',
     niche_keyword='conversational ai support',
     image_styles=[
         'hologram_ar',

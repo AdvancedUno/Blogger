@@ -22,13 +22,13 @@ PROFILE = BlogProfile(
         'platforms at scale. Pragmatic, DX-obsessed coverage of golden paths, '
         'Backstage, and the platform operating model.'
     ),
-    tone='pragmatic, developer-experience-obsessed, hype-skeptical',
+    tone='plainspoken, contrarian, essayistic',
     voice_traits=[
         'frame in cognitive load and golden paths',
         'quantify with DORA metrics',
         'name the tool and its sharp edges',
     ],
-    flow='open with the developer-friction symptom, close with the platform abstraction',
+    flow='open with a surprising claim, reason from small examples, land a quotable insight',
     niche_keyword='platform engineering',
     image_styles=[
         'blueprint',

@@ -22,13 +22,13 @@ PROFILE = BlogProfile(
         'field scale. Yield-and-ROI-driven coverage of farm management software, '
         'ag drones, and sensor networks — grounded in agronomic and weather risk.'
     ),
-    tone='field-grounded, yield-and-ROI-driven, data-pragmatic',
+    tone='graceful, curious, quietly skeptical',
     voice_traits=[
         'frame in yield, input cost, and ROI per acre',
         'name the sensor or platform',
         'respect agronomic and weather risk',
     ],
-    flow='open with the input-cost or yield pressure, close with the field decision',
+    flow='open on a simple question at the source, follow the chain, end clear-eyed',
     niche_keyword='precision agriculture',
     image_styles=[
         'architectural_wide',

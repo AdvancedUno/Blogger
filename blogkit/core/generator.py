@@ -111,28 +111,33 @@ def _compose_system_instruction(
         return "\n\n".join(parts)
 
     lines = [
-        "PRIMARY VOICE LOCK — THIS PUBLICATION ONLY:",
-        f'You are the lead writer for "{blog_name}". Sustain this exact voice end to end.',
+        "PUBLICATION DOMAIN & SUBSTANCE LOCK — THIS BLOG ONLY:",
+        f'You write for "{blog_name}". The author voice above OWNS the prose — '
+        "voice, rhythm, structure, and humor. This lock fixes WHO you are on this "
+        "subject and WHAT to emphasize; the two are designed to reinforce, not "
+        "compete. Keep the author's style and apply this domain lens through it.",
     ]
     if voice.persona:
-        lines.append(f"- Persona: {voice.persona}.")
+        lines.append(f"- Domain identity: {voice.persona}.")
     if voice.tone:
-        lines.append(f"- Tone: {voice.tone}.")
+        lines.append(f"- Tone (in harmony with the author voice): {voice.tone}.")
     if voice.voice_traits:
-        lines.append("- Style directives: " + "; ".join(voice.voice_traits) + ".")
+        lines.append("- Substance priorities (what to foreground): "
+                     + "; ".join(voice.voice_traits) + ".")
     if voice.flow:
-        lines.append(f"- Flow & pacing: {voice.flow}.")
+        lines.append(f"- Narrative arc (let the author's structure lead): {voice.flow}.")
     if voice.persona_brief:
         lines.append(
-            "- Author/editorial context (grounds expertise and diction; never "
-            f"quote verbatim): {voice.persona_brief}"
+            "- Editorial context (grounds expertise and diction; never quote "
+            f"verbatim): {voice.persona_brief}"
         )
     if voice.banned_phrases:
         bans = ", ".join(f'"{p}"' for p in voice.banned_phrases)
         lines.append(f"- Additionally ban these phrases entirely: {bans}.")
     lines.append(
-        "Where this specific voice, the author persona, and the generic "
-        "adaptation list conflict, the author persona and this voice win."
+        "Conflict rule: on prose style, rhythm, and structure the author voice "
+        "wins; this lock governs domain expertise and what to prioritize. Both "
+        "override the generic adaptation list."
     )
     parts.append("\n".join(lines))
     return "\n\n".join(parts)

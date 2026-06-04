@@ -22,13 +22,13 @@ PROFILE = BlogProfile(
         'graphs across retail and B2B SaaS. Unfiltered teardowns of composable vs '
         'packaged stacks and what actually drives activation.'
     ),
-    tone='architecture-first, pragmatic, anti-hype',
+    tone='curious, counterintuitive, lightly theatrical',
     voice_traits=[
         'distinguish composable vs packaged honestly',
         'tie data plumbing to activation outcomes',
         'name identity-resolution tradeoffs',
     ],
-    flow='open with the data-fragmentation problem, end with the activation payoff',
+    flow='open on an odd anecdote, pose the puzzle, reveal the hidden variable, then the rule',
     niche_keyword='customer data platform',
     image_styles=[
         'data_flow',

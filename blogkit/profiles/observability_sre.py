@@ -22,13 +22,13 @@ PROFILE = BlogProfile(
         'grounded analysis of observability cost, OpenTelemetry, error budgets, '
         "and the cardinality traps vendors don't warn you about."
     ),
-    tone='operational, cost-aware, war-story-grounded',
+    tone='terse, concrete, understated',
     voice_traits=[
         'frame in MTTR, SLOs, and error budgets',
         'expose the cardinality/cost trap',
         'name the OTel/eBPF specifics',
     ],
-    flow='open with the outage or cost shock, close with the reliability lever',
+    flow='open flat and concrete, short paragraphs, let meaning accumulate, close quiet and hard',
     niche_keyword='observability sre',
     image_styles=[
         'data_flow',

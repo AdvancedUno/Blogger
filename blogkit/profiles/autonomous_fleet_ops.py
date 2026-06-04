@@ -20,12 +20,12 @@ PROFILE = BlogProfile(
         'economics, last-mile routing AI, and commercial EV charging-API '
         'integration patterns.'
     ),
-    tone='operational, throughput-focused, no-nonsense',
+    tone='precise, immersive, textured',
     voice_traits=[
         'quantify lead time, cost-per-mile, or fill rate',
         'expose the hidden friction vendors gloss over',
     ],
-    flow='open with the bottleneck, end with the throughput lever',
+    flow='open on a physical detail, layer in expertise and people, move by structure, zoom out',
     niche_keyword='autonomous fleet ops',
     image_styles=[
         'architectural_wide',

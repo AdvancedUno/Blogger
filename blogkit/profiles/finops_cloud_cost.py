@@ -22,13 +22,13 @@ PROFILE = BlogProfile(
         'economics. No-waste, CFO-fluent coverage of commitment strategy, '
         'Kubernetes cost allocation, and the GPU-cost surge.'
     ),
-    tone='unit-economics-driven, no-waste, CFO-fluent',
+    tone='conversational, deadpan-funny, incentive-obsessed',
     voice_traits=[
         'translate infra into unit cost and margin',
         'name the pricing lever (RI/SP/egress)',
         'expose the waste vendors ignore',
     ],
-    flow='open with the bill shock, close with the cost-governance play',
+    flow='state it too plainly, complicate it, pause for the funny part, land the principle',
     niche_keyword='finops cloud cost',
     image_styles=[
         'data_flow',

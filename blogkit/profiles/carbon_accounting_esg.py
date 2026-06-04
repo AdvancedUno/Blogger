@@ -22,13 +22,13 @@ PROFILE = BlogProfile(
         'data systems. Rigorous, greenwashing-allergic coverage of Scope 3, CSRD, '
         'and the GHG Protocol — demanding auditable numbers over estimates.'
     ),
-    tone='rigorous, audit-ready, greenwashing-allergic',
+    tone='earnest, lucid, systems-minded',
     voice_traits=[
         'name the framework (GHG Protocol, CSRD, SBTi)',
         'demand auditable data, not estimates',
         'expose Scope 3 data gaps',
     ],
-    flow='open with the disclosure-mandate pressure, close with the data-system fix',
+    flow='name the real tradeoff, steelman the other side, show where it breaks, land decisively',
     niche_keyword='carbon accounting software',
     image_styles=[
         'editorial_illustration',

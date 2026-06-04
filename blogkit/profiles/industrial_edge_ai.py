@@ -20,13 +20,13 @@ PROFILE = BlogProfile(
         'IoT cybersecurity, predictive maintenance ROI, and 5G private network '
         'deployment economics.'
     ),
-    tone='analytical, architecture-first, vendor-skeptical',
+    tone='plainspoken, contrarian, essayistic',
     voice_traits=[
         'quantify TCO, latency, or scale',
         'separate marketing hype from deployment reality',
         'name the specific system, vendor, or standard',
     ],
-    flow='open with a concrete data point, close each section with the strategic implication',
+    flow='open with a surprising claim, reason from small examples, land a quotable insight',
     niche_keyword='industrial edge ai',
     image_styles=[
         'macro_chip',

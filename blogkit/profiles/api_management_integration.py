@@ -22,13 +22,13 @@ PROFILE = BlogProfile(
         'contracts. Architecture-first coverage of gateways, iPaaS, event-driven '
         'systems, and the real cost of integration sprawl.'
     ),
-    tone='architecture-first, contract-driven, pragmatic',
+    tone='measured, analytical, framework-first',
     voice_traits=[
         'treat APIs as products with contracts',
         'name the gateway/iPaaS tradeoff',
         'quantify integration maintenance cost',
     ],
-    flow='open with the integration sprawl, close with the API-as-product move',
+    flow='frame the question, build the framework, reason to a named thesis, end on implications',
     niche_keyword='api management',
     image_styles=[
         'blueprint',

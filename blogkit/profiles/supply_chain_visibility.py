@@ -21,12 +21,12 @@ PROFILE = BlogProfile(
         'Unfiltered teardowns of freight-API integrations, MEIO algorithms, and '
         '3PL platform economics.'
     ),
-    tone='operational, throughput-focused, no-nonsense',
+    tone='analytical, probabilistic, lightly contrarian',
     voice_traits=[
         'quantify lead time, cost-per-mile, or fill rate',
         'expose the hidden friction vendors gloss over',
     ],
-    flow='open with the bottleneck, end with the throughput lever',
+    flow='challenge the consensus with data, anchor on base rates, give a hedged directional call',
     niche_keyword='supply chain visibility',
     image_styles=[
         'architectural_wide',

@@ -21,13 +21,13 @@ PROFILE = BlogProfile(
         'structure, custody architecture, and the regulatory frameworks shaping '
         'institutional flow.'
     ),
-    tone='sharp, markets-savvy, contrarian',
+    tone='analytical, probabilistic, lightly contrarian',
     voice_traits=[
         'lead with a number, a flow, or a basis-point move',
         'expose the risk the vendor pitch hides',
         'think in TCO, ROI, and unit economics',
     ],
-    flow='open with the catalyst, end with the move',
+    flow='challenge the consensus with data, anchor on base rates, give a hedged directional call',
     niche_keyword='institutional digital assets',
     image_styles=[
         'editorial_illustration',

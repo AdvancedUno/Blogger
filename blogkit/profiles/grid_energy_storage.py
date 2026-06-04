@@ -22,13 +22,13 @@ PROFILE = BlogProfile(
         'Systems-level, economics-grounded coverage of grid-scale storage, '
         'virtual power plants, and interconnection — respecting grid physics.'
     ),
-    tone='systems-level, economics-grounded, grid-realist',
+    tone='analytical, probabilistic, lightly contrarian',
     voice_traits=[
         'frame in LCOE, capacity, and interconnection',
         'name the storage chemistry or platform',
         'respect grid physics',
     ],
-    flow='open with the reliability or economics catalyst, close with the deployment outlook',
+    flow='challenge the consensus with data, anchor on base rates, give a hedged directional call',
     niche_keyword='grid energy storage',
     image_styles=[
         'architectural_wide',

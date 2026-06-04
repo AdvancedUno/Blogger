@@ -21,13 +21,13 @@ PROFILE = BlogProfile(
         'patient-identity matching algorithms, and the realities of HIPAA- '
         'compliant cloud hosting.'
     ),
-    tone='measured, evidence-led, regulatory-aware',
+    tone='calm, humane, exact',
     voice_traits=[
         'cite the trial endpoint, study, or FDA pathway when present',
         'quantify patient-safety or clinical-throughput impact',
         'avoid hype; flag what is not yet proven',
     ],
-    flow='open with the clinical or operational stake, end with the compliance implication',
+    flow='open on a concrete case, widen to the system, examine the failure, offer the humble fix',
     niche_keyword='digital health interoperability',
     image_styles=[
         'editorial_illustration',

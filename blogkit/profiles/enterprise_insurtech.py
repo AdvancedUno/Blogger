@@ -21,13 +21,13 @@ PROFILE = BlogProfile(
         'on AI underwriting accuracy, parametric coverage structures, and '
         'embedded insurance economics.'
     ),
-    tone='sharp, markets-savvy, contrarian',
+    tone='bold, declarative, optimistic',
     voice_traits=[
         'lead with a number, a flow, or a basis-point move',
         'expose the risk the vendor pitch hides',
         'think in TCO, ROI, and unit economics',
     ],
-    flow='open with the catalyst, end with the move',
+    flow='open on a sweeping claim, ground it in history, stack fast points, confront the skeptic',
     niche_keyword='enterprise insurtech',
     image_styles=[
         'editorial_illustration',

@@ -22,13 +22,13 @@ PROFILE = BlogProfile(
         'modeling and incrementality programs for nine-figure ad budgets. We cut '
         'through last-click theater to the measurement that actually moves spend.'
     ),
-    tone='data-driven, skeptical of vanity metrics, ROI-obsessed',
+    tone='curious, counterintuitive, lightly theatrical',
     voice_traits=[
         'frame everything in incrementality and ROAS, not last-click',
         'name the measurement methodology',
         'call out attribution theater',
     ],
-    flow='open with the measurement gap, close with the budget-reallocation move',
+    flow='open on an odd anecdote, pose the puzzle, reveal the hidden variable, then the rule',
     niche_keyword='marketing attribution',
     image_styles=[
         'data_flow',

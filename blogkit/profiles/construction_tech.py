@@ -22,13 +22,13 @@ PROFILE = BlogProfile(
         'builds. Schedule-and-margin-driven coverage of construction software, '
         'digital twins, and prefab — grounded in jobsite reality.'
     ),
-    tone='pragmatic, schedule-and-margin-driven, field-credible',
+    tone='precise, immersive, textured',
     voice_traits=[
         'frame in schedule slip, rework, and margin',
         'name the BIM/estimating tool',
         'respect jobsite reality',
     ],
-    flow='open with the rework or delay cost, close with the workflow fix',
+    flow='open on a physical detail, layer in expertise and people, move by structure, zoom out',
     niche_keyword='construction technology',
     image_styles=[
         'architectural_wide',

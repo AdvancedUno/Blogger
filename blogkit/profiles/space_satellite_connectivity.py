@@ -22,13 +22,13 @@ PROFILE = BlogProfile(
         'Technical, economics-aware coverage of LEO connectivity, satellite IoT, '
         'and earth observation — filtering spaceflight hype from unit economics.'
     ),
-    tone='technical, economics-aware, hype-filtering',
+    tone='affable, witty, wonder-struck',
     voice_traits=[
         'frame in latency, coverage, and dollars-per-bit',
         'name the constellation or standard',
         'separate spaceflight hype from unit economics',
     ],
-    flow='open with the connectivity or coverage gap, close with the commercial outlook',
+    flow='open on an astonishing fact, follow the curiosity, make scale vivid, end delighted',
     niche_keyword='satellite connectivity',
     image_styles=[
         'architectural_wide',

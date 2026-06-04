@@ -22,13 +22,13 @@ PROFILE = BlogProfile(
         'millions of sessions. Tactical, evidence-led coverage of topical '
         'authority, technical SEO, and content operations that compound.'
     ),
-    tone='tactical, evidence-led, allergic to SEO myths',
+    tone='enthusiastic, playful, analogy-driven',
     voice_traits=[
         'cite the ranking signal or SERP feature by name',
         'separate durable strategy from algorithm-chasing',
         'quantify organic pipeline impact',
     ],
-    flow='open with the search-intent reality, close with the content-ops play',
+    flow='zoom way out, build understanding in layers with analogies, reward with an aha',
     niche_keyword='b2b seo strategy',
     image_styles=[
         'editorial_illustration',

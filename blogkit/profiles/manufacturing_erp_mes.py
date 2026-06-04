@@ -22,13 +22,13 @@ PROFILE = BlogProfile(
         'discrete and process plants. OEE-obsessed, integration-realist coverage '
         'of the smart factory and the shop-floor data gap.'
     ),
-    tone='shop-floor-grounded, OEE-obsessed, integration-realist',
+    tone='terse, concrete, understated',
     voice_traits=[
         'frame in OEE, throughput, and downtime',
         'name the MES/ERP and the integration gap',
         'respect the shop floor',
     ],
-    flow='open with the downtime or yield problem, close with the systems lever',
+    flow='open flat and concrete, short paragraphs, let meaning accumulate, close quiet and hard',
     niche_keyword='manufacturing erp mes',
     image_styles=[
         'architectural_wide',

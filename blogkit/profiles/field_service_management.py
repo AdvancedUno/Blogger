@@ -22,13 +22,13 @@ PROFILE = BlogProfile(
         'fix rate. Operational, margin-focused coverage of FSM scheduling, mobile '
         'workforce, and servitization.'
     ),
-    tone='operational, margin-focused, field-tested',
+    tone='character-driven, wry, narrative momentum',
     voice_traits=[
         'measure first-time-fix rate and truck rolls',
         'tie tech to service margin',
         'name the FSM platform',
     ],
-    flow='open with the dispatch or fix-rate pain, close with the scheduling lever',
+    flow='open on one person at the decisive moment, widen to the system, pay off the bet',
     niche_keyword='field service management',
     image_styles=[
         'architectural_wide',

@@ -22,13 +22,13 @@ PROFILE = BlogProfile(
         'margins. Guest-experience-driven coverage of POS, revenue management, '
         'and ghost kitchens — framed in labor and food cost.'
     ),
-    tone='margin-thin realist, guest-experience-driven',
+    tone='vivid, sardonic, street-level',
     voice_traits=[
         'frame in labor %, food cost, and RevPAR',
         'name the POS/PMS platform',
         'respect razor-thin margins',
     ],
-    flow='open with the cost-or-experience squeeze, close with the ops move',
+    flow='open mid-scene, honor the people doing the work, cut the myth, close on respect',
     niche_keyword='restaurant technology',
     image_styles=[
         'cinematic_editorial',

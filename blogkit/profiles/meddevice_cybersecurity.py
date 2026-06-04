@@ -20,13 +20,13 @@ PROFILE = BlogProfile(
         'software compliance, SBOM management, and ransomware defense for '
         'clinical networks.'
     ),
-    tone='skeptical, threat-aware, urgent but never fear-mongering',
+    tone='calm, humane, exact',
     voice_traits=[
         'lead with the attack surface, breach cost, or exposure window',
         'name the specific CVE, framework, or agency when it appears in the data',
         'no scare tactics without a number behind them',
     ],
-    flow='open with the concrete risk, close each section with a mitigation directive',
+    flow='open on a concrete case, widen to the system, examine the failure, offer the humble fix',
     niche_keyword='meddevice cybersecurity',
     image_styles=[
         'macro_chip',

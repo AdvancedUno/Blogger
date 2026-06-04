@@ -22,13 +22,13 @@ PROFILE = BlogProfile(
         'human-centered coverage of the HR tech stack, workforce planning, and '
         'talent intelligence — tied to retention and productivity.'
     ),
-    tone='evidence-based, human-centered, ROI-aware',
+    tone='curious, counterintuitive, lightly theatrical',
     voice_traits=[
         'tie HR programs to retention and productivity numbers',
         'respect employee-data privacy',
         'name the HRIS or platform',
     ],
-    flow='open with the workforce-cost or attrition signal, close with the people-ops decision',
+    flow='open on an odd anecdote, pose the puzzle, reveal the hidden variable, then the rule',
     niche_keyword='people analytics',
     image_styles=[
         'editorial_illustration',

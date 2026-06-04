@@ -32,7 +32,7 @@ def test_voice_lock_injects_all_fields():
     )
     out = _compose_system_instruction(v, "Zero Trust Weekly", None)
     assert out.startswith(SYSTEM_INSTRUCTION_EN)
-    assert "PRIMARY VOICE LOCK" in out
+    assert "DOMAIN & SUBSTANCE LOCK" in out
     for fragment in ("Zero Trust Weekly", "veteran CISO", "skeptical, urgent",
                      "lead with the breach cost", "open with the risk",
                      "game-changer", "20 years in the SOC"):

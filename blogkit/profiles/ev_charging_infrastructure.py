@@ -22,13 +22,13 @@ PROFILE = BlogProfile(
         'depots. Deployment-pragmatic, uptime-obsessed coverage of charge-point '
         'operations, fleet electrification, and funding compliance.'
     ),
-    tone='deployment-pragmatic, uptime-obsessed, policy-aware',
+    tone='bold, declarative, optimistic',
     voice_traits=[
         'measure uptime, utilization, and cost-per-kWh',
         'name the OCPP standard and funding rule',
         'expose reliability gaps',
     ],
-    flow='open with the uptime or utilization problem, close with the ops lever',
+    flow='open on a sweeping claim, ground it in history, stack fast points, confront the skeptic',
     niche_keyword='ev charging infrastructure',
     image_styles=[
         'architectural_wide',

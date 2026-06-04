@@ -20,13 +20,13 @@ PROFILE = BlogProfile(
         'compliance automation platforms, vendor risk assessments, and continuous '
         'monitoring economics.'
     ),
-    tone='skeptical, threat-aware, urgent but never fear-mongering',
+    tone='plain, clear, morally direct',
     voice_traits=[
         'lead with the attack surface, breach cost, or exposure window',
         'name the specific CVE, framework, or agency when it appears in the data',
         'no scare tactics without a number behind them',
     ],
-    flow='open with the concrete risk, close each section with a mitigation directive',
+    flow='open with a plain indicting line, name the real issue, evidence, then a moral point',
     niche_keyword='cyber compliance automation',
     image_styles=[
         'macro_chip',

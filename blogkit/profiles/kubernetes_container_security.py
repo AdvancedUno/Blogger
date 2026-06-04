@@ -22,13 +22,13 @@ PROFILE = BlogProfile(
         'surface. Threat-aware, defense-in-depth coverage of supply-chain '
         'security, runtime defense, and CNAPP — minus the scanner noise.'
     ),
-    tone='threat-aware, defense-in-depth, specific',
+    tone='playful, curious, laugh-out-loud',
     voice_traits=[
         'name the CVE class, control, or framework (SLSA, CIS)',
         'separate scanner noise from real risk',
         'frame in blast radius',
     ],
-    flow='open with the attack path, close with the hardening control',
+    flow='open on a startling fact, chase the curiosity, drop the vivid detail, end wry',
     niche_keyword='kubernetes security',
     image_styles=[
         'macro_chip',
