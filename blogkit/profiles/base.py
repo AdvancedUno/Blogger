@@ -48,6 +48,11 @@ class BlogProfile(BaseModel):
     # the_strategist, the_curator. Empty = auto-assigned by
     # core/archetypes.ARCHETYPE_BY_SLUG. Set this to override per blog.
     author_archetype: str = ""
+    # Named style muse — a famous writer whose craft the post emulates (see
+    # core/personas.PERSONAS, e.g. "michael_lewis", "matt_levine"). Empty =
+    # auto-assigned by core/personas.PERSONA_BY_SLUG. When set, the muse's voice
+    # supersedes the archetype. Style reference only — never an authorship claim.
+    style_persona: str = ""
 
     # --- visual identity ---
     featured_image: bool = True
@@ -101,6 +106,18 @@ class BlogProfile(BaseModel):
         if v and v not in ARCHETYPES:
             raise ValueError(
                 f"unknown author_archetype {v!r}; valid names: {sorted(ARCHETYPES)} "
+                "(or '' to auto-assign)"
+            )
+        return v
+
+    @field_validator("style_persona")
+    @classmethod
+    def _persona_known(cls, v: str) -> str:
+        from blogkit.core.personas import PERSONAS
+
+        if v and v not in PERSONAS:
+            raise ValueError(
+                f"unknown style_persona {v!r}; valid keys: {sorted(PERSONAS)} "
                 "(or '' to auto-assign)"
             )
         return v

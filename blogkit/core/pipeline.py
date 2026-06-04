@@ -17,6 +17,7 @@ from blogkit.core.fetcher import FetchError, fetch_top_news
 from blogkit.core.formats import resolve_format_name
 from blogkit.core.generator import GenerationError, Voice, generate_post
 from blogkit.core.imager import build_featured_image_html
+from blogkit.core.personas import resolve_persona_name
 from blogkit.core.publisher import (
     BloggerPublishError,
     EmailPublishError,
@@ -123,6 +124,7 @@ def run_profile(
             blog_name=name,
             post_format=resolve_format_name(profile.slug, profile.post_format),
             author_archetype=resolve_archetype_name(profile.slug, profile.author_archetype),
+            style_persona=resolve_persona_name(profile.slug, profile.style_persona),
         )
         logger.info("[%s] Generated — title=%s (%d chars)", name, post.title, len(post.html))
     except GenerationError as e:

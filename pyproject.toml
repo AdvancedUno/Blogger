@@ -48,6 +48,8 @@ select = ["E", "F", "I", "UP", "B", "W"]
 "blogkit/core/formats.py" = ["E501"]
 # Author-archetype definitions are long literal persona/role descriptions.
 "blogkit/core/archetypes.py" = ["E501"]
+# Style-muse definitions are long literal persona/style descriptions.
+"blogkit/core/personas.py" = ["E501"]
 # One-off data generator: long persona/brief literals by nature.
 "tools/generate_new_profiles.py" = ["E501"]
 # AdSense page templates are long literal HTML paragraphs by nature.

@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 
 from blogkit.core.archetypes import build_archetype_directive, get_archetype
 from blogkit.core.formats import build_user_prompt, get_format
+from blogkit.core.personas import build_persona_directive, get_persona
 
 logger = logging.getLogger(__name__)
 
@@ -92,19 +93,20 @@ def _compose_system_instruction(
     voice: Voice | None,
     blog_name: str,
     override: str | None,
-    archetype_directive: str = "",
+    author_directive: str = "",
 ) -> str:
     """Build the effective system instruction: a full per-blog override if
-    supplied, else the shared base + the human author-archetype block (who is
-    writing) + an optional per-blog voice lock built from whichever Voice fields
-    are set (how this specific publication sounds).
+    supplied, else the shared base + the author-voice block (the style muse if
+    one is assigned, else the human archetype) + an optional per-blog voice lock
+    built from whichever Voice fields are set (how this specific publication
+    sounds).
     """
     if override:
         return override
 
     parts = [SYSTEM_INSTRUCTION_EN]
-    if archetype_directive:
-        parts.append(archetype_directive)
+    if author_directive:
+        parts.append(author_directive)
     if voice is None or voice.is_empty():
         return "\n\n".join(parts)
 
@@ -319,6 +321,7 @@ def generate_post(
     system_instruction: str | None = None,
     post_format: str = "",
     author_archetype: str = "",
+    style_persona: str = "",
     retries: int = 2,
     retry_delay: float = 3.0,
 ) -> GeneratedPost:
@@ -336,6 +339,9 @@ def generate_post(
             unknown falls back to the default ("briefing").
         author_archetype: Human author voice name (see core/archetypes). Empty
             or unknown falls back to the default archetype.
+        style_persona: Named style-muse key (see core/personas). When set, the
+            muse's voice block supersedes the archetype. Empty/unknown -> the
+            archetype voice is used instead.
         retries: Number of parse/quota retries before giving up.
         retry_delay: Base seconds between attempts (quota errors override
             this to QUOTA_RETRY_DELAY).
@@ -360,9 +366,15 @@ def generate_post(
         )
     client = genai.Client(api_key=effective_key)
 
-    archetype_directive = build_archetype_directive(get_archetype(author_archetype))
+    # A named style muse (e.g., a famous journalist) is the richest voice layer
+    # and supersedes the generic archetype when one is assigned.
+    persona = get_persona(style_persona)
+    author_directive = (
+        build_persona_directive(persona) if persona
+        else build_archetype_directive(get_archetype(author_archetype))
+    )
     effective_instruction = _compose_system_instruction(
-        voice, blog_name or topic_label, system_instruction, archetype_directive,
+        voice, blog_name or topic_label, system_instruction, author_directive,
     )
 
     gen_config = types.GenerateContentConfig(
