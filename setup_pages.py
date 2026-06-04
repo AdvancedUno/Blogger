@@ -265,9 +265,9 @@ def _process_blog(
     name_cfg = profile.name
     blog_id = str(profile.blog_id or "")
 
-    # Skip placeholder ids like "[YOUR_BLOGGER_ID_8]" — those are unfinished
-    # config entries the daily pipeline already ignores.
-    if not blog_id or blog_id.startswith("["):
+    # Skip placeholder ids like "[YOUR_BLOGGER_ID_8]" or staged "TODO_<slug>"
+    # ids — those are unfinished entries the daily pipeline already ignores.
+    if not blog_id or blog_id.startswith("[") or blog_id.upper().startswith("TODO"):
         logger.warning("[%s] blog_id is a placeholder (%r) — skipping",
                        name_cfg, blog_id)
         return 0, 0, 0
@@ -363,6 +363,10 @@ def _parse_args() -> argparse.Namespace:
         help="Print the AdSense ads.txt line for the given publisher id "
              "(e.g. pub-1234567890123456) and exit. No page writes.",
     )
+    p.add_argument(
+        "--include-disabled", action="store_true",
+        help="Also process disabled/staged blogs (default: only enabled blogs).",
+    )
     return p.parse_args()
 
 
@@ -376,6 +380,17 @@ def main() -> int:
     if not profiles:
         logger.error("No blog profiles found")
         return 1
+
+    # Only touch live blogs. Disabled/staged profiles carry TODO_<slug>
+    # blog_ids (no real Blogger site yet), so hitting them would just burn
+    # the per-user write quota on guaranteed-failing API calls.
+    if not args.include_disabled:
+        live = [p for p in profiles if p.enabled]
+        staged = len(profiles) - len(live)
+        if staged:
+            logger.info("Skipping %d disabled/staged blog(s) "
+                        "(use --include-disabled to override)", staged)
+        profiles = live
 
     if args.blog_name:
         needle = args.blog_name.lower()

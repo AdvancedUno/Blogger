@@ -46,6 +46,8 @@ select = ["E", "F", "I", "UP", "B", "W"]
 "blogkit/core/generator.py" = ["E501"]
 # One-off data generator: long persona/brief literals by nature.
 "tools/generate_new_profiles.py" = ["E501"]
+# AdSense page templates are long literal HTML paragraphs by nature.
+"setup_pages.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.10"

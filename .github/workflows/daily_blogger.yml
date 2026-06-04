@@ -9,6 +9,11 @@ on:
     - cron: '0 14 * * *'
   workflow_dispatch:
     inputs:
+      dry_run:
+        description: 'Generate only — do NOT publish (verify CI env safely)'
+        type: boolean
+        required: false
+        default: false
       disable:
         description: 'Comma-separated blog slugs to skip this run (optional)'
         required: false
@@ -76,6 +81,14 @@ jobs:
           BLOGKIT_DISABLE:      ${{ github.event.inputs.disable }}
         # Preflight first (fail fast on missing secrets), then run.
         # Use --group N to run only one batch (e.g., `python -m blogkit run --group 2`).
+        # A manual dispatch with dry_run=true generates without publishing —
+        # this verifies the full CI env (pip install -e ., doctor, package
+        # import, generation) safely. Scheduled runs always publish for real.
         run: |
           python -m blogkit doctor
-          python -m blogkit run
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            echo "::notice::dry_run=true — generating without publishing"
+            python -m blogkit run --dry-run
+          else
+            python -m blogkit run
+          fi
