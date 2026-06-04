@@ -1,23 +1,26 @@
-"""Google Blogger v3 API publishing module.
+"""Blogger publishing — two transports behind one module.
 
-OAuth2 user credentials (refresh token) authenticate against the Blogger v3
-REST API. No Playwright / browser automation — pure HTTP.
+1. Blogger v3 REST API (default), via OAuth2 refresh-token credentials.
+2. Mail-to-Blogger SMTP (fallback for API 429 daily-quota days).
 
 Required environment variables (provided via GitHub Secrets in CI):
+    # API transport
     GOOGLE_CLIENT_ID       — OAuth client id (Google Cloud Console)
     GOOGLE_CLIENT_SECRET   — OAuth client secret
     GOOGLE_REFRESH_TOKEN   — Refresh token from a one-time local OAuth flow
-
-Content is text-only HTML — the generator emits no <img>/<figure> tags.
+    # Email transport
+    SMTP_USER              — Gmail address used to send
+    SMTP_PASSWORD          — Gmail App Password (NOT the account password)
+    BLOGGER_SECRET_EMAIL   — the blog's Mail2Blogger address
 """
 from __future__ import annotations
 
 import logging
 import os
-
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
+import smtplib
+import time
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +29,21 @@ class BloggerPublishError(RuntimeError):
     """Raised when publishing to Blogger fails."""
 
 
+class EmailPublishError(RuntimeError):
+    """Raised when SMTP / mail-to-Blogger publishing fails."""
+
+
 SCOPES = ["https://www.googleapis.com/auth/blogger"]
 TOKEN_URI = "https://oauth2.googleapis.com/token"
 
 
 def _build_service():
     """Build a Blogger v3 service object from refresh-token credentials."""
+    # Lazy import so the module is importable (and the pipeline unit-testable)
+    # without the Google client libraries present.
+    from google.oauth2.credentials import Credentials
+    from googleapiclient.discovery import build
+
     client_id = os.environ.get("GOOGLE_CLIENT_ID")
     client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
     refresh_token = os.environ.get("GOOGLE_REFRESH_TOKEN")
@@ -89,6 +101,8 @@ def publish_to_blogger(
     if not title or not html_content:
         raise BloggerPublishError("Empty title or content cannot be published")
 
+    from googleapiclient.errors import HttpError
+
     service = _build_service()
 
     body: dict = {
@@ -122,3 +136,66 @@ def publish_to_blogger(
         blog_id, post_id, post_url,
     )
     return post_url
+
+
+# =====================================================================
+# Email transport (Mail2Blogger SMTP) — fallback for API 429 quota days
+# =====================================================================
+SMTP_HOST = "smtp.gmail.com"
+SMTP_PORT = 587
+SMTP_POST_SEND_SLEEP = 10   # avoid Gmail spam-filter rate flags between sends
+
+
+def publish_via_email(
+    title: str,
+    html_content: str,
+    *,
+    recipient: str | None = None,
+) -> str:
+    """Publish a post by emailing it to the blog's Mail2Blogger address.
+
+    Args:
+        title: Post title (email Subject).
+        html_content: Post body HTML (email body).
+        recipient: Mail2Blogger address. Defaults to the BLOGGER_SECRET_EMAIL
+            env var when not given (lets a profile override it per blog).
+
+    Returns the recipient on success; raises EmailPublishError on failure.
+    """
+    user = os.environ.get("SMTP_USER")
+    password = os.environ.get("SMTP_PASSWORD")
+    recipient = recipient or os.environ.get("BLOGGER_SECRET_EMAIL")
+    missing = [
+        k for k, v in {
+            "SMTP_USER": user,
+            "SMTP_PASSWORD": password,
+            "BLOGGER_SECRET_EMAIL": recipient,
+        }.items() if not v
+    ]
+    if missing:
+        raise EmailPublishError(
+            f"Missing required env vars: {', '.join(missing)} — "
+            "must be set (GitHub Secrets in CI)."
+        )
+    # Narrow Optional[str] -> str now that presence is guaranteed.
+    assert user and password and recipient
+    if not title or not html_content:
+        raise EmailPublishError("Empty title or content cannot be emailed")
+
+    msg = MIMEMultipart()
+    msg["From"] = user
+    msg["To"] = recipient
+    msg["Subject"] = title
+    msg.attach(MIMEText(html_content, "html", "utf-8"))
+
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as server:
+            server.starttls()
+            server.login(user, password)
+            server.sendmail(user, [recipient], msg.as_string())
+    except Exception as e:
+        raise EmailPublishError(f"SMTP send failed: {e}") from e
+
+    # Space out sends so Gmail doesn't flag the burst as spam.
+    time.sleep(SMTP_POST_SEND_SLEEP)
+    return recipient

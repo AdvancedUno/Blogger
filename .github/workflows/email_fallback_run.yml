@@ -33,7 +33,7 @@ jobs:
       - name: Install Python deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -e .
 
       - name: Run blogger pipeline (email fallback)
         env:
@@ -47,4 +47,6 @@ jobs:
           BLOGGER_SECRET_EMAIL: ${{ secrets.BLOGGER_SECRET_EMAIL }}
           SMTP_USER:            ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD:        ${{ secrets.SMTP_PASSWORD }}
-        run: python main_blogger.py --group ${{ github.event.inputs.group }} --publish-method email
+          # --- Run digest webhook (Discord/Slack-compatible; optional) ---
+          RUN_WEBHOOK_URL:      ${{ secrets.RUN_WEBHOOK_URL }}
+        run: python -m blogkit run --group ${{ github.event.inputs.group }} --publish-method email

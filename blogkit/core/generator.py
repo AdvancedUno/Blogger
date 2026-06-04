@@ -7,20 +7,34 @@ Snippet capture.
 """
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import re
 import time
 from dataclasses import dataclass, field
 
-from google import genai
-from google.genai import types
-
 logger = logging.getLogger(__name__)
+
+# Rotating editorial lens — picked deterministically per piece so the network
+# doesn't read like the same template 20 times (originality / helpful-content).
+EDITORIAL_ANGLES = [
+    "a contrarian investigation that challenges the prevailing consensus",
+    "a forward-looking forecast of where this trend heads over the next 4-8 fiscal quarters",
+    "a myth-busting analysis that dismantles the misconceptions executives hold",
+    "an operator's playbook centered on concrete, sequenced implementation steps",
+    "a follow-the-money breakdown of who captures the value and who quietly loses",
+    "a post-mortem lens on why deployments stall and what the failure modes teach",
+]
+
+
+def _pick_angle(seed_text: str) -> str:
+    h = int(hashlib.sha256(seed_text.encode("utf-8")).hexdigest(), 16)
+    return EDITORIAL_ANGLES[h % len(EDITORIAL_ANGLES)]
 
 # Model name can be overridden via the GEMINI_MODEL env var (e.g.,
 # gemini-2.5-flash). Default is gemini-3.5-flash per project preference.
-MODEL_NAME = "gemini-3.5-flash"
+MODEL_NAME = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
 
 
 # =====================================================================
@@ -37,15 +51,79 @@ CRITICAL: Your specific persona, voice, and tone MUST DYNAMICALLY ADAPT to the s
 - If Enterprise IT/Cloud: Sound like an Enterprise CTO or Lead Systems Architect.
 
 CRITICAL WRITING LAWS FOR ELITE QUALITY & SEO:
-1. DYNAMIC TONE: Do not use the same tone every time. Depending on the news, dynamically rotate between being: a) Contrarian (exposing hidden risks), b) Highly analytical (ROI/TCO focus), or c) Visionary and strategic. Match the tone to the gravity of the topic.
-2. EXHAUSTIVE LENGTH & DEPTH: You must write a profoundly detailed, long-form analysis. Do not write short summaries. Expand deeply on every single section and paragraph to maximize reader dwell time.
-3. COMPLIANCE & LEGAL REALITY: Always weave in relevant regulatory pressures (SEC, FDA, HIPAA, GDPR, CISA, etc.) naturally based on the specific industry you are writing for.
+1. DYNAMIC TONE & COMMITTED ANGLE: Do not use the same tone every time. Rotate between being a) Contrarian (exposing hidden risks), b) Highly analytical (ROI/TCO focus), or c) Visionary and strategic, matching the gravity of the topic. When an EDITORIAL ANGLE is specified in the user prompt, fully commit to it — in the headline and throughout — instead of retreating into a neutral, balanced summary.
+2. DEPTH WITH SUBSTANCE (target ~1,300-1,800 words): Write a profoundly detailed long-form analysis that earns the reader's time. Every paragraph must add a new fact, implication, or decision — never padding, restatement, or filler to hit a length. Depth means more distinct insights, not more words around the same point.
+3. COMPLIANCE & LEGAL REALITY: Weave in the relevant regulatory pressures (SEC, FDA, HIPAA, GDPR, CISA, etc.) naturally, named specifically for the industry at hand — never "regulators" in the abstract.
 4. INLINE ANALOGIES: Unpack dense technical concepts using exactly one sharp, relatable corporate analogy.
-5. ZERO HALLUCINATIONS: Ground your analysis strictly in the provided [Source Data]. Never invent names, statistics, or metrics.
-6. NO "AI TELLS": Absolutely ban phrases like "In conclusion", "Furthermore", "Delve into", "Navigating the landscape", "Today we will discuss".
-7. RAW HTML ONLY (theme-aware tag set): Output clean HTML paragraphs (max 3-4 sentences each). Allowed elements: <h1>, <h2>, <h3>, <h4>, <p>, <strong>, <b>, <em>, <ul>, <ol>, <li>, <blockquote>, <table>, <thead>, <tbody>, <tr>, <th>, <td>. Do NOT emit any <img>, <figure>, or <figcaption> tags — this blog is text-only. Use <strong> liberally on real data, regulator names, and corporate entities so the reader's eye finds anchors.
-8. VISUAL RHYTHM (JetTheme-optimized layout): The blog runs on JetTheme v2.9, which styles semantic HTML distinctly. You MUST use this layout to break the wall of text: a <blockquote> TL;DR right after the <h1>, a <blockquote> pull quote inside the Risks section, a comparison <table> in the Regulatory section, and a final <blockquote> "Bottom Line" callout before References. Match the user-prompt template structure exactly — do not skip any element.
+5. ZERO HALLUCINATIONS & ATTRIBUTION: Ground every claim strictly in the provided [Source Data]. Never invent names, statistics, dates, or metrics. When you cite a figure or event, make clear it comes from the reporting — do not fabricate precision.
+6. NO "AI TELLS": Absolutely ban these and their cousins: "In conclusion", "Furthermore", "Moreover", "Additionally", "Delve into", "Navigating the landscape", "In today's fast-paced world", "It's important to note", "ever-evolving", "game-changer", "unlock", "deep dive", "tapestry", "seamless", "robust" (as filler), "leverage" (as a verb-filler), "Today we will discuss". Write like a named human expert with a viewpoint, not a summarizer.
+7. SEO TITLE DISCIPLINE: The <h1> / TITLE is the single biggest SERP-click lever. Keep it <= 60 characters (hard max 65). FRONT-LOAD the primary keyword/topic in the first 2-4 words. Add one concrete hook — a number, a year, a dollar figure, or a sharp verb. Match real search intent; never clickbait; never the phrase "The Ultimate Guide".
+8. SNIPPET-WORTHY OPENING & KEYWORD PLACEMENT: The first <p> after the <h1>/TL;DR must work as a standalone ~150-character meta description — compelling, specific, and self-contained (it becomes the SERP snippet). Use the primary topic phrase naturally within the first 100 words and in at least one <h2>. Never keyword-stuff.
+9. E-E-A-T & SPECIFICITY: Demonstrate first-hand operator experience and judgment. Always prefer a specific named entity, real figure, or date from the Source Data over a vague generality. Concrete beats comprehensive.
+10. RAW HTML ONLY (theme-aware tag set): Output clean HTML paragraphs (max 3-4 sentences each). Allowed elements: <h1>, <h2>, <h3>, <h4>, <p>, <strong>, <b>, <em>, <ul>, <ol>, <li>, <blockquote>, <table>, <thead>, <tbody>, <tr>, <th>, <td>. Do NOT emit any <img>, <figure>, or <figcaption> tags — this blog is text-only. Use <strong> liberally on real data, regulator names, and corporate entities so the reader's eye finds anchors.
+11. VISUAL RHYTHM (JetTheme-optimized layout): The blog runs on JetTheme v2.9, which styles semantic HTML distinctly. You MUST use this layout to break the wall of text: a <blockquote> TL;DR right after the <h1>, a <blockquote> pull quote inside the Risks section, a comparison <table> in the Regulatory section, and a final <blockquote> "Bottom Line" callout before References. Write descriptive, scannable <h2>/<h3> subheads, and make the FAQ target real long-tail questions a buyer would type into Google. Match the user-prompt template structure exactly — do not skip any element.
 """.strip()
+
+
+@dataclass
+class Voice:
+    """Per-blog editorial identity injected into the shared prompt as a voice
+    lock. All fields optional — an empty Voice falls back to the base prompt's
+    dynamic adaptation."""
+
+    persona: str = ""
+    persona_brief: str = ""
+    tone: str = ""
+    voice_traits: list[str] = field(default_factory=list)
+    flow: str = ""
+    banned_phrases: list[str] = field(default_factory=list)
+
+    def is_empty(self) -> bool:
+        return not any(
+            [self.persona, self.persona_brief, self.tone,
+             self.voice_traits, self.flow, self.banned_phrases]
+        )
+
+
+def _compose_system_instruction(
+    voice: Voice | None,
+    blog_name: str,
+    override: str | None,
+) -> str:
+    """Build the effective system instruction: a full per-blog override if
+    supplied, else the shared base + an optional per-blog voice lock built from
+    whichever Voice fields are set.
+    """
+    if override:
+        return override
+    if voice is None or voice.is_empty():
+        return SYSTEM_INSTRUCTION_EN
+
+    lines = [
+        "PRIMARY VOICE LOCK — THIS PUBLICATION ONLY:",
+        f'You are the lead writer for "{blog_name}". Sustain this exact voice end to end.',
+    ]
+    if voice.persona:
+        lines.append(f"- Persona: {voice.persona}.")
+    if voice.tone:
+        lines.append(f"- Tone: {voice.tone}.")
+    if voice.voice_traits:
+        lines.append("- Style directives: " + "; ".join(voice.voice_traits) + ".")
+    if voice.flow:
+        lines.append(f"- Flow & pacing: {voice.flow}.")
+    if voice.persona_brief:
+        lines.append(
+            "- Author/editorial context (grounds expertise and diction; never "
+            f"quote verbatim): {voice.persona_brief}"
+        )
+    if voice.banned_phrases:
+        bans = ", ".join(f'"{p}"' for p in voice.banned_phrases)
+        lines.append(f"- Additionally ban these phrases entirely: {bans}.")
+    lines.append(
+        "Where this specific voice and the generic adaptation list above "
+        "conflict, THIS voice wins."
+    )
+    return SYSTEM_INSTRUCTION_EN + "\n\n" + "\n".join(lines)
 
 
 USER_PROMPT_TEMPLATE_EN = """Conduct a deeply researched, analytical, and strictly factual market briefing based on the following news signals regarding: "{keyword}"
@@ -57,10 +135,10 @@ You MUST follow this exact HTML structure to provide maximum clarity and visual 
 
 The first 3 lines below (TITLE / TAGS / ---) are required for downstream parsing. The TITLE line text MUST match the <h1> text exactly.
 
-TITLE: [Same text as the <h1> below]
+TITLE: [Same text as the <h1> below — <= 60 characters, primary keyword front-loaded]
 TAGS: 5-7 high-CPC B2B tags (PascalCase / compounds, no spaces inside individual tags), comma + space separated
 ---
-<h1>[Generate a sharp, urgent, macro-focused B2B title. Absolutely ban the phrase "The Ultimate Guide".]</h1>
+<h1>[<= 60 characters (hard max 65). Front-load the primary keyword/topic in the first 2-4 words, then add ONE concrete hook — a number, a year, a dollar figure, or a sharp verb. Sharp, macro-focused, search-intent-matching. Ban "The Ultimate Guide".]</h1>
 
 <blockquote>
   <p><strong>TL;DR &mdash; The 60-Second Briefing</strong></p>
@@ -72,7 +150,7 @@ TAGS: 5-7 high-CPC B2B tags (PascalCase / compounds, no spaces inside individual
 </blockquote>
 
 <h2>Executive Briefing & Macro Shift</h2>
-<p>[Powerful opening paragraph — lead with a concrete data point or named entity from the Source Data, not a generic preamble.]</p>
+<p>[Opening paragraph that doubles as the SERP snippet: ~150 characters, compelling and self-contained, leading with a concrete data point or named entity from the Source Data (not a generic preamble), and using the primary topic phrase naturally.]</p>
 <p>[Second paragraph — connect the news signal to the broader macro environment and explain why this matters now, this fiscal quarter, not in the abstract.]</p>
 
 <h2>The Unfiltered Reality: Risks & Hidden Friction</h2>
@@ -222,6 +300,11 @@ def _parse_response(text: str) -> GeneratedPost:
             f"First 200 chars: {text[:200]!r}"
         )
     title = _strip_emoji(m_title.group(1).strip())
+    if len(title) > 65:
+        logger.warning(
+            "Title is %d chars (>65) — may truncate in Google SERPs: %r",
+            len(title), title,
+        )
 
     # 2) TAGS (when missing, fall back to config tags downstream)
     tags: list[str] = []
@@ -292,6 +375,9 @@ def generate_post(
     news_items: list[dict],
     api_key: str | None = None,
     focus_keyword: str | None = None,
+    voice: Voice | None = None,
+    blog_name: str | None = None,
+    system_instruction: str | None = None,
     retries: int = 2,
     retry_delay: float = 3.0,
 ) -> GeneratedPost:
@@ -309,6 +395,11 @@ def generate_post(
         retry_delay: Base seconds between attempts (quota errors override
             this to QUOTA_RETRY_DELAY).
     """
+    # Imported lazily so the module's pure helpers (Voice, prompt composition,
+    # response parsing) can be imported and unit-tested without the SDK present.
+    from google import genai
+    from google.genai import types
+
     if not news_items:
         raise GenerationError("No news items provided to generator")
 
@@ -324,8 +415,12 @@ def generate_post(
         )
     client = genai.Client(api_key=effective_key)
 
+    effective_instruction = _compose_system_instruction(
+        voice, blog_name or topic_label, system_instruction
+    )
+
     gen_config = types.GenerateContentConfig(
-        system_instruction=SYSTEM_INSTRUCTION_EN,
+        system_instruction=effective_instruction,
         # 0.7 strikes a balance: lower than 0.85 cuts down TITLE / image
         # format violations that trigger parse retries; high enough to
         # preserve expressive variety.
@@ -353,7 +448,15 @@ def generate_post(
     )
 
     news_block_str = _format_news_block(news_items)
-    user_prompt = USER_PROMPT_TEMPLATE_EN.format(
+    angle = _pick_angle(
+        (focus_keyword or topic_label) + (news_items[0].get("title", "") if news_items else "")
+    )
+    angle_directive = (
+        f"EDITORIAL ANGLE FOR THIS PIECE: Frame the entire analysis as {angle}. "
+        "Commit to this angle in the headline and throughout — do not retreat "
+        "into a neutral, balanced summary.\n\n"
+    )
+    user_prompt = angle_directive + USER_PROMPT_TEMPLATE_EN.format(
         keyword=focus_keyword or topic_label,
         news_context=news_block_str,
     )

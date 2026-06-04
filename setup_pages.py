@@ -1,8 +1,9 @@
-"""One-off bulk page setup for every blog in config.yaml.
+"""One-off AdSense plumbing for every blog profile.
 
 Creates the 4 standard static pages (About Us, Contact Us, Privacy Policy,
-Terms of Service) on every Blogger site listed in `blogger_sites`. Reuses
-the existing OAuth refresh-token flow from `src/blogger_publisher.py`.
+Terms of Service) on every blog in the profile registry, and can print the
+AdSense ads.txt line. Reuses the OAuth refresh-token flow from
+`blogkit.core.publisher`.
 
 Required environment variables (same as the daily pipeline):
     GOOGLE_CLIENT_ID
@@ -10,18 +11,21 @@ Required environment variables (same as the daily pipeline):
     GOOGLE_REFRESH_TOKEN
 
 Usage:
-    # 1) Preview substitutions without making any API write calls
+    # Preview substitutions without any API write calls
     python setup_pages.py --dry-run
 
-    # 2) Test on a single blog first (substring match on config `name`)
+    # Test on a single blog first (substring match on the profile name)
     python setup_pages.py --blog-name "AI Infra" --dry-run
     python setup_pages.py --blog-name "AI Infra"
 
-    # 3) Run it for real across all blogs
+    # Run it for real across all blogs
     python setup_pages.py
 
-The script is idempotent: it lists existing pages on each blog first and
-skips any page whose title is already present, so a re-run after a partial
+    # Print the ads.txt line to paste into each blog's custom ads.txt setting
+    python setup_pages.py --ads-txt pub-1234567890123456
+
+The page creation is idempotent: it lists existing pages on each blog first
+and skips any page whose title is already present, so a re-run after a partial
 failure won't create duplicates.
 """
 from __future__ import annotations
@@ -30,14 +34,17 @@ import argparse
 import logging
 import sys
 import time
-from pathlib import Path
 from urllib.parse import urlparse
 
-import yaml
-from googleapiclient.errors import HttpError
+try:
+    from googleapiclient.errors import HttpError
+except ImportError:  # the --ads-txt path and import don't need the Google libs
+    HttpError = Exception  # type: ignore[assignment,misc]
 
-# Reuse the OAuth helper the daily pipeline already uses.
-from src.blogger_publisher import _build_service
+# Reuse the OAuth helper + the blog registry the daily pipeline uses.
+from blogkit.core.publisher import _build_service
+from blogkit.profiles.base import BlogProfile
+from blogkit.profiles.registry import all_profiles
 
 logging.basicConfig(
     level=logging.INFO,
@@ -45,8 +52,6 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger("setup_pages")
-
-CONFIG_PATH = Path(__file__).parent / "config.yaml"
 
 # Blogger v3 enforces a tight per-user WRITE quota — much stricter than
 # the 10K/day project quota. Once exceeded, the API enters an extended
@@ -144,12 +149,19 @@ PAGES: list[tuple[str, str]] = [
 ]
 
 
-def load_blogger_sites() -> list[dict]:
-    if not CONFIG_PATH.exists():
-        raise FileNotFoundError(f"Missing config file: {CONFIG_PATH}")
-    with CONFIG_PATH.open("r", encoding="utf-8") as f:
-        cfg = yaml.safe_load(f) or {}
-    return cfg.get("blogger_sites") or []
+ADS_TXT_EXCHANGE = "f08c47fec0942fa0"   # Google AdSense ads.txt relationship id
+
+
+def print_ads_txt(pub_id: str) -> int:
+    """Print the ads.txt line for AdSense. Blogger has no API to set ads.txt,
+    so this is paste-ready for each blog's custom ads.txt setting."""
+    pub = pub_id if pub_id.startswith("pub-") else f"pub-{pub_id}"
+    print(f"google.com, {pub}, DIRECT, {ADS_TXT_EXCHANGE}")
+    print()
+    print("# Paste the line above into EACH blog:")
+    print("#   Blogger dashboard -> Settings -> Monetization ->")
+    print("#   'Enable custom ads.txt' -> paste -> Save")
+    return 0
 
 
 def _is_rate_limit(err: HttpError) -> bool:
@@ -246,12 +258,12 @@ def _substitute(
 
 def _process_blog(
     service,
-    site: dict,
+    profile: BlogProfile,
     dry_run: bool,
 ) -> tuple[int, int, int]:
     """Create the 4 standard pages on one blog. Returns (created, skipped, failed)."""
-    name_cfg = site.get("name", "<unnamed>")
-    blog_id = str(site.get("blog_id") or "")
+    name_cfg = profile.name
+    blog_id = str(profile.blog_id or "")
 
     # Skip placeholder ids like "[YOUR_BLOGGER_ID_8]" — those are unfinished
     # config entries the daily pipeline already ignores.
@@ -343,44 +355,52 @@ def _parse_args() -> argparse.Namespace:
     )
     p.add_argument(
         "--blog-name", default=None,
-        help="Run only blogs whose config `name` field CONTAINS this "
-             "substring (case-insensitive). Useful for testing one blog first.",
+        help="Run only blogs whose profile name CONTAINS this substring "
+             "(case-insensitive). Useful for testing one blog first.",
+    )
+    p.add_argument(
+        "--ads-txt", metavar="PUB_ID", default=None,
+        help="Print the AdSense ads.txt line for the given publisher id "
+             "(e.g. pub-1234567890123456) and exit. No page writes.",
     )
     return p.parse_args()
 
 
 def main() -> int:
     args = _parse_args()
-    sites = load_blogger_sites()
-    if not sites:
-        logger.error("No blogger_sites found in %s", CONFIG_PATH)
+
+    if args.ads_txt:
+        return print_ads_txt(args.ads_txt)
+
+    profiles = all_profiles()
+    if not profiles:
+        logger.error("No blog profiles found")
         return 1
 
     if args.blog_name:
         needle = args.blog_name.lower()
-        sites = [s for s in sites
-                 if needle in str(s.get("name", "")).lower()]
-        logger.info("Filtered by --blog-name=%r -> %d site(s)",
-                    args.blog_name, len(sites))
-        if not sites:
+        profiles = [p for p in profiles if needle in p.name.lower()]
+        logger.info("Filtered by --blog-name=%r -> %d blog(s)",
+                    args.blog_name, len(profiles))
+        if not profiles:
             return 0
 
     mode = "DRY-RUN" if args.dry_run else "LIVE (will publish)"
-    logger.info("Mode = %s — processing %d blog(s)", mode, len(sites))
+    logger.info("Mode = %s — processing %d blog(s)", mode, len(profiles))
     service = _build_service()
 
     total_created = total_skipped = total_failed = 0
-    for idx, site in enumerate(sites):
-        c, s, f = _process_blog(service, site, args.dry_run)
+    for idx, profile in enumerate(profiles):
+        c, s, f = _process_blog(service, profile, args.dry_run)
         total_created += c
         total_skipped += s
         total_failed += f
-        if idx < len(sites) - 1:
+        if idx < len(profiles) - 1:
             time.sleep(INTER_BLOG_SLEEP_SECONDS)
 
     logger.info("=================== SUMMARY ===================")
     logger.info("  Mode             : %s", mode)
-    logger.info("  Blogs processed  : %d", len(sites))
+    logger.info("  Blogs processed  : %d", len(profiles))
     logger.info("  Pages created    : %d", total_created)
     logger.info("  Pages skipped    : %d (already existed)", total_skipped)
     logger.info("  Pages failed     : %d", total_failed)

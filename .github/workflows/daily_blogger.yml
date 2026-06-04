@@ -8,6 +8,11 @@ on:
     # so the post is live for the US morning audience.
     - cron: '0 14 * * *'
   workflow_dispatch:
+    inputs:
+      disable:
+        description: 'Comma-separated blog slugs to skip this run (optional)'
+        required: false
+        default: ''
 
 concurrency:
   group: daily-blogger-post
@@ -33,7 +38,7 @@ jobs:
       - name: Install Python deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -e .
 
       # No Playwright install step — Blogger v3 is a pure REST API.
 
@@ -60,5 +65,17 @@ jobs:
           GOOGLE_CLIENT_ID:     ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
-        # Use --group N to run only one batch (e.g., `python main_blogger.py --group 2`).
-        run: python main_blogger.py
+          # --- Run digest webhook (Discord/Slack-compatible; optional) ---
+          RUN_WEBHOOK_URL:      ${{ secrets.RUN_WEBHOOK_URL }}
+          # --- Search Console feedback (optional; needs webmasters.readonly
+          #     scope. Falls back to GOOGLE_* above if these are unset) ---
+          GSC_CLIENT_ID:        ${{ secrets.GSC_CLIENT_ID }}
+          GSC_CLIENT_SECRET:    ${{ secrets.GSC_CLIENT_SECRET }}
+          GSC_REFRESH_TOKEN:    ${{ secrets.GSC_REFRESH_TOKEN }}
+          # --- Skip specific blogs this run (manual dispatch input) ---
+          BLOGKIT_DISABLE:      ${{ github.event.inputs.disable }}
+        # Preflight first (fail fast on missing secrets), then run.
+        # Use --group N to run only one batch (e.g., `python -m blogkit run --group 2`).
+        run: |
+          python -m blogkit doctor
+          python -m blogkit run
