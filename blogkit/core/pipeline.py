@@ -10,6 +10,7 @@ import random
 import traceback
 
 from blogkit.core.analytics import fetch_top_queries, prioritize_queries
+from blogkit.core.archetypes import resolve_archetype_name
 from blogkit.core.dedup import Ledger
 from blogkit.core.enrich import add_toc, reading_time_badge, related_posts_html
 from blogkit.core.fetcher import FetchError, fetch_top_news
@@ -121,6 +122,7 @@ def run_profile(
             ),
             blog_name=name,
             post_format=resolve_format_name(profile.slug, profile.post_format),
+            author_archetype=resolve_archetype_name(profile.slug, profile.author_archetype),
         )
         logger.info("[%s] Generated — title=%s (%d chars)", name, post.title, len(post.html))
     except GenerationError as e:

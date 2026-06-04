@@ -356,6 +356,169 @@ _MARKET_OUTLOOK_BODY = """<blockquote>
 """
 
 
+_EXPLAINER_BODY = """<blockquote>
+  <p><strong>The Quick Primer</strong></p>
+  <ul>
+    <li><strong>What It Is:</strong> [Plain-English definition grounded in the Source Data.]</li>
+    <li><strong>Why It Matters:</strong> [The practical reason a reader should care right now.]</li>
+    <li><strong>The Catch:</strong> [The one nuance people most often get wrong.]</li>
+  </ul>
+</blockquote>
+
+<h2>Start With the Fundamentals</h2>
+<p>[Snippet-worthy opening (~150 chars): reframe the news as a question worth understanding, grounded in a concrete detail from the Source Data.]</p>
+<p>[Establish the first principle everything else builds on. Define any term the first time it appears.]</p>
+
+<h2>How It Actually Works</h2>
+<p>[Walk through the mechanism step by step, using exactly one analogy that genuinely fits.]</p>
+<h3>[The part people find most confusing]</h3>
+<p>[Clear up that specific confusion; cite a real system or standard from the Source Data; never invent.]</p>
+
+<blockquote>
+  <p><em>"[A clarifying one-liner that makes the whole idea finally click.]"</em></p>
+</blockquote>
+
+<h2>A Worked Example</h2>
+<p>[Make it concrete with a realistic, illustrative walk-through grounded in the Source Data.]</p>
+<table>
+  <thead>
+    <tr><th>Step</th><th>What Happens</th><th>Why It Matters</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>[Step 1]</td><td>[What happens]</td><td>[Why it matters]</td></tr>
+    <tr><td>[Step 2]</td><td>[What happens]</td><td>[Why it matters]</td></tr>
+    <tr><td>[Step 3]</td><td>[What happens]</td><td>[Why it matters]</td></tr>
+  </tbody>
+</table>
+
+<h2>Common Misconceptions</h2>
+<ul>
+  <li><strong>[Myth 1]:</strong> [The reality.]</li>
+  <li><strong>[Myth 2]:</strong> [The reality.]</li>
+  <li><strong>[Myth 3]:</strong> [The reality.]</li>
+</ul>
+
+<h2>Frequently Asked Questions</h2>
+<h3>[A real beginner-to-intermediate long-tail question.]</h3>
+<p>[Clear, specific answer that actually teaches.]</p>
+<h3>[A second question that clears up a common mix-up.]</h3>
+<p>[Answer using ranges, not invented point estimates.]</p>
+
+<blockquote>
+  <p><strong>The Takeaway &mdash;</strong> [2-3 sentences that leave the reader genuinely understanding the idea, not merely informed of it.]</p>
+</blockquote>
+
+<h2>References & Further Reading</h2>
+<p>This explainer is synthesized directly from active reporting and the Source Data above.</p>
+"""
+
+
+_CASE_STUDY_BODY = """<blockquote>
+  <p><strong>The Story in Brief</strong></p>
+  <ul>
+    <li><strong>The Setup:</strong> [Who and what, drawn from the Source Data.]</li>
+    <li><strong>The Turn:</strong> [The decisive move or moment.]</li>
+    <li><strong>The Result:</strong> [What changed, concretely.]</li>
+  </ul>
+</blockquote>
+
+<h2>The Situation</h2>
+<p>[Snippet-worthy opening (~150 chars): set the scene with a specific, telling detail from the Source Data — not a thesis.]</p>
+<p>[Establish the stakes and the constraint the players were operating under.]</p>
+
+<h2>What They Actually Did</h2>
+<p>[Narrate the key decisions and moves, in order.]</p>
+<h3>[The pivotal decision]</h3>
+<p>[Drill into the turning point; attribute to named players or sources from the Source Data; never invent.]</p>
+
+<blockquote>
+  <p><em>"[A line that captures the lesson of the moment — quote-like, no attribution unless it appears verbatim in the Source Data.]"</em></p>
+</blockquote>
+
+<h2>The Numbers</h2>
+<table>
+  <thead>
+    <tr><th>Metric</th><th>Before</th><th>After</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>[Metric 1]</td><td>[Before state from Source Data]</td><td>[After state]</td></tr>
+    <tr><td>[Metric 2]</td><td>[Before]</td><td>[After]</td></tr>
+    <tr><td>[Metric 3]</td><td>[Before]</td><td>[After]</td></tr>
+  </tbody>
+</table>
+
+<h2>Where It Nearly Went Wrong</h2>
+<p>[The friction, the near-miss, or the hidden cost — the part the press release left out.]</p>
+
+<h2>Lessons for Everyone Else</h2>
+<ol>
+  <li><strong>[Lesson 1 — verb-led]:</strong> [How to apply it.]</li>
+  <li><strong>[Lesson 2]:</strong> [How to apply it.]</li>
+  <li><strong>[Lesson 3]:</strong> [How to apply it.]</li>
+</ol>
+
+<h2>Frequently Asked Questions</h2>
+<h3>[A real long-tail question about replicating this.]</h3>
+<p>[Specific, grounded answer.]</p>
+<h3>[A second question about cost, time, or risk.]</h3>
+<p>[Answer using ranges, not invented point estimates.]</p>
+
+<blockquote>
+  <p><strong>The Bottom Line &mdash;</strong> [2-3 sentence takeaway: what a peer should copy, and what they should avoid.]</p>
+</blockquote>
+
+<h2>References & Signals</h2>
+<p>This case study is synthesized directly from active reporting and the Source Data above.</p>
+"""
+
+
+_OP_ED_BODY = """<blockquote>
+  <p><strong>The Argument in One Breath</strong></p>
+  <ul>
+    <li><strong>The Claim:</strong> [Your thesis, stated flatly.]</li>
+    <li><strong>The Stakes:</strong> [Why it matters if you are right.]</li>
+    <li><strong>The Ask:</strong> [What you want the reader to do or believe.]</li>
+  </ul>
+</blockquote>
+
+<h2>The Thesis</h2>
+<p>[Snippet-worthy opening (~150 chars): plant your flag with a provocative, specific claim grounded in the Source Data.]</p>
+<p>[Lay out the spine of the argument in a few sentences.]</p>
+
+<h2>Why the Consensus Is Wrong</h2>
+<p>[Take apart the prevailing view. Be specific about who holds it and why it fails.]</p>
+<h3>[The strongest piece of your case]</h3>
+<p>[Drive it home with a concrete fact, figure, or named example from the Source Data; never invent.]</p>
+
+<blockquote>
+  <p><em>"[Your sharpest line — the sentence you would want quoted back to you.]"</em></p>
+</blockquote>
+
+<h2>The Strongest Counterargument</h2>
+<p>[Steelman the other side honestly — then explain why it still does not hold.]</p>
+
+<h2>What Follows If I'm Right</h2>
+<ul>
+  <li><strong>[Consequence 1]:</strong> [What changes, and for whom.]</li>
+  <li><strong>[Consequence 2]:</strong> [What changes.]</li>
+  <li><strong>[Consequence 3]:</strong> [What changes.]</li>
+</ul>
+
+<h2>Frequently Asked Questions</h2>
+<h3>[The pointed question a skeptical reader would fire back.]</h3>
+<p>[A direct, honest answer.]</p>
+<h3>[A second "but what about..." question.]</h3>
+<p>[Answer using ranges, not invented point estimates.]</p>
+
+<blockquote>
+  <p><strong>Where I Land &mdash;</strong> [2-3 sentences restating the position with conviction. End on the line you want remembered.]</p>
+</blockquote>
+
+<h2>References & Signals</h2>
+<p>This argument is grounded in active reporting and the Source Data above.</p>
+"""
+
+
 FORMATS: dict[str, PostFormat] = {
     "briefing": PostFormat(
         name="briefing",
@@ -387,58 +550,83 @@ FORMATS: dict[str, PostFormat] = {
         summary_label="The Setup",
         body=_MARKET_OUTLOOK_BODY,
     ),
+    "explainer": PostFormat(
+        name="explainer",
+        descriptor="plain-English explainer",
+        summary_label="The Quick Primer",
+        body=_EXPLAINER_BODY,
+    ),
+    "case_study": PostFormat(
+        name="case_study",
+        descriptor="field case study",
+        summary_label="The Story in Brief",
+        body=_CASE_STUDY_BODY,
+    ),
+    "op_ed": PostFormat(
+        name="op_ed",
+        descriptor="argument-driven op-ed",
+        summary_label="The Argument in One Breath",
+        body=_OP_ED_BODY,
+    ),
 }
 
 
 # =====================================================================
-# Per-blog format assignment. Chosen to match each blog's theme:
-#   briefing       -> capital markets, finance, money-flow analysis
-#   playbook       -> devtools, platform/SRE, cloud ops (hands-on)
+# Per-blog format assignment. Spread across all eight layouts so blogs differ
+# structurally, matched to what each topic is best told as:
+#   briefing       -> capital-markets / money-flow analysis
+#   playbook       -> devtools / platform / cloud ops (hands-on)
 #   deep_dive      -> security & frontier deep tech (investigation)
-#   buyers_guide   -> vertical SaaS / category evaluation (buyer lens)
-#   market_outlook -> energy, climate, infrastructure (forward-looking)
+#   buyers_guide   -> category / vendor evaluation (buyer lens)
+#   market_outlook -> energy / climate / infrastructure (forward-looking)
+#   explainer      -> concept-heavy topics that reward teaching
+#   case_study     -> operational verticals told as field stories
+#   op_ed          -> debate-rich topics that reward a strong thesis
 # A profile can override its assignment via BlogProfile.post_format.
 # =====================================================================
 FORMAT_BY_SLUG: dict[str, str] = {
-    # --- briefing: finance / capital / money flows ---
+    # --- briefing ---
     "b2b_payment_rails": "briefing",
     "corporate_treasury_tech": "briefing",
     "wealthtech_systems": "briefing",
     "institutional_digital_assets": "briefing",
-    "enterprise_insurtech": "briefing",
     "marketing_attribution_mmm": "briefing",
-    "programmatic_adtech_privacy": "briefing",
-    # --- playbook: devtools / platform / ops ---
-    "ai_infra_insider": "playbook",
-    "dataops_vector_dbs": "playbook",
-    "industrial_edge_ai": "playbook",
+    # --- op_ed ---
+    "programmatic_adtech_privacy": "op_ed",
+    "enterprise_revops": "op_ed",
+    "enterprise_insurtech": "op_ed",
+    "b2b_seo_content_ops": "op_ed",
+    "conversational_cx_automation": "op_ed",
+    # --- playbook ---
     "platform_engineering_idp": "playbook",
     "observability_sre": "playbook",
     "finops_cloud_cost": "playbook",
     "api_management_integration": "playbook",
     "kubernetes_container_security": "playbook",
-    # --- deep_dive: security / frontier deep tech ---
+    # --- deep_dive ---
     "zero_trust_enterprise": "deep_dive",
     "cyber_compliance_automation": "deep_dive",
     "meddevice_cybersecurity": "deep_dive",
     "quantum_commercialization": "deep_dive",
     "autonomous_fleet_ops": "deep_dive",
-    # --- buyers_guide: vertical SaaS / category evaluation ---
+    # --- explainer ---
+    "ai_infra_insider": "explainer",
+    "dataops_vector_dbs": "explainer",
+    "digital_health_interoperability": "explainer",
+    "customer_data_platforms": "explainer",
+    "industrial_edge_ai": "explainer",
+    # --- buyers_guide ---
     "clinical_trial_tech": "buyers_guide",
     "commercial_proptech": "buyers_guide",
-    "digital_health_interoperability": "buyers_guide",
-    "enterprise_revops": "buyers_guide",
     "legaltech_enterprise": "buyers_guide",
     "supply_chain_visibility": "buyers_guide",
-    "customer_data_platforms": "buyers_guide",
-    "conversational_cx_automation": "buyers_guide",
-    "b2b_seo_content_ops": "buyers_guide",
     "hr_tech_people_analytics": "buyers_guide",
-    "field_service_management": "buyers_guide",
-    "construction_tech": "buyers_guide",
-    "hospitality_tech": "buyers_guide",
-    "manufacturing_erp_mes": "buyers_guide",
-    # --- market_outlook: energy / climate / infrastructure ---
+    # --- case_study ---
+    "field_service_management": "case_study",
+    "construction_tech": "case_study",
+    "hospitality_tech": "case_study",
+    "manufacturing_erp_mes": "case_study",
+    # --- market_outlook ---
     "smart_building_esg": "market_outlook",
     "grid_energy_storage": "market_outlook",
     "ev_charging_infrastructure": "market_outlook",

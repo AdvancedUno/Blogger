@@ -14,6 +14,7 @@ import re
 import time
 from dataclasses import dataclass, field
 
+from blogkit.core.archetypes import build_archetype_directive, get_archetype
 from blogkit.core.formats import build_user_prompt, get_format
 
 logger = logging.getLogger(__name__)
@@ -58,12 +59,12 @@ CRITICAL WRITING LAWS FOR ELITE QUALITY & SEO:
 3. COMPLIANCE & LEGAL REALITY: Weave in the relevant regulatory pressures (SEC, FDA, HIPAA, GDPR, CISA, etc.) naturally, named specifically for the industry at hand — never "regulators" in the abstract.
 4. INLINE ANALOGIES: Unpack dense technical concepts using exactly one sharp, relatable corporate analogy.
 5. ZERO HALLUCINATIONS & ATTRIBUTION: Ground every claim strictly in the provided [Source Data]. Never invent names, statistics, dates, or metrics. When you cite a figure or event, make clear it comes from the reporting — do not fabricate precision.
-6. NO "AI TELLS": Absolutely ban these and their cousins: "In conclusion", "Furthermore", "Moreover", "Additionally", "Delve into", "Navigating the landscape", "In today's fast-paced world", "It's important to note", "ever-evolving", "game-changer", "unlock", "deep dive", "tapestry", "seamless", "robust" (as filler), "leverage" (as a verb-filler), "Today we will discuss". Write like a named human expert with a viewpoint, not a summarizer.
+6. NO "AI TELLS" — WRITE LIKE A HUMAN: Absolutely ban these and their cousins: "In conclusion", "Furthermore", "Moreover", "Additionally", "Delve into", "Navigating the landscape", "In today's fast-paced world", "It's important to note", "ever-evolving", "game-changer", "unlock", "deep dive", "tapestry", "seamless", "robust" (as filler), "leverage" (as a verb-filler), "Today we will discuss". Also avoid the tell-tale AI rhythm of uniform paragraph blocks and perfectly balanced both-sides hedging. Write as the specific named human author defined in the HUMAN AUTHOR PERSONA block below — with their point of view, their cadence, and a real opinion — not as a neutral assistant summarizing a topic.
 7. SEO TITLE DISCIPLINE: The <h1> / TITLE is the single biggest SERP-click lever. Keep it <= 60 characters (hard max 65). FRONT-LOAD the primary keyword/topic in the first 2-4 words. Add one concrete hook — a number, a year, a dollar figure, or a sharp verb. Match real search intent; never clickbait; never the phrase "The Ultimate Guide".
 8. SNIPPET-WORTHY OPENING & KEYWORD PLACEMENT: The first <p> after the <h1>/summary callout must work as a standalone ~150-character meta description — compelling, specific, and self-contained (it becomes the SERP snippet). Use the primary topic phrase naturally within the first 100 words and in at least one <h2>. Never keyword-stuff.
 9. E-E-A-T & SPECIFICITY: Demonstrate first-hand operator experience and judgment. Always prefer a specific named entity, real figure, or date from the Source Data over a vague generality. Concrete beats comprehensive.
 10. RAW HTML ONLY (theme-aware tag set): Output clean HTML paragraphs (max 3-4 sentences each). Allowed elements: <h1>, <h2>, <h3>, <h4>, <p>, <strong>, <b>, <em>, <ul>, <ol>, <li>, <blockquote>, <table>, <thead>, <tbody>, <tr>, <th>, <td>. Do NOT emit any <img>, <figure>, or <figcaption> tags — this blog is text-only. Use <strong> liberally on real data, regulator names, and corporate entities so the reader's eye finds anchors.
-11. VISUAL RHYTHM (JetTheme-optimized layout): The blog runs on JetTheme v2.9, which styles semantic HTML distinctly. You MUST use the layout the user-prompt template specifies to break the wall of text: open with the <blockquote> summary callout (use the EXACT heading label the template gives it — never the word "TL;DR"), place a <blockquote> pull quote mid-article, a comparison <table>, and a final <blockquote> "Bottom Line" callout before References. Write descriptive, scannable <h2>/<h3> subheads, and make the FAQ target real long-tail questions a buyer would type into Google. Match the user-prompt template structure exactly — it defines this publication's layout — do not skip any element.
+11. LAYOUT BACKBONE, HUMAN VOICE (JetTheme v2.9): The template is your structural backbone, not a script to parrot. KEEP these load-bearing elements exactly: the opening <blockquote> summary callout (use the EXACT heading label the template gives it — NEVER the word "TL;DR"), the "<h2>Frequently Asked Questions</h2>" heading verbatim with each Q&A as <h3>question</h3><p>answer</p>, a closing <blockquote> callout, and the "...References..." <h2> at the end. WITHIN that backbone, write every other <h2>/<h3> subhead in your own author's voice (not the bracketed placeholder labels), vary paragraph length deliberately, and let your archetype shape the prose so it reads like a specific human — not a uniform, templated page. Use a <blockquote> pull quote mid-article and, where the template includes one, a comparison <table>.
 """.strip()
 
 
@@ -91,15 +92,21 @@ def _compose_system_instruction(
     voice: Voice | None,
     blog_name: str,
     override: str | None,
+    archetype_directive: str = "",
 ) -> str:
     """Build the effective system instruction: a full per-blog override if
-    supplied, else the shared base + an optional per-blog voice lock built from
-    whichever Voice fields are set.
+    supplied, else the shared base + the human author-archetype block (who is
+    writing) + an optional per-blog voice lock built from whichever Voice fields
+    are set (how this specific publication sounds).
     """
     if override:
         return override
+
+    parts = [SYSTEM_INSTRUCTION_EN]
+    if archetype_directive:
+        parts.append(archetype_directive)
     if voice is None or voice.is_empty():
-        return SYSTEM_INSTRUCTION_EN
+        return "\n\n".join(parts)
 
     lines = [
         "PRIMARY VOICE LOCK — THIS PUBLICATION ONLY:",
@@ -122,10 +129,11 @@ def _compose_system_instruction(
         bans = ", ".join(f'"{p}"' for p in voice.banned_phrases)
         lines.append(f"- Additionally ban these phrases entirely: {bans}.")
     lines.append(
-        "Where this specific voice and the generic adaptation list above "
-        "conflict, THIS voice wins."
+        "Where this specific voice, the author persona, and the generic "
+        "adaptation list conflict, the author persona and this voice win."
     )
-    return SYSTEM_INSTRUCTION_EN + "\n\n" + "\n".join(lines)
+    parts.append("\n".join(lines))
+    return "\n\n".join(parts)
 
 
 # The user-prompt structure now lives in core/formats.py — each blog renders a
@@ -310,6 +318,7 @@ def generate_post(
     blog_name: str | None = None,
     system_instruction: str | None = None,
     post_format: str = "",
+    author_archetype: str = "",
     retries: int = 2,
     retry_delay: float = 3.0,
 ) -> GeneratedPost:
@@ -325,6 +334,8 @@ def generate_post(
             main_blogger.py; injected into the prompt as the topic anchor.
         post_format: Layout preset name (see core/formats.FORMATS). Empty or
             unknown falls back to the default ("briefing").
+        author_archetype: Human author voice name (see core/archetypes). Empty
+            or unknown falls back to the default archetype.
         retries: Number of parse/quota retries before giving up.
         retry_delay: Base seconds between attempts (quota errors override
             this to QUOTA_RETRY_DELAY).
@@ -349,8 +360,9 @@ def generate_post(
         )
     client = genai.Client(api_key=effective_key)
 
+    archetype_directive = build_archetype_directive(get_archetype(author_archetype))
     effective_instruction = _compose_system_instruction(
-        voice, blog_name or topic_label, system_instruction
+        voice, blog_name or topic_label, system_instruction, archetype_directive,
     )
 
     gen_config = types.GenerateContentConfig(

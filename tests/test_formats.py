@@ -33,15 +33,33 @@ def test_no_format_body_contains_tldr():
 
 
 def test_every_format_has_required_structure():
-    # The downstream parser + SEO rules expect these in every layout.
+    # Load-bearing invariants every layout must keep so the parser + SEO
+    # (FAQPage extraction, references soft-check, summary callout) keep working.
+    # Note: a <table> and the literal "Bottom Line" are intentionally NOT
+    # universal — that's part of the structural diversity across formats.
     for name, fmt in FORMATS.items():
         b = fmt.body.lower()
         assert "<h2" in b, name
-        assert "<blockquote" in b, name
-        assert "<table" in b, name
-        assert "frequently asked questions" in b, name
-        assert "references" in b, name
-        assert "bottom line" in b, name
+        assert b.count("<blockquote") >= 2, name          # summary + closing callout
+        assert "frequently asked questions" in b, name    # powers FAQPage schema
+        assert "references" in b, name                     # references soft-check
+        # FAQ Q&A must be <h3>question</h3><p>answer</p> for seo.extract_faqs.
+        assert "<h3>" in fmt.body, name
+
+
+def test_no_two_blogs_share_format_and_archetype():
+    # Imported here to keep the format-only tests independent of archetypes.
+    from blogkit.core.archetypes import resolve_archetype_name
+
+    seen: dict[tuple[str, str], str] = {}
+    for p in all_profiles():
+        fmt = resolve_format_name(p.slug, p.post_format)
+        arch = resolve_archetype_name(p.slug, p.author_archetype)
+        key = (fmt, arch)
+        assert key not in seen, (
+            f"{p.slug} and {seen[key]} share format+archetype {key}"
+        )
+        seen[key] = p.slug
 
 
 def test_every_profile_resolves_to_a_valid_format():

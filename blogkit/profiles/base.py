@@ -38,10 +38,16 @@ class BlogProfile(BaseModel):
     rss_queries: list[str] = Field(min_length=1)
     tags: list[str] = Field(default_factory=list)
     # Post layout preset (see core/formats.FORMATS): briefing / playbook /
-    # deep_dive / buyers_guide / market_outlook. Empty = auto-assigned by
-    # core/formats.FORMAT_BY_SLUG to match the blog's theme. Set this to
-    # override the assignment for one blog.
+    # deep_dive / buyers_guide / market_outlook / explainer / case_study /
+    # op_ed. Empty = auto-assigned by core/formats.FORMAT_BY_SLUG to match the
+    # blog's theme. Set this to override the assignment for one blog.
     post_format: str = ""
+    # Human author voice (see core/archetypes.ARCHETYPES): the_operator,
+    # the_reporter, the_analyst, the_professor, the_engineer, the_columnist,
+    # the_consultant, the_correspondent, the_founder, the_skeptic,
+    # the_strategist, the_curator. Empty = auto-assigned by
+    # core/archetypes.ARCHETYPE_BY_SLUG. Set this to override per blog.
+    author_archetype: str = ""
 
     # --- visual identity ---
     featured_image: bool = True
@@ -84,6 +90,18 @@ class BlogProfile(BaseModel):
         if v and v not in FORMATS:
             raise ValueError(
                 f"unknown post_format {v!r}; valid names: {sorted(FORMATS)} (or '' to auto-assign)"
+            )
+        return v
+
+    @field_validator("author_archetype")
+    @classmethod
+    def _archetype_known(cls, v: str) -> str:
+        from blogkit.core.archetypes import ARCHETYPES
+
+        if v and v not in ARCHETYPES:
+            raise ValueError(
+                f"unknown author_archetype {v!r}; valid names: {sorted(ARCHETYPES)} "
+                "(or '' to auto-assign)"
             )
         return v
 
