@@ -14,6 +14,8 @@ import re
 import time
 from dataclasses import dataclass, field
 
+from blogkit.core.formats import build_user_prompt, get_format
+
 logger = logging.getLogger(__name__)
 
 # Rotating editorial lens — picked deterministically per piece so the network
@@ -58,10 +60,10 @@ CRITICAL WRITING LAWS FOR ELITE QUALITY & SEO:
 5. ZERO HALLUCINATIONS & ATTRIBUTION: Ground every claim strictly in the provided [Source Data]. Never invent names, statistics, dates, or metrics. When you cite a figure or event, make clear it comes from the reporting — do not fabricate precision.
 6. NO "AI TELLS": Absolutely ban these and their cousins: "In conclusion", "Furthermore", "Moreover", "Additionally", "Delve into", "Navigating the landscape", "In today's fast-paced world", "It's important to note", "ever-evolving", "game-changer", "unlock", "deep dive", "tapestry", "seamless", "robust" (as filler), "leverage" (as a verb-filler), "Today we will discuss". Write like a named human expert with a viewpoint, not a summarizer.
 7. SEO TITLE DISCIPLINE: The <h1> / TITLE is the single biggest SERP-click lever. Keep it <= 60 characters (hard max 65). FRONT-LOAD the primary keyword/topic in the first 2-4 words. Add one concrete hook — a number, a year, a dollar figure, or a sharp verb. Match real search intent; never clickbait; never the phrase "The Ultimate Guide".
-8. SNIPPET-WORTHY OPENING & KEYWORD PLACEMENT: The first <p> after the <h1>/TL;DR must work as a standalone ~150-character meta description — compelling, specific, and self-contained (it becomes the SERP snippet). Use the primary topic phrase naturally within the first 100 words and in at least one <h2>. Never keyword-stuff.
+8. SNIPPET-WORTHY OPENING & KEYWORD PLACEMENT: The first <p> after the <h1>/summary callout must work as a standalone ~150-character meta description — compelling, specific, and self-contained (it becomes the SERP snippet). Use the primary topic phrase naturally within the first 100 words and in at least one <h2>. Never keyword-stuff.
 9. E-E-A-T & SPECIFICITY: Demonstrate first-hand operator experience and judgment. Always prefer a specific named entity, real figure, or date from the Source Data over a vague generality. Concrete beats comprehensive.
 10. RAW HTML ONLY (theme-aware tag set): Output clean HTML paragraphs (max 3-4 sentences each). Allowed elements: <h1>, <h2>, <h3>, <h4>, <p>, <strong>, <b>, <em>, <ul>, <ol>, <li>, <blockquote>, <table>, <thead>, <tbody>, <tr>, <th>, <td>. Do NOT emit any <img>, <figure>, or <figcaption> tags — this blog is text-only. Use <strong> liberally on real data, regulator names, and corporate entities so the reader's eye finds anchors.
-11. VISUAL RHYTHM (JetTheme-optimized layout): The blog runs on JetTheme v2.9, which styles semantic HTML distinctly. You MUST use this layout to break the wall of text: a <blockquote> TL;DR right after the <h1>, a <blockquote> pull quote inside the Risks section, a comparison <table> in the Regulatory section, and a final <blockquote> "Bottom Line" callout before References. Write descriptive, scannable <h2>/<h3> subheads, and make the FAQ target real long-tail questions a buyer would type into Google. Match the user-prompt template structure exactly — do not skip any element.
+11. VISUAL RHYTHM (JetTheme-optimized layout): The blog runs on JetTheme v2.9, which styles semantic HTML distinctly. You MUST use the layout the user-prompt template specifies to break the wall of text: open with the <blockquote> summary callout (use the EXACT heading label the template gives it — never the word "TL;DR"), place a <blockquote> pull quote mid-article, a comparison <table>, and a final <blockquote> "Bottom Line" callout before References. Write descriptive, scannable <h2>/<h3> subheads, and make the FAQ target real long-tail questions a buyer would type into Google. Match the user-prompt template structure exactly — it defines this publication's layout — do not skip any element.
 """.strip()
 
 
@@ -126,78 +128,9 @@ def _compose_system_instruction(
     return SYSTEM_INSTRUCTION_EN + "\n\n" + "\n".join(lines)
 
 
-USER_PROMPT_TEMPLATE_EN = """Conduct a deeply researched, analytical, and strictly factual market briefing based on the following news signals regarding: "{keyword}"
-
-[Source Data]:
-{news_context}
-
-You MUST follow this exact HTML structure to provide maximum clarity and visual rhythm on JetTheme v2.9. Do not skip any element — the <blockquote> and <table> wrappers carry distinct theme styling that turns a wall of text into a scannable editorial layout. This blog is text-only: do NOT emit any <img>, <figure>, or <figcaption> tags.
-
-The first 3 lines below (TITLE / TAGS / ---) are required for downstream parsing. The TITLE line text MUST match the <h1> text exactly.
-
-TITLE: [Same text as the <h1> below — <= 60 characters, primary keyword front-loaded]
-TAGS: 5-7 high-CPC B2B tags (PascalCase / compounds, no spaces inside individual tags), comma + space separated
----
-<h1>[<= 60 characters (hard max 65). Front-load the primary keyword/topic in the first 2-4 words, then add ONE concrete hook — a number, a year, a dollar figure, or a sharp verb. Sharp, macro-focused, search-intent-matching. Ban "The Ultimate Guide".]</h1>
-
-<blockquote>
-  <p><strong>TL;DR &mdash; The 60-Second Briefing</strong></p>
-  <ul>
-    <li><strong>The Catalyst:</strong> [One-line fact drawn strictly from the Source Data — what just happened.]</li>
-    <li><strong>The Stakes:</strong> [What is at risk for decision-makers if they ignore this signal this quarter.]</li>
-    <li><strong>The Move:</strong> [The single most actionable next step for leadership, framed as a verb-led directive.]</li>
-  </ul>
-</blockquote>
-
-<h2>Executive Briefing & Macro Shift</h2>
-<p>[Opening paragraph that doubles as the SERP snippet: ~150 characters, compelling and self-contained, leading with a concrete data point or named entity from the Source Data (not a generic preamble), and using the primary topic phrase naturally.]</p>
-<p>[Second paragraph — connect the news signal to the broader macro environment and explain why this matters now, this fiscal quarter, not in the abstract.]</p>
-
-<h2>The Unfiltered Reality: Risks & Hidden Friction</h2>
-<p>[Multiple deep paragraphs exposing hard truths. Why are enterprise deployments stalling? What hidden operational costs, integration friction, or technical debt do vendors gloss over?]</p>
-
-<h3>[Sub-topic heading — e.g., "Where the Vendor Pitch Breaks Down"]</h3>
-<p>[Drill into one specific friction point. Cite a real organization or regulator from the Source Data; never invent.]</p>
-
-<blockquote>
-  <p><em>"[A striking, analyst-grade pull quote — one sentence that crystallizes the section's core insight, written in the dynamic persona you adopted for this topic. No source attribution unless it appears verbatim in the Source Data.]"</em></p>
-</blockquote>
-
-<h2>Regulatory Pressures and Institutional Impact</h2>
-<p>[Analyze the specific compliance, regulatory (SEC, FTC, HIPAA, GDPR, CISA, etc.), or corporate governance hurdles executive boards must map to survive this transition. Name the specific framework or agency — not "regulators" generically.]</p>
-
-<table>
-  <thead>
-    <tr><th>Dimension</th><th>Status Quo (2025)</th><th>Trajectory (2026-2027)</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>[Dimension 1 — e.g., Compliance Surface]</td><td>[Concrete current state grounded in Source Data]</td><td>[Likely direction with the named driver]</td></tr>
-    <tr><td>[Dimension 2]</td><td>[State]</td><td>[Direction]</td></tr>
-    <tr><td>[Dimension 3]</td><td>[State]</td><td>[Direction]</td></tr>
-  </tbody>
-</table>
-
-<h2>Strategic Vectors to Monitor</h2>
-<p>For executive leadership mapping out the upcoming fiscal quarters, pay immediate attention to these adjacent operational domains:</p>
-<ul>
-   <li><strong>[Adjacent Vector 1]:</strong> [One sentence on why it intersects with today's topic, grounded in observed signals.]</li>
-   <li><strong>[Adjacent Vector 2]:</strong> [One sentence factual reason.]</li>
-   <li><strong>[Adjacent Vector 3]:</strong> [One sentence factual reason.]</li>
-</ul>
-
-<h2>Frequently Asked Questions</h2>
-<h3>What is the primary operational blind spot with this transition?</h3>
-<p>[Deeply professional, specific answer reflecting real enterprise infrastructure realities. Name systems, vendors, or regulators only when they appear in the Source Data.]</p>
-<h3>How should CFOs model the realistic timeline for measurable ROI?</h3>
-<p>[Realistic, conservative financial perspective on deployment time versus dollar returns. Use ranges, not invented point estimates.]</p>
-
-<blockquote>
-  <p><strong>The Bottom Line &mdash;</strong> [Final analyst takeaway in 2-3 sentences. Crystallize the strategic implication for an executive who reads only this one paragraph. End with the move, not the warning.]</p>
-</blockquote>
-
-<h2>Industry References & Signals</h2>
-<p>This macro analysis is synthesized directly from active operational signals and news context within the international B2B tech sector.</p>
-"""
+# The user-prompt structure now lives in core/formats.py — each blog renders a
+# theme-appropriate layout (briefing / playbook / deep_dive / buyers_guide /
+# market_outlook) instead of one shared skeleton. See build_user_prompt().
 
 
 # =====================================================================
@@ -286,6 +219,16 @@ def _strip_emoji(s: str) -> str:
     return re.sub(r"\s{2,}", " ", cleaned).strip()
 
 
+# Matches "TL;DR", "TLDR", "TL; DR", "tl;dr", etc. — the label the user never
+# wants to see. Replaced with the active format's summary heading.
+_TLDR_RE = re.compile(r"TL\s*;?\s*DR", re.IGNORECASE)
+
+
+def _scrub_tldr(html: str, label: str) -> str:
+    """Replace any literal TL;DR label with the format's summary heading."""
+    return _TLDR_RE.sub(label, html)
+
+
 def _parse_response(text: str) -> GeneratedPost:
     text = text.strip()
     # Defensive strip of any code fence the model may have wrapped output in.
@@ -336,35 +279,23 @@ def _parse_response(text: str) -> GeneratedPost:
     if "<h2" not in body:
         raise GenerationError("<h2> heading missing from generated HTML")
 
-    # Soft-checks (warnings only — do not block publish).
+    # Soft-checks (warnings only — do not block publish). Format-agnostic so
+    # they hold across every layout in core/formats.py.
     # References section: any h2/h3 whose text contains "references".
     refs_pattern = r"<h[23][^>]*>[^<]*references?[^<]*</h[23]>"
-    # Actionable / strategy section: many heading shapes acceptable.
-    strategy_pattern = (
-        r"<h[23][^>]*>[^<]*(?:strategic\s+vectors|"
-        r"actionable\s+implementation|implementation\s+framework|"
-        r"strategic\s+implications|strategic\s+implementation|"
-        r"enterprise\s+roi|action\s+items|phased\s+rollout|"
-        r"recommendations|checklist|what\s+.+\s+should)"
-    )
-    # Executive Briefing / TL;DR / Summary all acceptable as the opener.
-    tldr_pattern = (
-        r"<h2[^>]*>[^<]*executive\s+(?:briefing|tl;?dr|summary)[^<]*</h2>"
-    )
+    # FAQ section (every format carries one) — good for long-tail + schema.
+    faq_pattern = r"<h2[^>]*>[^<]*frequently\s+asked\s+questions[^<]*</h2>"
+    # A summary callout near the top — every format opens with a <blockquote>.
+    summary_pattern = r"<blockquote"
 
     if not re.search(refs_pattern, body, flags=re.IGNORECASE):
         logger.warning("'References' section missing — possible SEO rule miss")
 
-    if not re.search(strategy_pattern, body, flags=re.IGNORECASE):
-        logger.warning(
-            "'Strategic Vectors' section heading not detected — "
-            "possible structural rule miss"
-        )
+    if not re.search(faq_pattern, body, flags=re.IGNORECASE):
+        logger.warning("FAQ section heading not detected — possible structural rule miss")
 
-    if not re.search(tldr_pattern, body, flags=re.IGNORECASE):
-        logger.warning(
-            "'Executive Briefing' TL;DR section heading not detected"
-        )
+    if not re.search(summary_pattern, body[:800], flags=re.IGNORECASE):
+        logger.warning("Top summary callout (<blockquote>) not detected near the opening")
 
     return GeneratedPost(title=title, html=body, tags=tags)
 
@@ -378,6 +309,7 @@ def generate_post(
     voice: Voice | None = None,
     blog_name: str | None = None,
     system_instruction: str | None = None,
+    post_format: str = "",
     retries: int = 2,
     retry_delay: float = 3.0,
 ) -> GeneratedPost:
@@ -391,6 +323,8 @@ def generate_post(
             the GEMINI_API_KEY env var is used as fallback.
         focus_keyword: The actual keyword chosen by the fallback loop in
             main_blogger.py; injected into the prompt as the topic anchor.
+        post_format: Layout preset name (see core/formats.FORMATS). Empty or
+            unknown falls back to the default ("briefing").
         retries: Number of parse/quota retries before giving up.
         retry_delay: Base seconds between attempts (quota errors override
             this to QUOTA_RETRY_DELAY).
@@ -447,6 +381,7 @@ def generate_post(
         ],
     )
 
+    fmt = get_format(post_format)
     news_block_str = _format_news_block(news_items)
     angle = _pick_angle(
         (focus_keyword or topic_label) + (news_items[0].get("title", "") if news_items else "")
@@ -456,9 +391,8 @@ def generate_post(
         "Commit to this angle in the headline and throughout — do not retreat "
         "into a neutral, balanced summary.\n\n"
     )
-    user_prompt = angle_directive + USER_PROMPT_TEMPLATE_EN.format(
-        keyword=focus_keyword or topic_label,
-        news_context=news_block_str,
+    user_prompt = angle_directive + build_user_prompt(
+        fmt, keyword=focus_keyword or topic_label, news_context=news_block_str,
     )
 
     last_err: Exception | None = None
@@ -478,7 +412,12 @@ def generate_post(
                 raise GenerationError(
                     f"Empty response from Gemini (prompt_feedback={fb})"
                 )
-            return _parse_response(text)
+            post = _parse_response(text)
+            # Guardrail: if the model slipped a "TL;DR" label into the summary
+            # box despite the per-format heading, swap it for the format's own
+            # label so no post ever ships the phrase the user dislikes.
+            post.html = _scrub_tldr(post.html, fmt.summary_label)
+            return post
         except GenerationError as e:
             last_err = e
             logger.warning(

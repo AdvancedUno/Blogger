@@ -44,6 +44,8 @@ select = ["E", "F", "I", "UP", "B", "W"]
 [tool.ruff.lint.per-file-ignores]
 # The system/user prompt templates are long literal text by nature.
 "blogkit/core/generator.py" = ["E501"]
+# Post-format layout templates are long literal HTML/instruction text.
+"blogkit/core/formats.py" = ["E501"]
 # One-off data generator: long persona/brief literals by nature.
 "tools/generate_new_profiles.py" = ["E501"]
 # AdSense page templates are long literal HTML paragraphs by nature.

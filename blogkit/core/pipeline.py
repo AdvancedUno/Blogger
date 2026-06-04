@@ -13,6 +13,7 @@ from blogkit.core.analytics import fetch_top_queries, prioritize_queries
 from blogkit.core.dedup import Ledger
 from blogkit.core.enrich import add_toc, reading_time_badge, related_posts_html
 from blogkit.core.fetcher import FetchError, fetch_top_news
+from blogkit.core.formats import resolve_format_name
 from blogkit.core.generator import GenerationError, Voice, generate_post
 from blogkit.core.imager import build_featured_image_html
 from blogkit.core.publisher import (
@@ -119,6 +120,7 @@ def run_profile(
                 banned_phrases=profile.banned_phrases,
             ),
             blog_name=name,
+            post_format=resolve_format_name(profile.slug, profile.post_format),
         )
         logger.info("[%s] Generated — title=%s (%d chars)", name, post.title, len(post.html))
     except GenerationError as e:

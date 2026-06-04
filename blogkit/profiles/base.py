@@ -37,6 +37,11 @@ class BlogProfile(BaseModel):
     niche_keyword: str = "business"
     rss_queries: list[str] = Field(min_length=1)
     tags: list[str] = Field(default_factory=list)
+    # Post layout preset (see core/formats.FORMATS): briefing / playbook /
+    # deep_dive / buyers_guide / market_outlook. Empty = auto-assigned by
+    # core/formats.FORMAT_BY_SLUG to match the blog's theme. Set this to
+    # override the assignment for one blog.
+    post_format: str = ""
 
     # --- visual identity ---
     featured_image: bool = True
@@ -69,6 +74,18 @@ class BlogProfile(BaseModel):
                     "set enabled=False to stage it without one"
                 )
         return self
+
+    @field_validator("post_format")
+    @classmethod
+    def _format_known(cls, v: str) -> str:
+        # Imported lazily to avoid a hard import at profile-load time.
+        from blogkit.core.formats import FORMATS
+
+        if v and v not in FORMATS:
+            raise ValueError(
+                f"unknown post_format {v!r}; valid names: {sorted(FORMATS)} (or '' to auto-assign)"
+            )
+        return v
 
     @field_validator("image_styles")
     @classmethod
