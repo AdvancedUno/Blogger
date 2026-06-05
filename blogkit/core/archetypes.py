@@ -16,7 +16,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from blogkit.core.craft import CRAFT_LAWS, NARRATIVE_LAWS, PRACTITIONER_LAWS
+from blogkit.core.craft import (
+    CRAFT_LAWS,
+    NARRATIVE_LAWS,
+    PRACTITIONER_LAWS,
+    TEXTURE_LAWS,
+)
 
 
 @dataclass(frozen=True)
@@ -287,4 +292,6 @@ def build_archetype_directive(arch: Archetype) -> str:
         PRACTITIONER_LAWS,
         "",
         NARRATIVE_LAWS,
+        "",
+        TEXTURE_LAWS,
     ])

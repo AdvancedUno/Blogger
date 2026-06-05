@@ -134,7 +134,13 @@ CRAFT_LAWS = "\n".join([
     "what the separate Source Data items (and any proprietary data provided) each "
     "report, surface the through-line or the contradiction no single article "
     "names, and assemble the comparison or timeline they're each missing — never "
-    "just re-summarize one source.",
+    "just re-summarize one source. Then go further and ENGINEER information gain "
+    "that isn't anywhere on the first page of results: introduce at least one "
+    "genuinely original contribution of your own — a named framework, a coined "
+    "term, a decision heuristic, a scoring rubric, or a blunt rule of thumb. Vary "
+    "its form from post to post (never bolt the same labeled box onto every "
+    "article), and keep it clearly your own analytical lens — an idea, never an "
+    "invented fact or statistic.",
     "",
     "5. USE TEXTURED — BUT CLEARLY ILLUSTRATIVE — CASE VIGNETTES. Never use "
     "suspiciously round, perfectly tidy numbers (\"a 200,000 sq ft building saving "
@@ -260,6 +266,36 @@ NARRATIVE_LAWS = "\n".join([
 
 
 # ---------------------------------------------------------------------------
+# Prose-texture laws — defeat the DEFAULT LLM cadence. A model's rhythm (every
+# thought glued to the next with the same connective tissue, uniform paragraph
+# blocks, emphasis only on labels) is as much an AI fingerprint as its
+# vocabulary. These are network-wide standing rules; the occasional devices
+# (a one-sentence paragraph, a rule-of-thumb blockquote) are dialed in per
+# piece via StructurePlan so they stay "time to time", not every post.
+# ---------------------------------------------------------------------------
+TEXTURE_LAWS = "\n".join([
+    "PROSE TEXTURE LAWS (the rhythm of the prose is as much an AI tell as the "
+    "words — break it):",
+    "",
+    "1. KILL THE LOOPING TRANSITIONS. LLMs bolt every sentence to the next with "
+    "the same connective tissue. Do NOT lean on \"That said\", \"That being "
+    "said\", \"Ultimately\", \"Importantly\", \"Notably\", \"Crucially\", "
+    "\"What's more\", \"Moreover\", \"Furthermore\", \"Additionally\", \"Simply "
+    "put\", \"In other words\", \"Here's the thing\", \"Here's the kicker\", "
+    "\"The reality is\", \"The truth is\", \"Make no mistake\", \"At its core\", "
+    "\"On the flip side\". Never open two paragraphs in a row with a transition "
+    "word — let most paragraphs start cold on a concrete subject. And avoid the "
+    "signature \"it's not just X, it's Y\" / \"this isn't about X; it's about Y\" "
+    "antithesis construction entirely; it is a dead giveaway.",
+    "",
+    "2. BOLD MID-SENTENCE, NOT JUST LABELS. Use <strong> to spotlight the "
+    "load-bearing phrase INSIDE a sentence — the surprising figure, the "
+    "counterintuitive claim — not only at the start of a bullet or a definition. "
+    "Use it sparingly enough that it still carries weight.",
+])
+
+
+# ---------------------------------------------------------------------------
 # Narrative-mode rotation (Narrative-Diversity Law 1). Three distinct
 # structural arcs. ONE is injected per piece (core/generator.py picks it
 # deterministically from the topic), so across the network the same template
@@ -329,6 +365,8 @@ class StructurePlan:
     comparison_table: bool   # a comparison <table> (only if material supports)
     closing_callout: bool    # closing <blockquote>
     data_visual: bool        # one rendered chart/visual (see core/charts.py)
+    one_sentence_para: bool  # a deliberate one-sentence paragraph for punch
+    rule_of_thumb: bool      # a hot-take / "Rule of Thumb" <blockquote>
 
 
 def plan_structure(seed_text: str) -> StructurePlan:
@@ -351,16 +389,20 @@ def plan_structure(seed_text: str) -> StructurePlan:
     closing = (h % 10) < 6          # ~60% a closing callout
     h //= 10
     visual = (h % 10) < 3           # ~30% a rendered data visual (occasional treat)
+    h //= 10
+    one_sentence = (h % 10) < 4     # ~40% a deliberate one-sentence paragraph
+    h //= 10
+    rot = (h % 10) < 3              # ~30% a rule-of-thumb / hot-take blockquote
     return StructurePlan(
         target_words=target, sections=sections, summary_callout=summary,
         pull_quote=pull, comparison_table=table, closing_callout=closing,
-        data_visual=visual,
+        data_visual=visual, one_sentence_para=one_sentence, rule_of_thumb=rot,
     )
 
 
 def render_structure_plan(plan: StructurePlan) -> str:
     """Render a StructurePlan as a prompt directive injected per piece."""
-    return "\n".join([
+    lines = [
         "STRUCTURAL PLAN FOR THIS PIECE — deliberately shaped so no two posts "
         "share the same skeleton (this is what defeats programmatic / "
         "scaled-content pattern detection). It OVERRIDES the layout template's "
@@ -390,4 +432,18 @@ def render_structure_plan(plan: StructurePlan) -> str:
          "it if you'd have to invent the numbers to fill it."
          if plan.data_visual
          else "- Do NOT include a chart or data visual in this piece."),
-    ])
+    ]
+    # Occasional stylistic devices — only mandated when their flag is on, so they
+    # stay "time to time" rather than a per-post tic. (No line when off.)
+    if plan.one_sentence_para:
+        lines.append(
+            "- Drop in at least one deliberate ONE-SENTENCE paragraph for punch, "
+            "set off on its own."
+        )
+    if plan.rule_of_thumb:
+        lines.append(
+            "- Include exactly one <blockquote> framed as a blunt \"Rule of "
+            "Thumb\" or a contrarian hot take — an opinion stated flatly, NOT a "
+            "quotation."
+        )
+    return "\n".join(lines)

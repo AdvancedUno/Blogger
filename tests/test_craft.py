@@ -10,6 +10,7 @@ from blogkit.core.craft import (
     NARRATIVE_LAWS,
     NARRATIVE_MODES,
     PRACTITIONER_LAWS,
+    TEXTURE_LAWS,
     StructurePlan,
     absolute_hits,
     buzzword_hits,
@@ -48,6 +49,7 @@ def test_persona_and_archetype_directives_inject_the_laws():
         assert "NON-NEGOTIABLE CRAFT LAWS" in out
         assert "PRACTITIONER LAWS" in out
         assert "NARRATIVE LAWS" in out
+        assert "PROSE TEXTURE LAWS" in out
 
 
 def test_practitioner_laws_cover_all_five_rules():
@@ -133,6 +135,23 @@ def test_craft_law_4_mandates_cross_source_synthesis():
     assert "proprietary data" in out  # forward-compatible seam
 
 
+def test_craft_law_4_engineers_net_new_concepts():
+    out = CRAFT_LAWS.lower()
+    assert "original contribution" in out
+    assert "coined term" in out or "named framework" in out
+
+
+def test_texture_laws_break_the_llm_cadence():
+    out = TEXTURE_LAWS.lower()
+    assert "looping transitions" in out
+    for tell in ("that said", "moreover", "make no mistake"):
+        assert tell in out, tell
+    # The "it's not just X, it's Y" antithesis tell is banned by name.
+    assert "antithesis" in out
+    # Mid-sentence bold guidance is present.
+    assert "mid-sentence" in out or "inside a sentence" in out
+
+
 def test_vignette_laws_are_framed_illustrative():
     # Q3 decision: textured but clearly illustrative, never asserted as measured.
     assert "illustrative" in CRAFT_LAWS.lower()
@@ -157,7 +176,8 @@ def test_plan_structure_varies_shape_across_topics():
     assert len({p.sections for p in plans}) >= 3
     # Each optional element is sometimes on and sometimes off (truly probabilistic).
     for attr in ("summary_callout", "pull_quote", "comparison_table",
-                 "closing_callout", "data_visual"):
+                 "closing_callout", "data_visual", "one_sentence_para",
+                 "rule_of_thumb"):
         vals = {getattr(p, attr) for p in plans}
         assert vals == {True, False}, attr
 
@@ -169,8 +189,8 @@ def test_data_visual_is_occasional():
 
 
 def test_render_structure_plan_keeps_faq_and_references_fixed():
-    on = StructurePlan(1600, 4, True, True, True, True, True)
-    off = StructurePlan(1350, 3, False, False, False, False, False)
+    on = StructurePlan(1600, 4, True, True, True, True, True, True, True)
+    off = StructurePlan(1350, 3, False, False, False, False, False, False, False)
     d_on, d_off = render_structure_plan(on), render_structure_plan(off)
     for d in (d_on, d_off):
         # FAQ + References are explicitly always kept, never dropped.
@@ -183,3 +203,8 @@ def test_render_structure_plan_keeps_faq_and_references_fixed():
     assert "Do NOT use a comparison <table>" in d_off
     assert "Include ONE data visual" in d_on
     assert "Do NOT include a chart" in d_off
+    # Occasional devices: a line only when on, silent when off.
+    assert "ONE-SENTENCE paragraph" in d_on
+    assert "Rule of" in d_on
+    assert "ONE-SENTENCE paragraph" not in d_off
+    assert "Rule of" not in d_off
