@@ -37,6 +37,88 @@ SCOPES = ["https://www.googleapis.com/auth/blogger"]
 TOKEN_URI = "https://oauth2.googleapis.com/token"
 
 
+# =====================================================================
+# Blogger category labels
+# ---------------------------------------------------------------------
+# One clean, human-readable Blogger category per blog, keyed by the blog's
+# slug (the stable per-blog identifier — NOT the rotating natural-language RSS
+# query, which changes every run). This is the SINGLE source of truth for the
+# `labels` array in the Posts.insert payload: the model is not allowed to
+# invent tags, so categories stay consistent across the network (clean archive
+# pages, predictable label URLs, no tag sprawl that dilutes topical authority).
+# Add a row here when a new blog is added; an unmapped slug falls back to a
+# Title-Cased version of the slug via ``category_for``.
+# =====================================================================
+CATEGORY_BY_SLUG: dict[str, str] = {
+    # briefing (finance / markets)
+    "b2b_payment_rails": "Payments",
+    "corporate_treasury_tech": "Treasury Tech",
+    "wealthtech_systems": "WealthTech",
+    "institutional_digital_assets": "Digital Assets",
+    "marketing_attribution_mmm": "Marketing Analytics",
+    # op_ed (opinion / thesis)
+    "programmatic_adtech_privacy": "AdTech Privacy",
+    "enterprise_revops": "RevOps",
+    "enterprise_insurtech": "InsurTech",
+    "b2b_seo_content_ops": "Content Ops",
+    "conversational_cx_automation": "CX Automation",
+    # playbook (engineer how-to)
+    "platform_engineering_idp": "Platform Engineering",
+    "observability_sre": "Observability & SRE",
+    "finops_cloud_cost": "FinOps",
+    "api_management_integration": "API Management",
+    "kubernetes_container_security": "Container Security",
+    # deep_dive (investigation / security / frontier)
+    "zero_trust_enterprise": "Zero Trust",
+    "cyber_compliance_automation": "Cyber Compliance",
+    "meddevice_cybersecurity": "MedDevice Security",
+    "quantum_commercialization": "Quantum Computing",
+    "autonomous_fleet_ops": "Autonomous Fleets",
+    # explainer (teaching)
+    "ai_infra_insider": "AI Infrastructure",
+    "dataops_vector_dbs": "DataOps",
+    "digital_health_interoperability": "Health Interoperability",
+    "customer_data_platforms": "Customer Data Platforms",
+    "industrial_edge_ai": "Edge AI",
+    # buyers_guide (evaluation)
+    "clinical_trial_tech": "Clinical Trials",
+    "commercial_proptech": "PropTech",
+    "legaltech_enterprise": "LegalTech",
+    "supply_chain_visibility": "Supply Chain",
+    "hr_tech_people_analytics": "HR Tech",
+    # case_study (narrative field story)
+    "field_service_management": "Field Service",
+    "construction_tech": "Construction Tech",
+    "hospitality_tech": "Hospitality Tech",
+    "manufacturing_erp_mes": "Manufacturing ERP",
+    # market_outlook (forward-looking sector)
+    "smart_building_esg": "Smart Buildings",
+    "grid_energy_storage": "Energy Storage",
+    "ev_charging_infrastructure": "EV Charging",
+    "carbon_accounting_esg": "Carbon Accounting",
+    "agtech_precision_ag": "AgTech",
+    "space_satellite_connectivity": "Satellite Connectivity",
+}
+
+
+def _titleize(slug: str) -> str:
+    """Fallback label for an unmapped slug: underscores -> spaces, Title Case."""
+    return " ".join(w.capitalize() for w in slug.replace("_", " ").split())
+
+
+def category_for(slug: str) -> str:
+    """The clean Blogger category for ``slug``.
+
+    Returns the curated label from ``CATEGORY_BY_SLUG`` when present, else a
+    Title-Cased fallback derived from the slug (e.g. "new_vertical" ->
+    "New Vertical"). Empty/blank slug returns "" (caller applies no label).
+    """
+    slug = (slug or "").strip()
+    if not slug:
+        return ""
+    return CATEGORY_BY_SLUG.get(slug) or _titleize(slug)
+
+
 def _build_service():
     """Build a Blogger v3 service object from refresh-token credentials."""
     # Lazy import so the module is importable (and the pipeline unit-testable)
@@ -79,6 +161,7 @@ def publish_to_blogger(
     tags: list[str] | None = None,
     is_draft: bool = False,
     search_description: str = "",
+    slug: str = "",
 ) -> str:
     """Publish a single post via the Blogger v3 API and return its URL.
 
@@ -86,7 +169,13 @@ def publish_to_blogger(
         blog_id: Internal numeric Blogger blog id (e.g., "1234567890").
         title: Post title (plain text).
         html_content: Post body HTML.
-        tags: List of labels to attach to the post.
+        tags: Legacy label fallback, used ONLY when ``slug`` is empty. When a
+            slug is given, the post's single category comes from
+            ``category_for(slug)`` and these are ignored (the model is not
+            allowed to invent the labels).
+        slug: Blog slug. When set, the Blogger ``labels`` array is exactly one
+            clean category from ``CATEGORY_BY_SLUG`` (Title-Cased slug for an
+            unmapped blog) — see ``category_for``.
         is_draft: When True, save as draft (default False = publish live).
         search_description: Meta/search description for the post. Blogger's v3
             API does not officially expose this field, so it is attempted as
@@ -115,7 +204,15 @@ def publish_to_blogger(
         "title": title,
         "content": html_content,
     }
-    if tags:
+    # Labels: a single clean category from the slug mapping is the source of
+    # truth. Only when no slug is supplied do we fall back to caller-provided
+    # tags (legacy / direct callers). This keeps model-invented tags out of the
+    # blog's category taxonomy.
+    if slug:
+        category = category_for(slug)
+        if category:
+            body["labels"] = [category]
+    elif tags:
         body["labels"] = list(tags)
     if search_description:
         body["searchDescription"] = search_description

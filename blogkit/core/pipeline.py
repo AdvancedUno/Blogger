@@ -207,13 +207,12 @@ def run_profile(
             logger.error("[%s] Email publish failed: %s", name, e)
             return False, f"email: {e}"
 
-    tags = list(post.tags or profile.tags)
     try:
         url = publish_to_blogger(
             blog_id=profile.blog_id,
             title=post.title,
             html_content=html_content,
-            tags=tags,
+            slug=profile.slug,   # -> one clean category label (no model-invented tags)
             is_draft=profile.draft,
             search_description=make_description(post.html, post.title),
         )
