@@ -328,6 +328,7 @@ class StructurePlan:
     pull_quote: bool         # one mid-article <blockquote>
     comparison_table: bool   # a comparison <table> (only if material supports)
     closing_callout: bool    # closing <blockquote>
+    data_visual: bool        # one rendered chart/visual (see core/charts.py)
 
 
 def plan_structure(seed_text: str) -> StructurePlan:
@@ -348,9 +349,12 @@ def plan_structure(seed_text: str) -> StructurePlan:
     table = (h % 10) < 4            # ~40% a comparison table
     h //= 10
     closing = (h % 10) < 6          # ~60% a closing callout
+    h //= 10
+    visual = (h % 10) < 3           # ~30% a rendered data visual (occasional treat)
     return StructurePlan(
         target_words=target, sections=sections, summary_callout=summary,
         pull_quote=pull, comparison_table=table, closing_callout=closing,
+        data_visual=visual,
     )
 
 
@@ -381,4 +385,9 @@ def render_structure_plan(plan: StructurePlan) -> str:
          if plan.closing_callout
          else "- Do NOT end with a closing callout <blockquote>; land on a strong "
               "final line instead."),
+        ("- Include ONE data visual (a chart) where it genuinely clarifies a "
+         "comparison, trend, or share — follow the CHART FORMAT spec below. Skip "
+         "it if you'd have to invent the numbers to fill it."
+         if plan.data_visual
+         else "- Do NOT include a chart or data visual in this piece."),
     ])

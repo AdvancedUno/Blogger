@@ -156,14 +156,21 @@ def test_plan_structure_varies_shape_across_topics():
     assert {p.sections for p in plans} <= {3, 4, 5, 6}
     assert len({p.sections for p in plans}) >= 3
     # Each optional element is sometimes on and sometimes off (truly probabilistic).
-    for attr in ("summary_callout", "pull_quote", "comparison_table", "closing_callout"):
+    for attr in ("summary_callout", "pull_quote", "comparison_table",
+                 "closing_callout", "data_visual"):
         vals = {getattr(p, attr) for p in plans}
         assert vals == {True, False}, attr
 
 
+def test_data_visual_is_occasional():
+    # The chart should be a treat, not on most posts — roughly a third.
+    rate = sum(plan_structure(f"t-{i}").data_visual for i in range(400)) / 400
+    assert 0.15 < rate < 0.45
+
+
 def test_render_structure_plan_keeps_faq_and_references_fixed():
-    on = StructurePlan(1600, 4, True, True, True, True)
-    off = StructurePlan(1350, 3, False, False, False, False)
+    on = StructurePlan(1600, 4, True, True, True, True, True)
+    off = StructurePlan(1350, 3, False, False, False, False, False)
     d_on, d_off = render_structure_plan(on), render_structure_plan(off)
     for d in (d_on, d_off):
         # FAQ + References are explicitly always kept, never dropped.
@@ -174,3 +181,5 @@ def test_render_structure_plan_keeps_faq_and_references_fixed():
     assert "Open with a <blockquote> summary" in d_on
     assert "Do NOT open with a summary callout" in d_off
     assert "Do NOT use a comparison <table>" in d_off
+    assert "Include ONE data visual" in d_on
+    assert "Do NOT include a chart" in d_off

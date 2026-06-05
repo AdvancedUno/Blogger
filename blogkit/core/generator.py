@@ -15,6 +15,7 @@ import time
 from dataclasses import dataclass, field
 
 from blogkit.core.archetypes import build_archetype_directive, get_archetype
+from blogkit.core.charts import CHART_INSTRUCTION, render_charts
 from blogkit.core.craft import pick_narrative_mode, plan_structure, render_structure_plan
 from blogkit.core.formats import build_user_prompt, get_format
 from blogkit.core.personas import build_persona_directive, get_persona
@@ -432,9 +433,15 @@ def generate_post(
     mode_directive = pick_narrative_mode(seed + "::mode") + "\n\n"
     # Per-piece shape (length, section count, which optional elements appear) so
     # no two posts share the same skeleton — defeats scaled-content detection.
-    structure_directive = render_structure_plan(plan_structure(seed)) + "\n\n"
-    user_prompt = angle_directive + mode_directive + structure_directive + build_user_prompt(
-        fmt, keyword=focus_keyword or topic_label, news_context=news_block_str,
+    plan = plan_structure(seed)
+    structure_directive = render_structure_plan(plan) + "\n\n"
+    # The chart-format spec is only worth its tokens when this piece gets a visual.
+    chart_directive = (CHART_INSTRUCTION + "\n\n") if plan.data_visual else ""
+    user_prompt = (
+        angle_directive + mode_directive + structure_directive + chart_directive
+        + build_user_prompt(
+            fmt, keyword=focus_keyword or topic_label, news_context=news_block_str,
+        )
     )
 
     last_err: Exception | None = None
@@ -459,6 +466,9 @@ def generate_post(
             # box despite the per-format heading, swap it for the format's own
             # label so no post ever ships the phrase the user dislikes.
             post.html = _scrub_tldr(post.html, fmt.summary_label)
+            # Replace any [[CHART]] data markers with rendered inline SVG/HTML
+            # (malformed ones are dropped — never ships broken markup).
+            post.html = render_charts(post.html)
             return post
         except GenerationError as e:
             last_err = e
