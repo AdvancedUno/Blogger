@@ -8,7 +8,9 @@ publish a post that is:
   * too similar — its content fingerprint overlaps a recently published post
     (network-wide) above ``MAX_BODY_SIMILARITY``, or
   * buzzword-stuffed — overuses the banned corporate filler from core/craft.py
-    above ``MAX_BUZZWORD_HITS`` (a backstop behind the prompt-level ban).
+    above ``MAX_BUZZWORD_HITS`` (a backstop behind the prompt-level ban), or
+  * sensationalist — uses banned absolute proclamations from core/craft.py
+    above ``MAX_ABSOLUTE_HITS`` (a backstop behind the Nuance Tax).
 
 Pure, dependency-free logic (token-set Jaccard over the body text), so it runs
 before the costly image/publish steps and is fully unit-testable. The fingerprint
@@ -22,7 +24,7 @@ import html as _html
 import re
 from collections import Counter
 
-from blogkit.core.craft import buzzword_hits
+from blogkit.core.craft import absolute_hits, buzzword_hits
 
 MIN_WORDS = 1000            # minimum real body words to publish
 MAX_BODY_SIMILARITY = 0.82  # Jaccard over content fingerprints that's "too similar"
@@ -31,6 +33,10 @@ FINGERPRINT_TOKENS = 50     # cap fingerprint size (keeps the ledger small)
 # compliant post has zero. We tolerate the odd incidental slip and only reject on
 # clear overuse, so this never silently kills an otherwise-good daily run.
 MAX_BUZZWORD_HITS = 3       # total banned-buzzword occurrences allowed before reject
+# Absolute-proclamation backstop behind the Nuance Tax. These sensational
+# phrases are far rarer than buzzwords, so the tolerance is tighter — one slip
+# passes, a pattern of them does not.
+MAX_ABSOLUTE_HITS = 1       # total banned-absolute occurrences allowed before reject
 
 _TAG_RE = re.compile(r"<[^>]+>")
 _WORD_RE = re.compile(r"[a-z0-9]+")
@@ -95,12 +101,14 @@ def check_quality(
     min_words: int = MIN_WORDS,
     max_similarity_threshold: float = MAX_BODY_SIMILARITY,
     max_buzzword_hits: int = MAX_BUZZWORD_HITS,
+    max_absolute_hits: int = MAX_ABSOLUTE_HITS,
 ) -> tuple[bool, str]:
     """Return (ok, reason). ``ok=False`` means do NOT publish.
 
     Checks word count first (cheap), then near-duplication against recent
-    fingerprints, then a backstop for overused banned buzzwords. The reason
-    string is safe to log and to surface in the run summary.
+    fingerprints, then backstops for overused banned buzzwords and sensational
+    absolute proclamations. The reason string is safe to log and to surface in
+    the run summary.
     """
     wc = word_count(html_body)
     if wc < min_words:
@@ -111,10 +119,18 @@ def check_quality(
     if sim >= max_similarity_threshold:
         return False, f"near-duplicate: {sim:.2f} similarity (>= {max_similarity_threshold})"
 
-    hits = buzzword_hits(extract_text(html_body))
+    text = extract_text(html_body)
+
+    hits = buzzword_hits(text)
     total_hits = sum(hits.values())
     if total_hits > max_buzzword_hits:
         worst = ", ".join(f"{p!r}x{n}" for p, n in sorted(hits.items(), key=lambda kv: -kv[1]))
         return False, f"buzzword overuse: {total_hits} hits (> {max_buzzword_hits}) — {worst}"
+
+    abs_hits = absolute_hits(text)
+    total_abs = sum(abs_hits.values())
+    if total_abs > max_absolute_hits:
+        worst = ", ".join(f"{p!r}x{n}" for p, n in sorted(abs_hits.items(), key=lambda kv: -kv[1]))
+        return False, f"absolute proclamations: {total_abs} hits (> {max_absolute_hits}) — {worst}"
 
     return True, f"ok: {wc} words, max similarity {sim:.2f}"

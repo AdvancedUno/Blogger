@@ -15,6 +15,7 @@ import time
 from dataclasses import dataclass, field
 
 from blogkit.core.archetypes import build_archetype_directive, get_archetype
+from blogkit.core.craft import pick_narrative_mode
 from blogkit.core.formats import build_user_prompt, get_format
 from blogkit.core.personas import build_persona_directive, get_persona
 
@@ -22,13 +23,18 @@ logger = logging.getLogger(__name__)
 
 # Rotating editorial lens — picked deterministically per piece so the network
 # doesn't read like the same template 20 times (originality / helpful-content).
+# These are LENSES (the substantive question a piece asks), not structures —
+# core/craft.NARRATIVE_MODES owns the structural arc, picked independently. The
+# old "contrarian investigation" / "myth-busting" entries were removed: they
+# hard-coded the very "industry is wrong" debunking default we're trying to
+# break, and the contrarian instinct already lives (nuanced) in CRAFT_LAWS.
 EDITORIAL_ANGLES = [
-    "a contrarian investigation that challenges the prevailing consensus",
-    "a forward-looking forecast of where this trend heads over the next 4-8 fiscal quarters",
-    "a myth-busting analysis that dismantles the misconceptions executives hold",
-    "an operator's playbook centered on concrete, sequenced implementation steps",
-    "a follow-the-money breakdown of who captures the value and who quietly loses",
-    "a post-mortem lens on why deployments stall and what the failure modes teach",
+    "a follow-the-money breakdown of who captures the economic value and who quietly absorbs the cost",
+    "a forward-looking read on where this heads over the next 4-8 fiscal quarters and what would change that",
+    "an operator's playbook centered on concrete, sequenced implementation steps and the order they happen in",
+    "a buyer's-eye evaluation of how the real options diverge once you get past the marketing",
+    "a second-order-effects analysis of the consequences the headline coverage missed",
+    "a ground-level account of how this behaves in production versus how it gets sold",
 ]
 
 
@@ -412,15 +418,19 @@ def generate_post(
 
     fmt = get_format(post_format)
     news_block_str = _format_news_block(news_items)
-    angle = _pick_angle(
-        (focus_keyword or topic_label) + (news_items[0].get("title", "") if news_items else "")
+    seed = (focus_keyword or topic_label) + (
+        news_items[0].get("title", "") if news_items else ""
     )
+    angle = _pick_angle(seed)
     angle_directive = (
         f"EDITORIAL ANGLE FOR THIS PIECE: Frame the entire analysis as {angle}. "
         "Commit to this angle in the headline and throughout — do not retreat "
         "into a neutral, balanced summary.\n\n"
     )
-    user_prompt = angle_directive + build_user_prompt(
+    # Structural arc, rotated independently of the lens (salted seed) so the
+    # network cycles through all three narrative modes instead of one template.
+    mode_directive = pick_narrative_mode(seed + "::mode") + "\n\n"
+    user_prompt = angle_directive + mode_directive + build_user_prompt(
         fmt, keyword=focus_keyword or topic_label, news_context=news_block_str,
     )
 

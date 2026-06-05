@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from blogkit.core.quality import (
+    MAX_ABSOLUTE_HITS,
     MAX_BUZZWORD_HITS,
     MIN_WORDS,
     check_quality,
@@ -61,6 +62,18 @@ def test_buzzword_overuse_is_rejected():
 
 def test_one_incidental_buzzword_still_passes():
     body = _post(MIN_WORDS + 200) + "<p>a single smart capital mention</p>"
+    ok, why = check_quality(body)
+    assert ok, why
+
+
+def test_absolute_proclamation_overuse_is_rejected():
+    body = _post(MIN_WORDS + 200) + "<p>" + ("the death of x " * (MAX_ABSOLUTE_HITS + 1)) + "</p>"
+    ok, why = check_quality(body)
+    assert not ok and "absolute" in why
+
+
+def test_one_incidental_absolute_still_passes():
+    body = _post(MIN_WORDS + 200) + "<p>some say this is the death of the old way</p>"
     ok, why = check_quality(body)
     assert ok, why
 
