@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from blogkit.core.formats import (
+    COMPATIBLE_FORMATS,
     DEFAULT_FORMAT,
     FORMAT_BY_SLUG,
     FORMATS,
@@ -89,12 +90,43 @@ def test_resolve_format_name_override_wins():
     assert resolve_format_name("observability_sre", "") == "playbook"
 
 
+def test_compatible_formats_map_is_well_formed():
+    # Every key/value names a real format, the primary is first in its own set,
+    # and every static FORMAT_BY_SLUG assignment has a rotation set to draw from.
+    for primary, group in COMPATIBLE_FORMATS.items():
+        assert primary in FORMATS, primary
+        assert group[0] == primary, f"{primary} must be first in its own set"
+        assert len(group) == len(set(group)), f"{primary} set has duplicates"
+        for fmt in group:
+            assert fmt in FORMATS, f"{primary} -> unknown {fmt!r}"
+    for slug, name in FORMAT_BY_SLUG.items():
+        assert name in COMPATIBLE_FORMATS, f"{slug} primary {name!r} has no set"
+
+
+def test_seeded_resolve_rotates_within_compatible_set_only():
+    # With a seed, a blog rotates ONLY within its compatible set, deterministically.
+    slug = "observability_sre"        # primary "playbook"
+    allowed = set(COMPATIBLE_FORMATS["playbook"])
+    seen = set()
+    for i in range(60):
+        name = resolve_format_name(slug, "", seed=f"topic-{i}")
+        assert name in allowed, name
+        seen.add(name)
+    # Rotation actually reaches more than one format across topics.
+    assert len(seen) >= 2
+    # Stable for the same seed (survives retries) and the explicit override still wins.
+    assert resolve_format_name(slug, "", seed="x") == resolve_format_name(slug, "", seed="x")
+    assert resolve_format_name(slug, "deep_dive", seed="x") == "deep_dive"
+
+
 def test_build_user_prompt_injects_inputs_and_is_brace_safe():
     fmt = get_format("buyers_guide")
     # news_context with literal braces must not raise (str.replace, not format).
     prompt = build_user_prompt(fmt, keyword="vendor risk", news_context="weird {braces} here")
     assert "vendor risk" in prompt
-    assert fmt.summary_label in prompt
+    # The summary-box label is now a bracketed PURPOSE (written fresh per piece),
+    # not the literal fmt.summary_label, so the prompt carries the instruction.
+    assert "summary box" in prompt
     assert "{braces}" in prompt
     assert "[Source Data]:" in prompt
     assert "tl;dr" not in prompt.lower()

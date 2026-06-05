@@ -182,6 +182,27 @@ def test_plan_structure_varies_shape_across_topics():
         assert vals == {True, False}, attr
 
 
+def test_plan_structure_varies_faq_and_summary_bullet_counts():
+    # The two elements that otherwise stay byte-stable across a blog's posts must
+    # now move within their bands (2-4 FAQ, 3-5 bullets) and actually rotate.
+    plans = [plan_structure(f"topic-{i}") for i in range(200)]
+    faq_vals = {p.faq_count for p in plans}
+    bullet_vals = {p.summary_bullets for p in plans}
+    assert faq_vals <= {2, 3, 4} and len(faq_vals) >= 2
+    assert bullet_vals <= {3, 4, 5} and len(bullet_vals) >= 2
+
+
+def test_render_structure_plan_varies_furniture_labels_and_faq_count():
+    p = plan_structure("zero_trust")
+    d = render_structure_plan(p)
+    # FAQ count is stated and overrides the template's two.
+    assert f"{p.faq_count} Q&A pairs" in d
+    # Furniture labels are explicitly told to be original (kills the byte-stable
+    # "The Bottom Line" / stock summary-box fingerprint).
+    assert "ORIGINAL short heading" in d
+    assert "The Bottom Line" in d  # named as a banned reuse
+
+
 def test_data_visual_is_occasional():
     # The chart should be a treat, not on most posts — roughly a third.
     rate = sum(plan_structure(f"t-{i}").data_visual for i in range(400)) / 400

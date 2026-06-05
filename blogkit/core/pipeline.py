@@ -123,7 +123,13 @@ def run_profile(
                 banned_phrases=profile.banned_phrases,
             ),
             blog_name=name,
-            post_format=resolve_format_name(profile.slug, profile.post_format),
+            # Seed format rotation per piece (topic + lead headline) so a blog's
+            # posts rotate across its compatible set instead of sharing one
+            # skeleton — defeats scaled-content structure detection.
+            post_format=resolve_format_name(
+                profile.slug, profile.post_format,
+                seed=chosen_keyword + (news[0].get("title", "") if news else ""),
+            ),
             author_archetype=resolve_archetype_name(profile.slug, profile.author_archetype),
             style_persona=resolve_persona_name(profile.slug, profile.style_persona),
         )

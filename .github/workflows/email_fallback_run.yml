@@ -39,7 +39,7 @@ jobs:
         env:
           # --- Featured image (Hugging Face FLUX.1-schnell, free tier) ---
           HF_API_TOKEN:         ${{ secrets.HF_API_TOKEN }}
-          # PAT (contents:write on AdvancedUno/blog-assets) for hosting images.
+          # PAT (contents:write on advancedunolee/blog-assets) for hosting images.
           ASSETS_REPO_PAT:      ${{ secrets.ASSETS_REPO_PAT }}
           # --- AI text generation ---
           GEMINI_API_KEY_1:     ${{ secrets.GEMINI_API_KEY_1 }}

@@ -367,6 +367,11 @@ class StructurePlan:
     data_visual: bool        # one rendered chart/visual (see core/charts.py)
     one_sentence_para: bool  # a deliberate one-sentence paragraph for punch
     rule_of_thumb: bool      # a hot-take / "Rule of Thumb" <blockquote>
+    # Defaulted (appended) so existing positional StructurePlan(...) callers
+    # keep working. These vary the two elements that otherwise stay byte-stable
+    # across a blog's posts — the FAQ length and the summary-box bullet count.
+    faq_count: int = 2       # number of Q&A pairs in the FAQ (heading stays fixed)
+    summary_bullets: int = 3 # bullets in the opening summary callout, when present
 
 
 def plan_structure(seed_text: str) -> StructurePlan:
@@ -393,10 +398,15 @@ def plan_structure(seed_text: str) -> StructurePlan:
     one_sentence = (h % 10) < 4     # ~40% a deliberate one-sentence paragraph
     h //= 10
     rot = (h % 10) < 3              # ~30% a rule-of-thumb / hot-take blockquote
+    h //= 10
+    faq_count = 2 + (h % 3)        # 2..4 FAQ questions (heading stays verbatim)
+    h //= 3
+    summary_bullets = 3 + (h % 3)  # 3..5 bullets in the opening summary callout
     return StructurePlan(
         target_words=target, sections=sections, summary_callout=summary,
         pull_quote=pull, comparison_table=table, closing_callout=closing,
         data_visual=visual, one_sentence_para=one_sentence, rule_of_thumb=rot,
+        faq_count=faq_count, summary_bullets=summary_bullets,
     )
 
 
@@ -413,8 +423,9 @@ def render_structure_plan(plan: StructurePlan) -> str:
         "never pad, restate, or repeat to hit the number.",
         f"- Organize the body into roughly {plan.sections} main <h2> sections "
         "(split or merge to fit the material; don't force an exact count).",
-        ("- Open with a <blockquote> summary callout (use the template's heading "
-         "label, never \"TL;DR\")." if plan.summary_callout
+        (f"- Open with a <blockquote> summary callout of {plan.summary_bullets} "
+         "bullets, under a SHORT heading you write fresh for this piece (never "
+         "the template's stock label, never \"TL;DR\")." if plan.summary_callout
          else "- Do NOT open with a summary callout <blockquote>; go straight into "
               "a strong lede."),
         ("- Place exactly one <blockquote> pull-quote mid-article."
@@ -432,6 +443,15 @@ def render_structure_plan(plan: StructurePlan) -> str:
          "it if you'd have to invent the numbers to fill it."
          if plan.data_visual
          else "- Do NOT include a chart or data visual in this piece."),
+        (f"- Write {plan.faq_count} Q&A pairs in the Frequently Asked Questions "
+         "section (this overrides the template's two). Keep the \"Frequently Asked "
+         "Questions\" heading verbatim; make each question incident-grade, not a "
+         "restatement of a section."),
+        ("- Give the summary callout and the closing callout (whichever appear) "
+         "each an ORIGINAL short heading in your own voice for this piece — never "
+         "a reused stock label like \"The Bottom Line\", \"Key Takeaways\", or "
+         "\"TL;DR\". The \"Frequently Asked Questions\" and References headings are "
+         "the ONLY fixed labels."),
     ]
     # Occasional stylistic devices — only mandated when their flag is on, so they
     # stay "time to time" rather than a per-post tic. (No line when off.)

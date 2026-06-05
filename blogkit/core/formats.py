@@ -16,6 +16,7 @@ No format uses the label "TL;DR" — each has its own summary-box heading.
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 
 
@@ -68,7 +69,7 @@ TAGS: 5-7 high-CPC B2B tags (PascalCase / compounds, no spaces inside individual
 # =====================================================================
 
 _BRIEFING_BODY = """<blockquote>
-  <p><strong>The 60-Second Briefing</strong></p>
+  <p><strong>[A short, original heading for this summary box — fresh for THIS piece, never a reused stock label like "The 60-Second Briefing"]</strong></p>
   <ul>
     <li><strong>[2-3 word label for the trigger]:</strong> [One-line fact drawn strictly from the Source Data — what just happened.]</li>
     <li><strong>[2-3 word label for what's at risk]:</strong> [What decision-makers lose if they ignore this signal this quarter.]</li>
@@ -109,7 +110,7 @@ _BRIEFING_BODY = """<blockquote>
 <p>[Realistic, conservative financial perspective on deployment time versus dollar returns. Use ranges, not invented point estimates.]</p>
 
 <blockquote>
-  <p><strong>The Bottom Line &mdash;</strong> [Final analyst takeaway in 2-3 sentences, including the one caveat or dependency that could break the thesis. Crystallize the implication for an executive who reads only this paragraph. End with the move, not the warning.]</p>
+  <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Bottom Line" or "Key Takeaways"] &mdash;</strong> [Final analyst takeaway in 2-3 sentences, including the one caveat or dependency that could break the thesis. Crystallize the implication for an executive who reads only this paragraph. End with the move, not the warning.]</p>
 </blockquote>
 
 <h2>Industry References & Signals</h2>
@@ -118,7 +119,7 @@ _BRIEFING_BODY = """<blockquote>
 
 
 _PLAYBOOK_BODY = """<blockquote>
-  <p><strong>What You'll Walk Away With</strong></p>
+  <p><strong>[A short, original heading for this summary box — fresh for THIS piece, never a reused stock label like "What You'll Walk Away With"]</strong></p>
   <ul>
     <li><strong>[Specific label for the pain]:</strong> [The operational pain this addresses, grounded in the Source Data.]</li>
     <li><strong>[Specific label for the fix]:</strong> [The architectural or operational pattern that resolves it.]</li>
@@ -169,7 +170,7 @@ _PLAYBOOK_BODY = """<blockquote>
 <p>[Realistic answer using ranges, not invented point estimates.]</p>
 
 <blockquote>
-  <p><strong>The Bottom Line &mdash;</strong> [2-3 sentence engineer's verdict: what to do first thing Monday, plus the one dependency or human factor that has to be true for it to work. End with the action.]</p>
+  <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Bottom Line" or "Key Takeaways"] &mdash;</strong> [2-3 sentence engineer's verdict: what to do first thing Monday, plus the one dependency or human factor that has to be true for it to work. End with the action.]</p>
 </blockquote>
 
 <h2>Engineering References & Signals</h2>
@@ -178,7 +179,7 @@ _PLAYBOOK_BODY = """<blockquote>
 
 
 _DEEP_DIVE_BODY = """<blockquote>
-  <p><strong>The Short Version</strong></p>
+  <p><strong>[A short, original heading for this summary box — fresh for THIS piece, never a reused stock label like "The Short Version"]</strong></p>
   <ul>
     <li><strong>[Specific label for the event]:</strong> [The event or finding, drawn strictly from the Source Data.]</li>
     <li><strong>[Specific label for the consequence]:</strong> [The second- and third-order consequence.]</li>
@@ -224,7 +225,7 @@ _DEEP_DIVE_BODY = """<blockquote>
 <p>[Realistic answer using ranges, not invented point estimates.]</p>
 
 <blockquote>
-  <p><strong>The Bottom Line &mdash;</strong> [2-3 sentence verdict for a decision-maker who reads only this, including the dependency or friction that complicates it. End with the move.]</p>
+  <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Bottom Line" or "Key Takeaways"] &mdash;</strong> [2-3 sentence verdict for a decision-maker who reads only this, including the dependency or friction that complicates it. End with the move.]</p>
 </blockquote>
 
 <h2>Industry References & Signals</h2>
@@ -233,7 +234,7 @@ _DEEP_DIVE_BODY = """<blockquote>
 
 
 _BUYERS_GUIDE_BODY = """<blockquote>
-  <p><strong>Decision Snapshot</strong></p>
+  <p><strong>[A short, original heading for this summary box — fresh for THIS piece, never a reused stock label like "Decision Snapshot"]</strong></p>
   <ul>
     <li><strong>[Specific label for the buyer]:</strong> [The team or role facing this decision.]</li>
     <li><strong>[Specific label for the catch]:</strong> [The non-obvious cost or constraint buyers miss.]</li>
@@ -280,7 +281,7 @@ _BUYERS_GUIDE_BODY = """<blockquote>
 <p>[Realistic answer using ranges, not invented point estimates.]</p>
 
 <blockquote>
-  <p><strong>The Bottom Line &mdash;</strong> [2-3 sentence buying verdict that still names the one condition under which you'd walk away. End with the move.]</p>
+  <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Bottom Line" or "Key Takeaways"] &mdash;</strong> [2-3 sentence buying verdict that still names the one condition under which you'd walk away. End with the move.]</p>
 </blockquote>
 
 <h2>Market References & Signals</h2>
@@ -289,7 +290,7 @@ _BUYERS_GUIDE_BODY = """<blockquote>
 
 
 _MARKET_OUTLOOK_BODY = """<blockquote>
-  <p><strong>Where This Is Heading</strong></p>
+  <p><strong>[A short, original heading for this summary box — fresh for THIS piece, never a reused stock label like "Where This Is Heading"]</strong></p>
   <ul>
     <li><strong>[Specific label for the shift]:</strong> [The shift now underway, drawn from the Source Data.]</li>
     <li><strong>[Specific label for who wins/loses]:</strong> [What is being won or lost, and by whom.]</li>
@@ -334,7 +335,7 @@ _MARKET_OUTLOOK_BODY = """<blockquote>
 <p>[Realistic answer using ranges, not invented point estimates.]</p>
 
 <blockquote>
-  <p><strong>The Bottom Line &mdash;</strong> [2-3 sentence outlook that names the assumption your call depends on. End with the opportunity, not the warning.]</p>
+  <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Bottom Line" or "Key Takeaways"] &mdash;</strong> [2-3 sentence outlook that names the assumption your call depends on. End with the opportunity, not the warning.]</p>
 </blockquote>
 
 <h2>Sector References & Signals</h2>
@@ -343,7 +344,7 @@ _MARKET_OUTLOOK_BODY = """<blockquote>
 
 
 _EXPLAINER_BODY = """<blockquote>
-  <p><strong>The Quick Primer</strong></p>
+  <p><strong>[A short, original heading for this summary box — fresh for THIS piece, never a reused stock label like "The Quick Primer"]</strong></p>
   <ul>
     <li><strong>[Specific label for the definition]:</strong> [Plain-English definition grounded in the Source Data.]</li>
     <li><strong>[Specific label for why it matters]:</strong> [The practical reason a reader should care right now.]</li>
@@ -386,7 +387,7 @@ _EXPLAINER_BODY = """<blockquote>
 <p>[Answer using ranges, not invented point estimates.]</p>
 
 <blockquote>
-  <p><strong>The Takeaway &mdash;</strong> [2-3 sentences that leave the reader genuinely understanding the idea, including the caveat that keeps it honest, not merely informed of it.]</p>
+  <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Takeaway" or "Key Takeaways"] &mdash;</strong> [2-3 sentences that leave the reader genuinely understanding the idea, including the caveat that keeps it honest, not merely informed of it.]</p>
 </blockquote>
 
 <h2>References & Further Reading</h2>
@@ -395,7 +396,7 @@ _EXPLAINER_BODY = """<blockquote>
 
 
 _CASE_STUDY_BODY = """<blockquote>
-  <p><strong>The Story in Brief</strong></p>
+  <p><strong>[A short, original heading for this summary box — fresh for THIS piece, never a reused stock label like "The Story in Brief"]</strong></p>
   <ul>
     <li><strong>[Specific label for the setup]:</strong> [Who and what, drawn from the Source Data.]</li>
     <li><strong>[Specific label for the turn]:</strong> [The decisive move or moment.]</li>
@@ -445,7 +446,7 @@ _CASE_STUDY_BODY = """<blockquote>
 <p>[Answer using ranges, not invented point estimates.]</p>
 
 <blockquote>
-  <p><strong>The Bottom Line &mdash;</strong> [2-3 sentence takeaway: what a peer should copy, and what they should avoid.]</p>
+  <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Bottom Line" or "Key Takeaways"] &mdash;</strong> [2-3 sentence takeaway: what a peer should copy, and what they should avoid.]</p>
 </blockquote>
 
 <h2>References & Signals</h2>
@@ -454,7 +455,7 @@ _CASE_STUDY_BODY = """<blockquote>
 
 
 _OP_ED_BODY = """<blockquote>
-  <p><strong>The Argument in One Breath</strong></p>
+  <p><strong>[A short, original heading for this summary box — fresh for THIS piece, never a reused stock label like "The Argument in One Breath"]</strong></p>
   <ul>
     <li><strong>[Specific label for the claim]:</strong> [Your thesis, stated flatly.]</li>
     <li><strong>[Specific label for why it matters]:</strong> [Why it matters if you are right.]</li>
@@ -492,7 +493,7 @@ _OP_ED_BODY = """<blockquote>
 <p>[Answer using ranges, not invented point estimates.]</p>
 
 <blockquote>
-  <p><strong>Where I Land &mdash;</strong> [2-3 sentences restating the position with conviction. End on the line you want remembered.]</p>
+  <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "Where I Land" or "The Bottom Line"] &mdash;</strong> [2-3 sentences restating the position with conviction. End on the line you want remembered.]</p>
 </blockquote>
 
 <h2>References & Signals</h2>
@@ -617,18 +618,54 @@ FORMAT_BY_SLUG: dict[str, str] = {
 }
 
 
+# =====================================================================
+# Compatible-format rotation (anti scaled-content fingerprint, level 2).
+# A blog pinned to ONE format means all of its posts walk the same family of
+# section purposes — a structural signature a classifier reads across one URL
+# path regardless of how the prose varies. Each blog's theme-matched format is
+# the PRIMARY (first entry, the most natural fit); the other 1-2 are tonally
+# compatible neighbours the blog also rotates through per piece, so its posts
+# stop sharing a single skeleton without swinging into an incoherent voice
+# (e.g. a briefing blog never becomes a how-to playbook). The pick is seeded
+# from the topic so it's stable across retries and rotates across the network.
+# Every value in FORMAT_BY_SLUG must appear here as a key (guarded by a test).
+# =====================================================================
+COMPATIBLE_FORMATS: dict[str, tuple[str, ...]] = {
+    "briefing": ("briefing", "deep_dive", "market_outlook"),
+    "playbook": ("playbook", "explainer", "case_study"),
+    "deep_dive": ("deep_dive", "explainer", "op_ed"),
+    "buyers_guide": ("buyers_guide", "market_outlook", "case_study"),
+    "market_outlook": ("market_outlook", "briefing", "deep_dive"),
+    "explainer": ("explainer", "deep_dive", "playbook"),
+    "case_study": ("case_study", "buyers_guide", "playbook"),
+    "op_ed": ("op_ed", "deep_dive", "explainer"),
+}
+
+
 def get_format(name: str) -> PostFormat:
     """Return the PostFormat for ``name``; falls back to the default for an
     empty or unknown name (so a missing assignment never crashes a run)."""
     return FORMATS.get(name or DEFAULT_FORMAT, FORMATS[DEFAULT_FORMAT])
 
 
-def resolve_format_name(slug: str, explicit: str = "") -> str:
-    """The format a blog should use: an explicit profile override wins, else the
-    theme-matched assignment, else the default."""
+def resolve_format_name(slug: str, explicit: str = "", seed: str = "") -> str:
+    """The format a blog should use for one post.
+
+    An explicit profile override always wins (a deliberate pin). Otherwise the
+    blog's theme-matched PRIMARY format anchors a small compatible set, and when
+    a per-piece ``seed`` is supplied the format is rotated deterministically
+    within that set — so a blog's posts no longer all share one skeleton. With
+    no seed (e.g. coverage tests, static assignment) the primary is returned
+    unchanged, preserving the old behaviour.
+    """
     if explicit:
         return explicit
-    return FORMAT_BY_SLUG.get(slug, DEFAULT_FORMAT)
+    primary = FORMAT_BY_SLUG.get(slug, DEFAULT_FORMAT)
+    if not seed:
+        return primary
+    group = COMPATIBLE_FORMATS.get(primary, (primary,))
+    h = int(hashlib.sha256((seed + "::format").encode("utf-8")).hexdigest(), 16)
+    return group[h % len(group)]
 
 
 def build_user_prompt(fmt: PostFormat, keyword: str, news_context: str) -> str:

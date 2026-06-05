@@ -45,7 +45,7 @@ HF_COLD_WAIT_BUFFER = 5.0       # extra seconds on top of estimated_time
 HF_REQUEST_TIMEOUT = 120.0      # cold load + generation can be slow
 
 # --- Image hosting (GitHub Contents API -> jsDelivr CDN) -------------------
-ASSETS_REPO = "AdvancedUno/blog-assets"
+ASSETS_REPO = "advancedunolee/blog-assets"
 GITHUB_CONTENTS_API = "https://api.github.com/repos/{repo}/contents/{path}"
 JSDELIVR_URL = "https://cdn.jsdelivr.net/gh/{repo}@{sha}/{path}"
 GITHUB_UPLOAD_TIMEOUT = 30.0
