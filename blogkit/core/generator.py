@@ -15,7 +15,7 @@ import time
 from dataclasses import dataclass, field
 
 from blogkit.core.archetypes import build_archetype_directive, get_archetype
-from blogkit.core.craft import pick_narrative_mode
+from blogkit.core.craft import pick_narrative_mode, plan_structure, render_structure_plan
 from blogkit.core.formats import build_user_prompt, get_format
 from blogkit.core.personas import build_persona_directive, get_persona
 
@@ -71,7 +71,7 @@ CRITICAL WRITING LAWS FOR ELITE QUALITY & SEO:
 8. SNIPPET-WORTHY OPENING & KEYWORD PLACEMENT: The first <p> after the <h1>/summary callout must work as a standalone ~150-character meta description — compelling, specific, and self-contained (it becomes the SERP snippet). Use the primary topic phrase naturally within the first 100 words and in at least one <h2>. Never keyword-stuff.
 9. E-E-A-T & SPECIFICITY: Demonstrate first-hand operator experience and judgment. Always prefer a specific named entity, real figure, or date from the Source Data over a vague generality. Concrete beats comprehensive.
 10. RAW HTML ONLY (theme-aware tag set): Output clean HTML paragraphs (max 3-4 sentences each). Allowed elements: <h1>, <h2>, <h3>, <h4>, <p>, <strong>, <b>, <em>, <ul>, <ol>, <li>, <blockquote>, <table>, <thead>, <tbody>, <tr>, <th>, <td>. Do NOT emit any <img>, <figure>, or <figcaption> tags — this blog is text-only. Use <strong> liberally on real data, regulator names, and corporate entities so the reader's eye finds anchors.
-11. LAYOUT BACKBONE, HUMAN VOICE (JetTheme v2.9): The template is your structural backbone, not a script to parrot. KEEP these load-bearing elements exactly: the opening <blockquote> summary callout (use the EXACT heading label the template gives it — NEVER the word "TL;DR"), the "<h2>Frequently Asked Questions</h2>" heading verbatim with each Q&A as <h3>question</h3><p>answer</p>, a closing <blockquote> callout, and the "...References..." <h2> at the end. WITHIN that backbone, write every other <h2>/<h3> subhead in your own author's voice (not the bracketed placeholder labels), vary paragraph length deliberately, and let your archetype shape the prose so it reads like a specific human — not a uniform, templated page. Use a <blockquote> pull quote mid-article and, where the template includes one, a comparison <table>.
+11. LAYOUT BACKBONE, HUMAN VOICE (JetTheme v2.9): The template is your structural backbone, not a script to parrot. Two elements are ALWAYS fixed: the "<h2>Frequently Asked Questions</h2>" heading verbatim with each Q&A as <h3>question</h3><p>answer</p>, and the "...References..." <h2> at the end. Every OTHER structural element — the opening <blockquote> summary callout (and its heading label, NEVER the word "TL;DR"), any mid-article <blockquote> pull quote, any comparison <table>, the body length, the number of sections, and the closing <blockquote> callout — is governed by the per-piece STRUCTURAL PLAN in the user prompt: include each one only when that plan says to, so no two posts share the same shape. WITHIN that backbone, write every <h2>/<h3> subhead in your own author's voice (not the bracketed placeholder labels), vary paragraph length deliberately, and let your archetype shape the prose so it reads like a specific human — not a uniform, templated page.
 """.strip()
 
 
@@ -430,7 +430,10 @@ def generate_post(
     # Structural arc, rotated independently of the lens (salted seed) so the
     # network cycles through all three narrative modes instead of one template.
     mode_directive = pick_narrative_mode(seed + "::mode") + "\n\n"
-    user_prompt = angle_directive + mode_directive + build_user_prompt(
+    # Per-piece shape (length, section count, which optional elements appear) so
+    # no two posts share the same skeleton — defeats scaled-content detection.
+    structure_directive = render_structure_plan(plan_structure(seed)) + "\n\n"
+    user_prompt = angle_directive + mode_directive + structure_directive + build_user_prompt(
         fmt, keyword=focus_keyword or topic_label, news_context=news_block_str,
     )
 

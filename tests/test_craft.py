@@ -10,9 +10,12 @@ from blogkit.core.craft import (
     NARRATIVE_LAWS,
     NARRATIVE_MODES,
     PRACTITIONER_LAWS,
+    StructurePlan,
     absolute_hits,
     buzzword_hits,
     pick_narrative_mode,
+    plan_structure,
+    render_structure_plan,
 )
 from blogkit.core.personas import PERSONAS, build_persona_directive
 
@@ -122,3 +125,52 @@ def test_pick_narrative_mode_is_deterministic_and_rotates():
     # Across many seeds the rotation actually reaches all three arcs.
     seen = {pick_narrative_mode(f"topic-{i}") for i in range(60)}
     assert seen == directives
+
+
+def test_craft_law_4_mandates_cross_source_synthesis():
+    out = CRAFT_LAWS.lower()
+    assert "synthesis" in out
+    assert "proprietary data" in out  # forward-compatible seam
+
+
+def test_vignette_laws_are_framed_illustrative():
+    # Q3 decision: textured but clearly illustrative, never asserted as measured.
+    assert "illustrative" in CRAFT_LAWS.lower()
+    assert "illustrative" in PRACTITIONER_LAWS.lower()
+
+
+def test_plan_structure_is_deterministic():
+    assert plan_structure("zero_trust") == plan_structure("zero_trust")
+
+
+def test_plan_structure_length_never_below_gate_floor():
+    # A plan must never target a thin-content rejection (quality MIN_WORDS=1000).
+    for i in range(200):
+        assert plan_structure(f"topic-{i}").target_words >= 1000
+
+
+def test_plan_structure_varies_shape_across_topics():
+    plans = [plan_structure(f"topic-{i}") for i in range(200)]
+    # Length and section count both vary.
+    assert len({p.target_words for p in plans}) >= 3
+    assert {p.sections for p in plans} <= {3, 4, 5, 6}
+    assert len({p.sections for p in plans}) >= 3
+    # Each optional element is sometimes on and sometimes off (truly probabilistic).
+    for attr in ("summary_callout", "pull_quote", "comparison_table", "closing_callout"):
+        vals = {getattr(p, attr) for p in plans}
+        assert vals == {True, False}, attr
+
+
+def test_render_structure_plan_keeps_faq_and_references_fixed():
+    on = StructurePlan(1600, 4, True, True, True, True)
+    off = StructurePlan(1350, 3, False, False, False, False)
+    d_on, d_off = render_structure_plan(on), render_structure_plan(off)
+    for d in (d_on, d_off):
+        # FAQ + References are explicitly always kept, never dropped.
+        assert "Frequently Asked Questions" in d
+        assert "References" in d
+        assert "1600" in d_on and "1350" in d_off
+    # Booleans flip the directive language.
+    assert "Open with a <blockquote> summary" in d_on
+    assert "Do NOT open with a summary callout" in d_off
+    assert "Do NOT use a comparison <table>" in d_off

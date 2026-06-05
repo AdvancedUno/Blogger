@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+from dataclasses import dataclass
 
 # ---------------------------------------------------------------------------
 # Buzzword tax (Law 2). Plain, specific corporate filler that signals a
@@ -128,16 +129,24 @@ CRAFT_LAWS = "\n".join([
     "sweeping \"everyone is wrong, here's the fix\" proclamation; that debunking "
     "template is itself a tired formula. E.g. not \"software creates value\" but "
     "\"most deployments here stall before a line of code ships, because it's a "
-    "data-collection bottleneck more than a software problem\".",
+    "data-collection bottleneck more than a software problem\". Your real original "
+    "contribution is SYNTHESIS the inputs lack individually: connect and contrast "
+    "what the separate Source Data items (and any proprietary data provided) each "
+    "report, surface the through-line or the contradiction no single article "
+    "names, and assemble the comparison or timeline they're each missing — never "
+    "just re-summarize one source.",
     "",
-    "5. USE TEXTURED CASE VIGNETTES, NOT CLEAN HYPOTHETICALS. Never use suspiciously "
-    "round, perfectly tidy numbers (\"a 200,000 sq ft building saving $0.40 per sq "
-    "ft\"). Instead write gritty, specific, slightly messy vignettes that read like "
-    "real operational history — e.g. \"a 430,000-sq-ft office portfolio in a "
-    "secondary market dragged its feet on an HVAC retrofit until an audit found the "
-    "chiller loops were overriding the night-setback schedule, bleeding $18,000 a "
-    "month\". Keep such vignettes anonymized/composite — never attribute invented "
-    "specifics to a real, named organization.",
+    "5. USE TEXTURED — BUT CLEARLY ILLUSTRATIVE — CASE VIGNETTES. Never use "
+    "suspiciously round, perfectly tidy numbers (\"a 200,000 sq ft building saving "
+    "$0.40 per sq ft\"). Write gritty, specific, slightly messy vignettes — but "
+    "frame them plainly as representative composites (\"in a representative "
+    "secondary-market office portfolio…\", \"a pattern that recurs…\"), NEVER as a "
+    "specific real event you witnessed or measured. E.g. \"in a representative "
+    "~430,000-sq-ft office portfolio, an HVAC retrofit might stall until an audit "
+    "finds the chiller loops overriding the night-setback schedule — quietly "
+    "bleeding on the order of $18,000 a month\". Keep them anonymized/composite, "
+    "never pinned on a real named organization, and never dress an invented figure "
+    "up as a measured fact.",
     "",
     "6. SELF-CORRECT AND CAVEAT. Challenge your own core thesis inside the body. "
     "Include the real-world operational friction, dependency, or human element "
@@ -176,8 +185,10 @@ PRACTITIONER_LAWS = "\n".join([
     "into its components in sequence. Not \"latency dropped 40%\" but: \"peak "
     "traffic pushed p95 to 6.2s; a profiling trace showed vector retrieval ate "
     "2.1s, cross-cluster reranking added 900ms, and token serialization a brutal "
-    "400ms.\" Keep such vignettes anonymized/composite, never pinned on a real "
-    "named company.",
+    "400ms.\" Frame the scenario as illustrative (\"in a typical high-traffic "
+    "run…\"), not as a specific incident you personally measured; keep it "
+    "anonymized/composite, never pinned on a real named company, and never present "
+    "an invented number as a real measurement.",
     "",
     "3. ONE ANALOGY MAXIMUM. At most a SINGLE analogy in the entire piece, two "
     "sentences or fewer, and only if it genuinely clarifies. NO stacked or tiered "
@@ -287,3 +298,87 @@ def pick_narrative_mode(seed_text: str) -> str:
     """
     h = int(hashlib.sha256(seed_text.encode("utf-8")).hexdigest(), 16)
     return NARRATIVE_MODES[h % len(NARRATIVE_MODES)][1]
+
+
+# ---------------------------------------------------------------------------
+# Per-piece structural plan (anti scaled-content fingerprint).
+# Every post in the network sharing the SAME fixed scaffold (summary box ->
+# sections -> FAQ -> closing callout -> References, at a fixed length) is a
+# programmatic signature a classifier can flag regardless of how human the
+# prose is. This varies the *shape* per piece — length, section count, and
+# which optional elements appear — deterministically from the topic seed.
+#
+# "Moderate" policy (chosen deliberately): the FAQ and the References/Sources
+# list ALWAYS stay (they carry FAQPage schema + outbound-citation trust). Only
+# the summary callout, mid-article pull-quote, comparison table, and closing
+# callout are made probabilistic. Lengths stay >= the quality gate's MIN_WORDS
+# floor with margin so a plan never plans a post into a thin-content rejection.
+# ---------------------------------------------------------------------------
+_LENGTH_BANDS: tuple[int, ...] = (1100, 1350, 1600, 1850, 2100)
+
+
+@dataclass(frozen=True)
+class StructurePlan:
+    """The shape of ONE post. FAQ + References are always kept and so are not
+    represented here — only the variable elements are."""
+
+    target_words: int
+    sections: int            # number of main <h2> body sections
+    summary_callout: bool    # opening <blockquote> summary box
+    pull_quote: bool         # one mid-article <blockquote>
+    comparison_table: bool   # a comparison <table> (only if material supports)
+    closing_callout: bool    # closing <blockquote>
+
+
+def plan_structure(seed_text: str) -> StructurePlan:
+    """Deterministically derive a StructurePlan from ``seed_text``.
+
+    Salted independently of the angle/narrative-mode picks so shape varies on
+    its own axis, and stable for a given topic so retries don't reshuffle it.
+    """
+    h = int(hashlib.sha256((seed_text + "::structure").encode("utf-8")).hexdigest(), 16)
+    target = _LENGTH_BANDS[h % len(_LENGTH_BANDS)]
+    h //= 97
+    sections = 3 + (h % 4)          # 3..6 main sections
+    h //= 97
+    summary = (h % 10) < 7          # ~70% keep the summary box
+    h //= 10
+    pull = (h % 10) < 6             # ~60% a pull-quote
+    h //= 10
+    table = (h % 10) < 4            # ~40% a comparison table
+    h //= 10
+    closing = (h % 10) < 6          # ~60% a closing callout
+    return StructurePlan(
+        target_words=target, sections=sections, summary_callout=summary,
+        pull_quote=pull, comparison_table=table, closing_callout=closing,
+    )
+
+
+def render_structure_plan(plan: StructurePlan) -> str:
+    """Render a StructurePlan as a prompt directive injected per piece."""
+    return "\n".join([
+        "STRUCTURAL PLAN FOR THIS PIECE — deliberately shaped so no two posts "
+        "share the same skeleton (this is what defeats programmatic / "
+        "scaled-content pattern detection). It OVERRIDES the layout template's "
+        "optional furniture. The Frequently Asked Questions section and the "
+        "closing References/Sources list ALWAYS stay; everything else here is for "
+        "THIS post only:",
+        f"- Target length: about {plan.target_words} words. Write to the ideas — "
+        "never pad, restate, or repeat to hit the number.",
+        f"- Organize the body into roughly {plan.sections} main <h2> sections "
+        "(split or merge to fit the material; don't force an exact count).",
+        ("- Open with a <blockquote> summary callout (use the template's heading "
+         "label, never \"TL;DR\")." if plan.summary_callout
+         else "- Do NOT open with a summary callout <blockquote>; go straight into "
+              "a strong lede."),
+        ("- Place exactly one <blockquote> pull-quote mid-article."
+         if plan.pull_quote
+         else "- Do NOT use a mid-article pull-quote in this piece."),
+        ("- Include a comparison <table> ONLY if the material genuinely supports a "
+         "side-by-side; otherwise skip it." if plan.comparison_table
+         else "- Do NOT use a comparison <table> in this piece."),
+        ("- End with a short closing <blockquote> callout."
+         if plan.closing_callout
+         else "- Do NOT end with a closing callout <blockquote>; land on a strong "
+              "final line instead."),
+    ])
