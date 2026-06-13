@@ -70,7 +70,7 @@ def cmd_list(_args: argparse.Namespace) -> int:
 
 def cmd_run(args: argparse.Namespace) -> int:
     from blogkit.core.dedup import GitHubLedgerStore
-    from blogkit.core.imager import warm_up_hf_model
+    from blogkit.core.imager import active_provider, warm_up_image_model
     from blogkit.core.pipeline import INTER_SITE_SLEEP_SECONDS, run_profile
 
     profiles = _select(args)
@@ -85,10 +85,10 @@ def cmd_run(args: argparse.Namespace) -> int:
     ledger = store.load()
 
     # One-shot warm-up if any selected blog wants an image (not in dry-run).
-    hf_token = os.environ.get("HF_API_TOKEN")
-    if not dry_run and hf_token and any(p.featured_image for p in profiles):
-        logger.info("Warming up Hugging Face FLUX.1-schnell model...")
-        warm_up_hf_model(hf_token)
+    # No-op for the vertex provider (no cold-start).
+    if not dry_run and any(p.featured_image for p in profiles):
+        logger.info("Image provider: %s — warming up if needed...", active_provider())
+        warm_up_image_model()
 
     results = []
     for idx, profile in enumerate(profiles):
@@ -130,15 +130,29 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
 
 def cmd_selftest_image(args: argparse.Namespace) -> int:
-    from blogkit.core.imager import build_featured_image_html, warm_up_hf_model
+    from blogkit.core.imager import (
+        active_provider,
+        build_featured_image_html,
+        warm_up_image_model,
+    )
 
-    hf_token = os.environ.get("HF_API_TOKEN")
-    missing = [k for k, v in {
-        "HF_API_TOKEN": hf_token,
-        "ASSETS_REPO_PAT": os.environ.get("ASSETS_REPO_PAT"),
-    }.items() if not v]
+    provider = active_provider()
+    if provider == "vertex":
+        needed = {
+            "GCP_SA_KEY or GOOGLE_APPLICATION_CREDENTIALS": (
+                os.environ.get("GCP_SA_KEY") or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+            ),
+            "ASSETS_REPO_PAT": os.environ.get("ASSETS_REPO_PAT"),
+        }
+    else:
+        needed = {
+            "HF_API_TOKEN": os.environ.get("HF_API_TOKEN"),
+            "ASSETS_REPO_PAT": os.environ.get("ASSETS_REPO_PAT"),
+        }
+    missing = [k for k, v in needed.items() if not v]
     if missing:
-        logger.error("selftest-image needs env vars: %s", ", ".join(missing))
+        logger.error("selftest-image (provider=%s) needs env vars: %s",
+                     provider, ", ".join(missing))
         return 1
 
     if args.blog:
@@ -147,9 +161,10 @@ def cmd_selftest_image(args: argparse.Namespace) -> int:
     else:
         styles, title = None, "Self-Test: Enterprise AI Infrastructure in 2026"
 
-    logger.info("Self-test: warming up, then generating one image for %r", title)
-    warm_up_hf_model(hf_token)
-    html = build_featured_image_html(title, hf_token, styles=styles)
+    logger.info("Self-test (provider=%s): warming up, then generating one image for %r",
+                provider, title)
+    warm_up_image_model()
+    html = build_featured_image_html(title, styles=styles)
     if not html:
         logger.error("Self-test FAILED — no image produced (see warnings).")
         return 2

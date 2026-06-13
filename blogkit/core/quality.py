@@ -10,7 +10,10 @@ publish a post that is:
   * buzzword-stuffed — overuses the banned corporate filler from core/craft.py
     above ``MAX_BUZZWORD_HITS`` (a backstop behind the prompt-level ban), or
   * sensationalist — uses banned absolute proclamations from core/craft.py
-    above ``MAX_ABSOLUTE_HITS`` (a backstop behind the Nuance Tax).
+    above ``MAX_ABSOLUTE_HITS`` (a backstop behind the Nuance Tax), or
+  * machine-fingerprinted — overuses AI-tell phrases (``MAX_AI_TELL_HITS``),
+    "it's not X, it's Y" negative parallelism (``MAX_NEG_PARALLELISM``), or
+    em-dashes (density backstop behind the Texture Laws' ration).
 
 Pure, dependency-free logic (token-set Jaccard over the body text), so it runs
 before the costly image/publish steps and is fully unit-testable. The fingerprint
@@ -24,7 +27,13 @@ import html as _html
 import re
 from collections import Counter
 
-from blogkit.core.craft import absolute_hits, buzzword_hits
+from blogkit.core.craft import (
+    absolute_hits,
+    ai_tell_hits,
+    buzzword_hits,
+    emdash_count,
+    negative_parallelism_count,
+)
 
 MIN_WORDS = 1000            # minimum real body words to publish
 MAX_BODY_SIMILARITY = 0.82  # Jaccard over content fingerprints that's "too similar"
@@ -37,6 +46,17 @@ MAX_BUZZWORD_HITS = 3       # total banned-buzzword occurrences allowed before r
 # phrases are far rarer than buzzwords, so the tolerance is tighter — one slip
 # passes, a pattern of them does not.
 MAX_ABSOLUTE_HITS = 1       # total banned-absolute occurrences allowed before reject
+# AI-tell backstop behind the prompt's _ANTI_AI ban (core/craft.AI_TELL_PHRASES).
+# A compliant post has zero; tolerate a couple of incidental slips.
+MAX_AI_TELL_HITS = 2        # total AI-tell phrase occurrences allowed before reject
+# Negative parallelism ("it's not X, it's Y") — one can be natural prose; a
+# pattern of them is the fingerprint.
+MAX_NEG_PARALLELISM = 2     # constructions allowed before reject
+# Em-dash density backstop (prompt asks for <= 2-3 per piece). Reject only
+# clear statistical overuse: more than 1 em-dash per EMDASH_WORDS_PER words
+# AND more than EMDASH_FLOOR total, so legit punctuation never trips it.
+EMDASH_WORDS_PER = 120      # density threshold: 1 em-dash per this many words
+EMDASH_FLOOR = 8            # never reject below this absolute count
 
 _TAG_RE = re.compile(r"<[^>]+>")
 _WORD_RE = re.compile(r"[a-z0-9]+")
@@ -132,5 +152,26 @@ def check_quality(
     if total_abs > max_absolute_hits:
         worst = ", ".join(f"{p!r}x{n}" for p, n in sorted(abs_hits.items(), key=lambda kv: -kv[1]))
         return False, f"absolute proclamations: {total_abs} hits (> {max_absolute_hits}) — {worst}"
+
+    tells = ai_tell_hits(text)
+    total_tells = sum(tells.values())
+    if total_tells > MAX_AI_TELL_HITS:
+        worst = ", ".join(f"{p!r}x{n}" for p, n in sorted(tells.items(), key=lambda kv: -kv[1]))
+        return False, f"AI-tell phrases: {total_tells} hits (> {MAX_AI_TELL_HITS}) — {worst}"
+
+    neg = negative_parallelism_count(text)
+    if neg > MAX_NEG_PARALLELISM:
+        return False, (
+            f"negative parallelism: {neg} 'not X, but Y' constructions "
+            f"(> {MAX_NEG_PARALLELISM})"
+        )
+
+    # Em-dash density is checked on the raw HTML (entities included).
+    dashes = emdash_count(html_body)
+    if dashes > EMDASH_FLOOR and dashes * EMDASH_WORDS_PER > wc:
+        return False, (
+            f"em-dash overuse: {dashes} in {wc} words "
+            f"(> 1 per {EMDASH_WORDS_PER} words)"
+        )
 
     return True, f"ok: {wc} words, max similarity {sim:.2f}"

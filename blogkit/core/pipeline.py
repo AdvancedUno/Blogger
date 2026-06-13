@@ -26,6 +26,7 @@ from blogkit.core.publisher import (
 )
 from blogkit.core.quality import check_quality, content_fingerprint
 from blogkit.core.seo import build_jsonld, build_references_html, make_description
+from blogkit.core.sourcetext import enrich_news
 from blogkit.profiles.base import BlogProfile
 
 logger = logging.getLogger(__name__)
@@ -101,6 +102,19 @@ def run_profile(
         logger.warning("[%s] No fresh news across %d keywords — skipping.", name, len(queries))
         return False, f"skipped: no fresh news ({len(queries)} keywords)"
     logger.info("[%s] Fetch OK — keyword=%r, %d items", name, chosen_keyword, len(news))
+
+    # ----- 1.5 Source-text grounding (best-effort) ---------------------
+    # Replace headline-stub summaries with real article text so the model has
+    # actual facts to ground in. Any failure leaves items as fetched.
+    try:
+        n_enriched = enrich_news(news)
+        if n_enriched:
+            logger.info("[%s] Pulled full article text for %d/%d sources",
+                        name, n_enriched, len(news))
+        else:
+            logger.info("[%s] No source articles resolved — headline-only grounding", name)
+    except Exception as e:
+        logger.warning("[%s] Source-text enrichment errored (%s) — continuing", name, e)
 
     # ----- 2. Generate (per-blog persona) -----------------------------
     api_key = os.environ.get(profile.api_key_env)
@@ -194,8 +208,7 @@ def run_profile(
         return True, f"dry-run:{len(html_content)} chars"
 
     if profile.featured_image:
-        hf_token = os.environ.get("HF_API_TOKEN")
-        featured = build_featured_image_html(post.title, hf_token, styles=profile.style_pool())
+        featured = build_featured_image_html(post.title, styles=profile.style_pool())
         if featured:
             html_content = featured + "\n" + body
             logger.info("[%s] Prepended hosted featured image", name)

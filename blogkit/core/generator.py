@@ -68,7 +68,7 @@ CRITICAL WRITING LAWS FOR ELITE QUALITY & SEO:
 4. INLINE ANALOGIES: Unpack dense technical concepts using exactly one sharp, relatable corporate analogy.
 5. ZERO HALLUCINATIONS & ATTRIBUTION: Ground every claim strictly in the provided [Source Data]. Never invent names, statistics, dates, or metrics. When you cite a figure or event, make clear it comes from the reporting — do not fabricate precision.
 6. NO "AI TELLS" — WRITE LIKE A HUMAN: Absolutely ban these and their cousins: "In conclusion", "Furthermore", "Moreover", "Additionally", "Delve into", "Navigating the landscape", "In today's fast-paced world", "It's important to note", "ever-evolving", "game-changer", "unlock", "deep dive", "tapestry", "seamless", "robust" (as filler), "leverage" (as a verb-filler), "Today we will discuss". Also avoid the tell-tale AI rhythm of uniform paragraph blocks and perfectly balanced both-sides hedging. Write as the specific named human author defined in the HUMAN AUTHOR PERSONA block below — with their point of view, their cadence, and a real opinion — not as a neutral assistant summarizing a topic.
-7. SEO TITLE DISCIPLINE: The <h1> / TITLE is the single biggest SERP-click lever. Keep it <= 60 characters (hard max 65). FRONT-LOAD the primary keyword/topic in the first 2-4 words. Add one concrete hook — a number, a year, a dollar figure, or a sharp verb. Match real search intent; never clickbait; never the phrase "The Ultimate Guide".
+7. SEO TITLE DISCIPLINE: The <h1> / TITLE is the single biggest SERP-click lever. Keep it <= 60 characters (hard max 65). FRONT-LOAD the primary keyword/topic in the first 2-4 words. Add one concrete hook — a number, a year, a dollar figure, or a sharp verb. Match real search intent; never clickbait; never the phrase "The Ultimate Guide". Follow the HEADLINE SHAPE directive in the user prompt's structural plan; never default to the formulaic "Topic: Subtitle" colon construction unless that shape explicitly allows it.
 8. SNIPPET-WORTHY OPENING & KEYWORD PLACEMENT: The first <p> after the <h1>/summary callout must work as a standalone ~150-character meta description — compelling, specific, and self-contained (it becomes the SERP snippet). Use the primary topic phrase naturally within the first 100 words and in at least one <h2>. Never keyword-stuff.
 9. E-E-A-T & SPECIFICITY: Demonstrate first-hand operator experience and judgment. Always prefer a specific named entity, real figure, or date from the Source Data over a vague generality. Concrete beats comprehensive.
 10. RAW HTML ONLY (theme-aware tag set): Output clean HTML paragraphs (max 3-4 sentences each). Allowed elements: <h1>, <h2>, <h3>, <h4>, <p>, <strong>, <b>, <em>, <ul>, <ol>, <li>, <blockquote>, <table>, <thead>, <tbody>, <tr>, <th>, <td>. Do NOT emit any <img>, <figure>, or <figcaption> tags — this blog is text-only. Use <strong> liberally on real data, regulator names, and corporate entities so the reader's eye finds anchors.
@@ -196,10 +196,16 @@ def _format_news_block(news_items: list[dict]) -> str:
         "Title", "Source", "Date", "Summary", "Link"
     )
 
+    # Enriched items carry ~1,100 chars of real article text (core/sourcetext);
+    # un-enriched ones are headline stubs. The cap protects the prompt budget
+    # while letting full-text grounding through.
     for i, item in enumerate(news_items, 1):
         summary = (item.get("summary") or "").strip()
-        if len(summary) > 350:
-            summary = summary[:350] + "..."
+        # Un-enriched Google News stubs are HTML link lists — strip the markup
+        # so the model sees text, not anchor-tag noise.
+        summary = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", summary)).strip()
+        if len(summary) > 1200:
+            summary = summary[:1200] + "..."
         lines.append(
             f"\n[{i}] {L_TITLE} : {item.get('title','')}\n"
             f"    {L_SRC} : {item.get('source','')}\n"
@@ -251,6 +257,32 @@ def _scrub_tldr(html: str, label: str) -> str:
     return _TLDR_RE.sub(label, html)
 
 
+def _normalize_body(body: str) -> str:
+    """Post-parse repairs for the model's recurring HTML slips.
+
+    * ``**markdown bold**`` mixed into the HTML -> real <strong> tags.
+    * The leading in-body <h1> is stripped: Blogger renders the post title
+      itself, so an in-body h1 ships a duplicate H1 (and pushed the reading
+      badge above the visible title).
+    * A bare, unwrapped lede paragraph left between the h1 and the first tag
+      is wrapped in <p> so the first paragraph (the SERP snippet source)
+      renders and extracts correctly.
+    """
+    body = re.sub(r"\*\*([^*\n]+?)\*\*", r"<strong>\1</strong>", body)
+    body = re.sub(r"^\s*<h1[^>]*>.*?</h1>\s*", "", body, count=1,
+                  flags=re.IGNORECASE | re.DOTALL)
+    # Bare lede: leading prose (inline tags allowed) before the first
+    # block-level element.
+    m = re.match(
+        r"\s*((?:[^<]|</?(?:strong|b|em|i|a|code)\b[^>]*>){40,}?)\s*"
+        r"(?=<(?:h[1-6]|p|ul|ol|blockquote|table|div|nav)\b)",
+        body, flags=re.IGNORECASE,
+    )
+    if m:
+        body = f"<p>{m.group(1).strip()}</p>\n" + body[m.end():]
+    return body
+
+
 def _parse_response(text: str) -> GeneratedPost:
     text = text.strip()
     # Defensive strip of any code fence the model may have wrapped output in.
@@ -296,6 +328,7 @@ def _parse_response(text: str) -> GeneratedPost:
     body = re.sub(r"^```(?:html|HTML)?\s*\n", "", body)
     body = re.sub(r"\n```\s*$", "", body)
     body = _strip_emoji(body)
+    body = _normalize_body(body)
 
     # 4) Minimum structural validation (text-only blog — no image checks)
     if "<h2" not in body:

@@ -82,3 +82,34 @@ def test_jaccard_basics():
     assert jaccard(set(), {"a"}) == 0.0
     assert jaccard({"a", "b"}, {"a", "b"}) == 1.0
     assert jaccard({"a", "b"}, {"b", "c"}) == 1 / 3
+
+
+def test_ai_tell_overuse_is_rejected():
+    base = _post(MIN_WORDS + 200)
+    spiked = base + "<p>" + "Let's delve into the tapestry of this paradigm shift. " * 2 + "</p>"
+    ok, why = check_quality(spiked)
+    assert not ok and "AI-tell" in why
+
+
+def test_a_couple_of_tells_pass():
+    base = _post(MIN_WORDS + 200)
+    ok, _ = check_quality(base + "<p>We delve into one corner of the system.</p>")
+    assert ok
+
+
+def test_negative_parallelism_overuse_is_rejected():
+    base = _post(MIN_WORDS + 200)
+    spiked = base + "<p>" + "It is not just speed, it's trust. " * 4 + "</p>"
+    ok, why = check_quality(spiked)
+    assert not ok and "parallelism" in why
+
+
+def test_emdash_overuse_is_rejected_but_normal_use_passes():
+    words = MIN_WORDS + 200
+    base = _post(words)
+    heavy = base + "<p>" + ("x — y. " * (words // 60)) + "</p>"
+    ok, why = check_quality(heavy)
+    assert not ok and "em-dash" in why
+    light = base + "<p>one — two — three.</p>"
+    ok, _ = check_quality(light)
+    assert ok

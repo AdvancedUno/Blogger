@@ -13,8 +13,11 @@ is dropping in a profile module — no engine changes.
 blogkit/
   core/
     fetcher.py      Google News RSS (keyword roulette + fallback)
+    sourcetext.py   best-effort full-text grounding: resolves Google News links
+                    to the publisher article and feeds real article text to the
+                    model (instead of headline stubs)
     generator.py    Gemini text; shared SEO prompt + per-blog persona voice-lock
-    imager.py       HF FLUX.1-schnell -> GitHub Contents API -> jsDelivr CDN URL
+    imager.py       image gen (HF FLUX or Vertex Imagen) -> GitHub Contents API -> jsDelivr CDN URL
     publisher.py    Blogger v3 REST API + Mail2Blogger SMTP fallback
     pipeline.py     run_profile(): fetch -> generate -> image -> publish
     styles.py       16 named image-style presets (the catalog)
@@ -53,8 +56,17 @@ python -m blogkit selftest-image --blog zero_trust_enterprise  # image path only
 **Content integrity & SEO (automatic):** a cross-blog de-dup ledger skips source
 articles already used network-wide (duplicate-content guard), each post gets
 JSON-LD (Article + FAQPage) and a real "Sources" citation list, and each blog
-carries its own tone/voice/flow. A run posts a digest to `RUN_WEBHOOK_URL`
-(Discord/Slack) if set.
+carries its own tone/voice/flow. Before generation, source links are resolved to
+the real publisher articles and ~1,100 chars of actual article text replace the
+Google News headline stubs (core/sourcetext.py — the model grounds claims in
+real reporting, not twelve words). Per piece, the structure plan also rotates
+the **headline shape** (flat claim / question / number / how / tension — no
+default "Topic: Subtitle" colon titles), occasionally closes on a question to
+the reader (comment engagement), and leans ~40% of posts evergreen so search
+traffic compounds. The pre-publish quality gate rejects thin/near-duplicate
+posts AND machine-fingerprint slips: AI-tell phrases, "it's not X, it's Y"
+negative parallelism, and em-dash overuse. A run posts a digest to
+`RUN_WEBHOOK_URL` (Discord/Slack) if set.
 
 ## Adding / customizing a blog
 
@@ -92,14 +104,44 @@ To go fully custom, a profile can later carry its own full prompt override
 | `GEMINI_API_KEY`, `GEMINI_API_KEY_1..10` | Gemini text (per-blog routing) |
 | `GEMINI_MODEL` | optional model override |
 | `GOOGLE_CLIENT_ID/SECRET`, `GOOGLE_REFRESH_TOKEN` | Blogger v3 API auth |
-| `HF_API_TOKEN` | Hugging Face image gen (Inference Providers permission) |
-| `ASSETS_REPO_PAT` | fine-grained PAT, `contents:write` on the image-hosting repo |
+| `HF_API_TOKEN` | hf image provider: Hugging Face image gen (Inference Providers permission) |
+| `ASSETS_REPO_PAT` | fine-grained PAT, `contents:write` on the image-hosting repo (both providers) |
 | `SMTP_USER`, `SMTP_PASSWORD`, `BLOGGER_SECRET_EMAIL` | email fallback |
 | `RUN_WEBHOOK_URL` | optional — per-run digest to Discord/Slack |
 | `GSC_CLIENT_ID/SECRET/REFRESH_TOKEN` | optional — Search Console feedback (webmasters.readonly scope); falls back to `GOOGLE_*` |
 
+Repository **variables** (Settings → Secrets and variables → Actions → *Variables*,
+not Secrets — so the workflow can branch on them):
+
+| Var | Purpose |
+|---|---|
+| `IMAGE_PROVIDER` | image engine: empty/`hf` (default, free) or `vertex` (Google Cloud Imagen, paid) |
+| `GCP_PROJECT` | vertex: project id (the auth step also exports it automatically in CI) |
+| `VERTEX_LOCATION` | vertex: region (default `us-central1`) |
+| `VERTEX_IMAGE_MODEL` | vertex: model id (default `imagen-4.0-fast-generate-001`) |
+
+Vertex **secrets** (only when `IMAGE_PROVIDER=vertex`):
+
+| Secret | Purpose |
+|---|---|
+| `GCP_WIF_PROVIDER` | Workload Identity provider resource (`projects/NUM/locations/global/workloadIdentityPools/POOL/providers/PROV`) |
+| `GCP_SERVICE_ACCOUNT` | service-account email the workflow impersonates |
+| `GCP_SA_KEY` | optional — inline SA JSON, only if your org permits long-lived keys |
+
 Images are generated once at publish time and embedded as an immutable jsDelivr
 CDN URL (real `https`, so Blogger homepage thumbnails work; bodies stay light).
+
+**Image provider:** `IMAGE_PROVIDER` empty/`hf` (default) uses Hugging Face
+FLUX.1-schnell (free, rate-limited). `IMAGE_PROVIDER=vertex` uses Google Cloud
+Vertex AI Imagen (bills GCP credits, no cold-start, higher quality). Switching is
+a one-line variable change — hosting and everything downstream are identical.
+
+**Vertex auth is keyless** (works with "Secure by Default" orgs that block SA
+keys): locally, `gcloud auth application-default login` + `GCP_PROJECT`; in CI,
+Workload Identity Federation via the `google-github-actions/auth` step already
+wired into the workflows (needs `id-token: write`, granted at the job level).
+Verify either path with `python -m blogkit selftest-image` (respects
+`IMAGE_PROVIDER`).
 
 ## Workflows
 

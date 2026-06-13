@@ -10,6 +10,8 @@ ALL_ENV = [
     "GEMINI_API_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET",
     "GOOGLE_REFRESH_TOKEN", "HF_API_TOKEN", "ASSETS_REPO_PAT",
     "SMTP_USER", "SMTP_PASSWORD", "BLOGGER_SECRET_EMAIL",
+    "IMAGE_PROVIDER", "GCP_SA_KEY", "GOOGLE_APPLICATION_CREDENTIALS",
+    "GOOGLE_GHA_CREDS_PATH", "GCP_PROJECT", "GOOGLE_CLOUD_PROJECT", "CLOUDSDK_CONFIG",
 ]
 
 
@@ -52,6 +54,50 @@ def test_no_image_skips_image_checks(clean_env):
         clean_env.setenv(v, "x")
     checks = check_environment(publish_method="api", need_image=False)
     assert "HF_API_TOKEN" not in {c.name for c in checks}
+    assert all_ok(checks)
+
+
+def test_vertex_provider_checks_gcp_not_hf(clean_env):
+    for v in ("GEMINI_API_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET",
+              "GOOGLE_REFRESH_TOKEN", "ASSETS_REPO_PAT"):
+        clean_env.setenv(v, "x")
+    clean_env.setenv("IMAGE_PROVIDER", "vertex")
+    clean_env.setenv("GCP_SA_KEY", '{"project_id":"p"}')
+    checks = check_environment(publish_method="api", need_image=True)
+    names = {c.name for c in checks}
+    assert "vertex_credentials" in names and "vertex_project" in names
+    assert "HF_API_TOKEN" not in names      # HF not required under vertex
+    assert all_ok(checks)
+
+
+def test_vertex_provider_fails_without_credentials(clean_env, tmp_path):
+    for v in ("GEMINI_API_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET",
+              "GOOGLE_REFRESH_TOKEN", "ASSETS_REPO_PAT"):
+        clean_env.setenv(v, "x")
+    for v in ("GCP_SA_KEY", "GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_GHA_CREDS_PATH",
+              "GCP_PROJECT", "GOOGLE_CLOUD_PROJECT"):
+        clean_env.delenv(v, raising=False)
+    # Point ADC discovery at an empty dir so a real local
+    # `gcloud auth application-default login` on the dev box can't make this pass.
+    clean_env.setenv("CLOUDSDK_CONFIG", str(tmp_path))
+    clean_env.setenv("IMAGE_PROVIDER", "vertex")
+    checks = check_environment(publish_method="api", need_image=True)
+    failing = {c.name for c in checks if not c.ok}
+    assert {"vertex_credentials", "vertex_project"} <= failing
+
+
+def test_vertex_credentials_detected_from_adc_file(clean_env, tmp_path):
+    for v in ("GCP_SA_KEY", "GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_GHA_CREDS_PATH"):
+        clean_env.delenv(v, raising=False)
+    clean_env.setenv("CLOUDSDK_CONFIG", str(tmp_path))
+    (tmp_path / "application_default_credentials.json").write_text("{}")
+    clean_env.setenv("IMAGE_PROVIDER", "vertex")
+    for v in ("GEMINI_API_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET",
+              "GOOGLE_REFRESH_TOKEN", "ASSETS_REPO_PAT", "GCP_PROJECT"):
+        clean_env.setenv(v, "x")
+    checks = check_environment(publish_method="api", need_image=True)
+    by_name = {c.name: c for c in checks}
+    assert by_name["vertex_credentials"].ok      # ADC file recognized
     assert all_ok(checks)
 
 

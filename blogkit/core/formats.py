@@ -110,7 +110,7 @@ _BRIEFING_BODY = """<blockquote>
 <p>[Realistic, conservative financial perspective on deployment time versus dollar returns. Use ranges, not invented point estimates.]</p>
 
 <blockquote>
-  <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Bottom Line" or "Key Takeaways"] &mdash;</strong> [Final analyst takeaway in 2-3 sentences, including the one caveat or dependency that could break the thesis. Crystallize the implication for an executive who reads only this paragraph. End with the move, not the warning.]</p>
+  <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Bottom Line" or "Key Takeaways"]:</strong> [Final analyst takeaway in 2-3 sentences, including the one caveat or dependency that could break the thesis. Crystallize the implication for an executive who reads only this paragraph. End with the move, not the warning.]</p>
 </blockquote>
 
 <h2>Industry References & Signals</h2>
@@ -170,7 +170,7 @@ _PLAYBOOK_BODY = """<blockquote>
 <p>[Realistic answer using ranges, not invented point estimates.]</p>
 
 <blockquote>
-  <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Bottom Line" or "Key Takeaways"] &mdash;</strong> [2-3 sentence engineer's verdict: what to do first thing Monday, plus the one dependency or human factor that has to be true for it to work. End with the action.]</p>
+  <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Bottom Line" or "Key Takeaways"]:</strong> [2-3 sentence engineer's verdict: what to do first thing Monday, plus the one dependency or human factor that has to be true for it to work. End with the action.]</p>
 </blockquote>
 
 <h2>Engineering References & Signals</h2>
@@ -225,7 +225,7 @@ _DEEP_DIVE_BODY = """<blockquote>
 <p>[Realistic answer using ranges, not invented point estimates.]</p>
 
 <blockquote>
-  <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Bottom Line" or "Key Takeaways"] &mdash;</strong> [2-3 sentence verdict for a decision-maker who reads only this, including the dependency or friction that complicates it. End with the move.]</p>
+  <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Bottom Line" or "Key Takeaways"]:</strong> [2-3 sentence verdict for a decision-maker who reads only this, including the dependency or friction that complicates it. End with the move.]</p>
 </blockquote>
 
 <h2>Industry References & Signals</h2>
@@ -281,7 +281,7 @@ _BUYERS_GUIDE_BODY = """<blockquote>
 <p>[Realistic answer using ranges, not invented point estimates.]</p>
 
 <blockquote>
-  <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Bottom Line" or "Key Takeaways"] &mdash;</strong> [2-3 sentence buying verdict that still names the one condition under which you'd walk away. End with the move.]</p>
+  <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Bottom Line" or "Key Takeaways"]:</strong> [2-3 sentence buying verdict that still names the one condition under which you'd walk away. End with the move.]</p>
 </blockquote>
 
 <h2>Market References & Signals</h2>
@@ -335,7 +335,7 @@ _MARKET_OUTLOOK_BODY = """<blockquote>
 <p>[Realistic answer using ranges, not invented point estimates.]</p>
 
 <blockquote>
-  <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Bottom Line" or "Key Takeaways"] &mdash;</strong> [2-3 sentence outlook that names the assumption your call depends on. End with the opportunity, not the warning.]</p>
+  <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Bottom Line" or "Key Takeaways"]:</strong> [2-3 sentence outlook that names the assumption your call depends on. End with the opportunity, not the warning.]</p>
 </blockquote>
 
 <h2>Sector References & Signals</h2>
@@ -387,7 +387,7 @@ _EXPLAINER_BODY = """<blockquote>
 <p>[Answer using ranges, not invented point estimates.]</p>
 
 <blockquote>
-  <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Takeaway" or "Key Takeaways"] &mdash;</strong> [2-3 sentences that leave the reader genuinely understanding the idea, including the caveat that keeps it honest, not merely informed of it.]</p>
+  <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Takeaway" or "Key Takeaways"]:</strong> [2-3 sentences that leave the reader genuinely understanding the idea, including the caveat that keeps it honest, not merely informed of it.]</p>
 </blockquote>
 
 <h2>References & Further Reading</h2>
@@ -446,7 +446,7 @@ _CASE_STUDY_BODY = """<blockquote>
 <p>[Answer using ranges, not invented point estimates.]</p>
 
 <blockquote>
-  <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Bottom Line" or "Key Takeaways"] &mdash;</strong> [2-3 sentence takeaway: what a peer should copy, and what they should avoid.]</p>
+  <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Bottom Line" or "Key Takeaways"]:</strong> [2-3 sentence takeaway: what a peer should copy, and what they should avoid.]</p>
 </blockquote>
 
 <h2>References & Signals</h2>
@@ -493,7 +493,7 @@ _OP_ED_BODY = """<blockquote>
 <p>[Answer using ranges, not invented point estimates.]</p>
 
 <blockquote>
-  <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "Where I Land" or "The Bottom Line"] &mdash;</strong> [2-3 sentences restating the position with conviction. End on the line you want remembered.]</p>
+  <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "Where I Land" or "The Bottom Line"]:</strong> [2-3 sentences restating the position with conviction. End on the line you want remembered.]</p>
 </blockquote>
 
 <h2>References & Signals</h2>

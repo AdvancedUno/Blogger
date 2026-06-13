@@ -28,8 +28,9 @@ LONG_BODY = "<h2>Body</h2>\n<p>" + " ".join(f"insight{i % 80}" for i in range(11
 
 @pytest.fixture
 def patched(monkeypatch):
-    """Stub fetch + generate; capture publish calls."""
+    """Stub fetch + enrichment + generate; capture publish calls."""
     monkeypatch.setattr(pipeline, "fetch_top_news", lambda **k: list(NEWS))
+    monkeypatch.setattr(pipeline, "enrich_news", lambda items: 0)
     monkeypatch.setattr(
         pipeline, "generate_post",
         lambda **k: GeneratedPost(title="A Sharp B2B Title", html=LONG_BODY, tags=["TagA"]),
@@ -87,6 +88,7 @@ def test_email_method_routes_to_email(patched):
 
 def test_quality_gate_blocks_thin_post(monkeypatch):
     monkeypatch.setattr(pipeline, "fetch_top_news", lambda **k: list(NEWS))
+    monkeypatch.setattr(pipeline, "enrich_news", lambda items: 0)
     monkeypatch.setattr(
         pipeline, "generate_post",
         lambda **k: GeneratedPost(title="Too Thin", html="<h2>Hi</h2><p>short</p>", tags=[]),

@@ -54,7 +54,25 @@ def test_parse_response_extracts_title_tags_body():
     assert post.title == "Why CFOs Must Rethink RTP Integration"
     assert post.tags == ["PaymentRails", "RealTimePayments", "TreasuryTech"]
     assert "<h2" in post.html
-    assert post.html.lstrip().startswith("<h1")
+    # The in-body <h1> is stripped — Blogger renders the title itself, so
+    # keeping it would ship a duplicate H1.
+    assert "<h1" not in post.html
+
+
+def test_parse_response_repairs_markdown_bold_and_bare_lede():
+    raw = (
+        "TITLE: A Sharp Title\n"
+        "TAGS: TagA, TagB\n"
+        "---\n"
+        "<h1>A Sharp Title</h1> This bare lede mentions the **EU AI Act** and "
+        "runs long enough to be wrapped as the opening paragraph of the post. "
+        "<h2>First Section</h2>\n<p>Body text.</p>\n"
+    )
+    post = _parse_response(raw)
+    assert post.html.lstrip().startswith("<p>This bare lede")
+    assert "<strong>EU AI Act</strong>" in post.html
+    assert "**" not in post.html
+    assert "<h1" not in post.html
 
 
 def test_parse_response_strips_code_fence():

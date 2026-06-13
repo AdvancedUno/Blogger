@@ -19,6 +19,9 @@ jobs:
   publish-email:
     runs-on: ubuntu-latest
     timeout-minutes: 70
+    permissions:
+      contents: read
+      id-token: write      # keyless GCP auth (Vertex image provider)
 
     steps:
       - name: Checkout repo
@@ -35,10 +38,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .
 
+      - name: Authenticate to Google Cloud (keyless)
+        if: ${{ vars.IMAGE_PROVIDER == 'vertex' }}
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
       - name: Run blogger pipeline (email fallback)
         env:
-          # --- Featured image (Hugging Face FLUX.1-schnell, free tier) ---
+          # --- Featured image generation (provider selected by IMAGE_PROVIDER) ---
+          IMAGE_PROVIDER:       ${{ vars.IMAGE_PROVIDER }}
           HF_API_TOKEN:         ${{ secrets.HF_API_TOKEN }}
+          GCP_PROJECT:          ${{ vars.GCP_PROJECT }}
+          VERTEX_LOCATION:      ${{ vars.VERTEX_LOCATION }}
+          VERTEX_IMAGE_MODEL:   ${{ vars.VERTEX_IMAGE_MODEL }}
+          GCP_SA_KEY:           ${{ secrets.GCP_SA_KEY }}
           # PAT (contents:write on advancedunolee/blog-assets) for hosting images.
           ASSETS_REPO_PAT:      ${{ secrets.ASSETS_REPO_PAT }}
           # --- AI text generation ---

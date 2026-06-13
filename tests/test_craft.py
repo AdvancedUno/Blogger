@@ -229,3 +229,75 @@ def test_render_structure_plan_keeps_faq_and_references_fixed():
     assert "Rule of" in d_on
     assert "ONE-SENTENCE paragraph" not in d_off
     assert "Rule of" not in d_off
+
+
+def test_ai_tell_hits_counts_the_measurable_tells():
+    from blogkit.core.craft import AI_TELL_PHRASES, ai_tell_hits
+
+    text = "Let's delve into this tapestry; it's important to note the paradigm shift."
+    hits = ai_tell_hits(text)
+    assert hits.get("delve") == 1
+    assert hits.get("tapestry") == 1
+    assert hits.get("it's important to note") == 1
+    assert hits.get("paradigm shift") == 1
+    assert ai_tell_hits("a clean operator sentence about OAuth token refresh") == {}
+    # The list itself stays measurable substrings (no regex metachars needed).
+    assert all(p == p.lower() for p in AI_TELL_PHRASES)
+
+
+def test_negative_parallelism_is_counted():
+    from blogkit.core.craft import negative_parallelism_count
+
+    text = (
+        "This is not just a latency problem, it's a capacity problem. "
+        "The fix is not about tooling; this is governance. "
+        "Success here is less about model choice and more about data hygiene."
+    )
+    assert negative_parallelism_count(text) == 3
+    assert negative_parallelism_count("The retriever stalls under load.") == 0
+
+
+def test_emdash_count_covers_literal_and_entities():
+    from blogkit.core.craft import emdash_count
+
+    assert emdash_count("a — b &mdash; c &#8212; d") == 3
+    assert emdash_count("a - b -- c") == 0  # hyphens don't count
+
+
+def test_texture_laws_ration_the_emdash():
+    out = TEXTURE_LAWS.lower()
+    assert "ration the em-dash" in out
+    assert "negative parallelism" in out
+
+
+def test_headline_style_rotates_and_renders():
+    from blogkit.core.craft import HEADLINE_STYLES
+
+    keys = {k for k, _ in HEADLINE_STYLES}
+    assert keys == {"flat_claim", "question", "number", "how", "tension"}
+    plans = [plan_structure(f"topic-{i}") for i in range(200)]
+    assert {p.headline_style for p in plans} == keys  # all shapes reached
+    # Only the tension shape may permit a colon; the rest forbid it.
+    for k, directive in HEADLINE_STYLES:
+        if k == "tension":
+            assert "colon is allowed" in directive
+        else:
+            assert "NO colon" in directive
+    d = render_structure_plan(plan_structure("zero_trust"))
+    assert "HEADLINE SHAPE:" in d
+
+
+def test_reader_question_and_evergreen_are_occasional():
+    plans = [plan_structure(f"topic-{i}") for i in range(400)]
+    rq = sum(p.reader_question for p in plans) / len(plans)
+    ev = sum(p.evergreen_lean for p in plans) / len(plans)
+    assert 0.15 < rq < 0.45
+    assert 0.25 < ev < 0.55
+    # Rendered only when on.
+    p_on = next(p for p in plans if p.reader_question and p.evergreen_lean)
+    p_off = next(p for p in plans if not p.reader_question and not p.evergreen_lean)
+    d_on, d_off = render_structure_plan(p_on), render_structure_plan(p_off)
+    assert "ONE pointed, specific question" in d_on
+    assert "12 MONTHS FROM NOW" in d_on
+    assert "ONE pointed, specific question" not in d_off
+    assert "12 MONTHS FROM NOW" not in d_off

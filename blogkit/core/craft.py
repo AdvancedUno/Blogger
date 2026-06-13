@@ -60,6 +60,52 @@ ABSOLUTE_PROCLAMATIONS: tuple[str, ...] = (
 )
 
 
+# ---------------------------------------------------------------------------
+# AI-tell phrases. The personas module already bans these in the prompt
+# (_ANTI_AI); this list is the measurable subset the quality gate counts as a
+# backstop, so a generation that ignores the ban never ships. Substring-matched
+# case-insensitively ("delve" also catches "delves"/"delved"/"delving").
+# ---------------------------------------------------------------------------
+AI_TELL_PHRASES: tuple[str, ...] = (
+    "delve",
+    "tapestry",
+    "game-chang",
+    "in today's fast-paced",
+    "ever-evolving",
+    "navigating the landscape",
+    "it's important to note",
+    "it's worth noting",
+    "buckle up",
+    "look no further",
+    "rest assured",
+    "needless to say",
+    "in conclusion",
+    "testament to",
+    "in the realm of",
+    "paradigm shift",
+    "treasure trove",
+    "double-edged sword",
+    "uncharted territory",
+    "in the digital age",
+)
+
+
+# "It's not X, it's Y" / "not just X, but Y" / "less about X and more about Y" —
+# the negative-parallelism construction that's now one of the most widely cited
+# statistical AI fingerprints. One per post can be natural prose; a pattern of
+# them is a tell. Counted by negative_parallelism_hits() as a gate backstop.
+_NEG_PARALLEL_RE = re.compile(
+    r"\bnot\s+(?:just|only|merely|simply|about)\b[^.!?]{0,60}?[,;:—–-]\s*"
+    r"(?:it|this|that|they|but|what)\b"
+    r"|\bless\s+about\b[^.!?]{0,60}?\bmore\s+about\b",
+    re.IGNORECASE,
+)
+
+# Em-dash (U+2014) or its entity forms. Doubled usage of this mark is the
+# single most-cited statistical marker of machine prose as of 2025-2026.
+_EMDASH_RE = re.compile(r"—|&mdash;|&#8212;")
+
+
 def _phrase_hits(text: str, phrases: tuple[str, ...]) -> dict[str, int]:
     """Count case-insensitive occurrences of each phrase that appears (count>=1)."""
     low = text.lower()
@@ -87,6 +133,24 @@ def absolute_hits(text: str) -> dict[str, int]:
     catches a slip that survives generation.
     """
     return _phrase_hits(text, ABSOLUTE_PROCLAMATIONS)
+
+
+def ai_tell_hits(text: str) -> dict[str, int]:
+    """Count occurrences of each measurable AI-tell phrase (case-insensitive).
+
+    Backstop behind the prompt's _ANTI_AI ban list — a compliant post has zero.
+    """
+    return _phrase_hits(text, AI_TELL_PHRASES)
+
+
+def negative_parallelism_count(text: str) -> int:
+    """Count "it's not X, it's Y" / "not just X, but Y" constructions."""
+    return len(_NEG_PARALLEL_RE.findall(text))
+
+
+def emdash_count(text: str) -> int:
+    """Count em-dashes (literal U+2014 plus entity forms)."""
+    return len(_EMDASH_RE.findall(text))
 
 
 # ---------------------------------------------------------------------------
@@ -292,6 +356,13 @@ TEXTURE_LAWS = "\n".join([
     "load-bearing phrase INSIDE a sentence — the surprising figure, the "
     "counterintuitive claim — not only at the start of a bullet or a definition. "
     "Use it sparingly enough that it still carries weight.",
+    "",
+    "3. RATION THE EM-DASH. Em-dash density is now the single most-cited "
+    "statistical fingerprint of machine prose. Use AT MOST two or three "
+    "em-dashes in the entire piece. Everywhere else reach for a comma, a "
+    "period, a colon, or parentheses — and never use an em-dash where a plain "
+    "period would do. The same goes for the \"it's not X, it's Y\" negative "
+    "parallelism: at most one in the whole piece, ideally zero.",
 ])
 
 
@@ -316,7 +387,10 @@ NARRATIVE_MODES: tuple[tuple[str, str], ...] = (
      "what the investigation found underneath, the chain of contributing causes, "
      "and what it actually cost. Reconstruct it like an incident review, not a "
      "thesis stated up front. Keep the incident anonymized / composite — never "
-     "pinned on a real named company."),
+     "pinned on a real named company — and signal its illustrative nature ONCE, "
+     "briefly and naturally (e.g. \"consider a representative campus...\", \"a "
+     "pattern we keep seeing...\"), so the reader is never led to believe an "
+     "invented incident is reported fact."),
     ("practical_evolution",
      "STRUCTURE THIS PIECE AS A PRACTICAL EVOLUTION. Document a slow, uneven "
      "transition (for example, screen-scraping giving way to OAuth connectivity) "
@@ -353,6 +427,36 @@ def pick_narrative_mode(seed_text: str) -> str:
 _LENGTH_BANDS: tuple[int, ...] = (1100, 1350, 1600, 1850, 2100)
 
 
+# ---------------------------------------------------------------------------
+# Headline shape rotation. LLMs default to "Topic: Subtitle" colon titles on
+# nearly every piece — a CTR ceiling (every SERP listing looks the same) and a
+# scaled-content fingerprint across a blog's archive. One shape is picked per
+# piece in plan_structure(); only "tension" may use a colon.
+# ---------------------------------------------------------------------------
+HEADLINE_STYLES: tuple[tuple[str, str], ...] = (
+    ("flat_claim",
+     "Write the TITLE as one flat, declarative claim with NO colon and no "
+     "subtitle (e.g. \"Treasury Teams Are Quietly Rebuilding Around Real-Time "
+     "Rails\"). Make the claim specific enough to be falsifiable."),
+    ("question",
+     "Write the TITLE as a direct question a real buyer or operator would type "
+     "into Google — NO colon (e.g. \"Can OAuth Rails Finally Retire Screen "
+     "Scraping?\"). The article must actually answer it."),
+    ("number",
+     "Anchor the TITLE on ONE concrete number, dollar figure, or year taken "
+     "from the Source Data — NO colon (e.g. \"A $14B Bet on Grid Storage Is "
+     "Outrunning the Permits\"). Never invent the figure."),
+    ("how",
+     "Write the TITLE as a concrete \"How ...\" construction about a mechanism "
+     "or outcome — NO colon (e.g. \"How FinOps Teams Catch a Runaway GPU Bill "
+     "in Hours, Not Weeks\")."),
+    ("tension",
+     "Build the TITLE around a tension between two named things — X vs Y, what "
+     "X gets wrong about Y, why X won't fix Y. A colon is allowed here ONLY if "
+     "it genuinely earns its place."),
+)
+
+
 @dataclass(frozen=True)
 class StructurePlan:
     """The shape of ONE post. FAQ + References are always kept and so are not
@@ -372,6 +476,16 @@ class StructurePlan:
     # across a blog's posts — the FAQ length and the summary-box bullet count.
     faq_count: int = 2       # number of Q&A pairs in the FAQ (heading stays fixed)
     summary_bullets: int = 3 # bullets in the opening summary callout, when present
+    # Headline shape for this piece (a key from HEADLINE_STYLES) — rotates the
+    # title pattern so a blog's archive never reads as one repeated "Topic:
+    # Subtitle" construction.
+    headline_style: str = "flat_claim"
+    # Close by asking the reader ONE pointed question (invites comments — the
+    # interaction signal loyal-audience research keeps flagging). ~1/3 of posts.
+    reader_question: bool = False
+    # Write for durability: the news is the entry point, the durable mechanism
+    # is the substance — so the post still earns search traffic in 12 months.
+    evergreen_lean: bool = False
 
 
 def plan_structure(seed_text: str) -> StructurePlan:
@@ -402,16 +516,27 @@ def plan_structure(seed_text: str) -> StructurePlan:
     faq_count = 2 + (h % 3)        # 2..4 FAQ questions (heading stays verbatim)
     h //= 3
     summary_bullets = 3 + (h % 3)  # 3..5 bullets in the opening summary callout
+    h //= 3
+    headline = HEADLINE_STYLES[h % len(HEADLINE_STYLES)][0]
+    h //= len(HEADLINE_STYLES)
+    reader_q = (h % 10) < 3         # ~30% close on a question to the reader
+    h //= 10
+    evergreen = (h % 10) < 4        # ~40% written to hold up for 12 months
     return StructurePlan(
         target_words=target, sections=sections, summary_callout=summary,
         pull_quote=pull, comparison_table=table, closing_callout=closing,
         data_visual=visual, one_sentence_para=one_sentence, rule_of_thumb=rot,
         faq_count=faq_count, summary_bullets=summary_bullets,
+        headline_style=headline, reader_question=reader_q,
+        evergreen_lean=evergreen,
     )
 
 
 def render_structure_plan(plan: StructurePlan) -> str:
     """Render a StructurePlan as a prompt directive injected per piece."""
+    headline_directive = dict(HEADLINE_STYLES).get(
+        plan.headline_style, HEADLINE_STYLES[0][1]
+    )
     lines = [
         "STRUCTURAL PLAN FOR THIS PIECE — deliberately shaped so no two posts "
         "share the same skeleton (this is what defeats programmatic / "
@@ -421,6 +546,9 @@ def render_structure_plan(plan: StructurePlan) -> str:
         "THIS post only:",
         f"- Target length: about {plan.target_words} words. Write to the ideas — "
         "never pad, restate, or repeat to hit the number.",
+        f"- HEADLINE SHAPE: {headline_directive} (Still <= 60 characters with "
+        "the primary keyword early — the shape rotates per piece so the blog's "
+        "archive never reads as one repeated title pattern.)",
         f"- Organize the body into roughly {plan.sections} main <h2> sections "
         "(split or merge to fit the material; don't force an exact count).",
         (f"- Open with a <blockquote> summary callout of {plan.summary_bullets} "
@@ -465,5 +593,21 @@ def render_structure_plan(plan: StructurePlan) -> str:
             "- Include exactly one <blockquote> framed as a blunt \"Rule of "
             "Thumb\" or a contrarian hot take — an opinion stated flatly, NOT a "
             "quotation."
+        )
+    if plan.reader_question:
+        lines.append(
+            "- END by turning to the reader with ONE pointed, specific question "
+            "about their own stack, portfolio, or experience — in the author's "
+            "own voice, as the natural last beat of the piece. Never the "
+            "boilerplate \"let us know in the comments below!\"."
+        )
+    if plan.evergreen_lean:
+        lines.append(
+            "- WRITE THIS PIECE TO STILL BE USEFUL 12 MONTHS FROM NOW: the news "
+            "is the entry point, but the substance is the durable mechanism, "
+            "trade-off, or decision framework underneath it. Avoid 'this week' "
+            "/ 'yesterday' deixis; give at least one <h2> a long-tail, "
+            "evergreen search phrasing (a \"how/what/should\" question a buyer "
+            "will still be typing next year)."
         )
     return "\n".join(lines)

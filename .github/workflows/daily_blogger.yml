@@ -29,6 +29,9 @@ jobs:
     # 20 sites x (~15s work + 30s inter-site sleep) = ~14 min best case.
     # 45 min absorbs multiple 65s quota retries before GitHub auto-cancels.
     timeout-minutes: 70
+    permissions:
+      contents: read       # checkout
+      id-token: write      # mint the OIDC token for keyless GCP auth (Vertex)
 
     steps:
       - name: Checkout repo
@@ -47,6 +50,17 @@ jobs:
 
       # No Playwright install step — Blogger v3 is a pure REST API.
 
+      # Keyless Google Cloud auth (Workload Identity Federation) — only when the
+      # image provider is Vertex. No long-lived JSON key; this step mints a
+      # short-lived token from the GitHub OIDC token and exports
+      # GOOGLE_APPLICATION_CREDENTIALS + GOOGLE_CLOUD_PROJECT for the run step.
+      - name: Authenticate to Google Cloud (keyless)
+        if: ${{ vars.IMAGE_PROVIDER == 'vertex' }}
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
       - name: Run blogger pipeline
         env:
           # --- AI (multi-key routing, GEMINI_API_KEY is the fallback) ---
@@ -62,8 +76,20 @@ jobs:
           GEMINI_API_KEY_9:     ${{ secrets.GEMINI_API_KEY_9 }}
           GEMINI_API_KEY_10:    ${{ secrets.GEMINI_API_KEY_10 }}
           GEMINI_MODEL:       ${{ secrets.GEMINI_MODEL }}
-          # --- Featured image (Hugging Face FLUX.1-schnell, free tier) ---
+          # --- Featured image generation (provider selected by IMAGE_PROVIDER) ---
+          # IMAGE_PROVIDER is a repo *variable* (Settings -> Variables), not a
+          # secret, so the auth step above can branch on it. "hf" (default,
+          # free) or "vertex" (Google Cloud Imagen, paid).
+          IMAGE_PROVIDER:       ${{ vars.IMAGE_PROVIDER }}
+          # hf provider: Hugging Face FLUX.1-schnell token (free tier).
           HF_API_TOKEN:         ${{ secrets.HF_API_TOKEN }}
+          # vertex provider: the auth step exports GOOGLE_APPLICATION_CREDENTIALS
+          # + GOOGLE_CLOUD_PROJECT. These vars only override/pin the region/model.
+          GCP_PROJECT:          ${{ vars.GCP_PROJECT }}
+          VERTEX_LOCATION:      ${{ vars.VERTEX_LOCATION }}
+          VERTEX_IMAGE_MODEL:   ${{ vars.VERTEX_IMAGE_MODEL }}
+          # Optional: only set if your org permits service-account JSON keys.
+          GCP_SA_KEY:           ${{ secrets.GCP_SA_KEY }}
           # PAT (contents:write on advancedunolee/blog-assets) for hosting images.
           ASSETS_REPO_PAT:      ${{ secrets.ASSETS_REPO_PAT }}
           # --- Blogger OAuth ---
