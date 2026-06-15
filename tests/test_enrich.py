@@ -36,6 +36,26 @@ def test_add_toc_preserves_existing_id():
     assert 'id="keep"' in out and 'href="#keep"' in out
 
 
+def test_add_toc_excludes_faq_and_sources_from_nav():
+    # FAQ / References / Sources are utility sections: still anchored (deep links
+    # work) but kept OUT of the article ToC, which lists only reading sections.
+    body = (
+        "<h2>Real Section One</h2><p>a</p>"
+        "<h2>Open Source Tooling</h2><p>b</p>"            # contains 'source' but editorial
+        "<h2>Real Section Three</h2><p>c</p>"
+        "<h2>Frequently Asked Questions</h2><p>d</p>"
+        "<h2>Sources</h2><p>e</p>"
+    )
+    out = add_toc(body)
+    nav = out.split("</nav>")[0]
+    assert nav.count("<li>") == 3                          # 3 editorial sections
+    assert "Frequently Asked Questions" not in nav
+    assert ">Sources<" not in nav
+    assert "Open Source Tooling" in nav                    # NOT dropped (anchored match)
+    # ...but the skipped headings still get anchor ids for direct linking.
+    assert 'id="frequently-asked-questions"' in out and 'id="sources"' in out
+
+
 def test_reading_time_badge():
     body = "<p>" + " ".join(["word"] * 440) + "</p>"  # 440 words @220wpm = 2 min
     assert "2 min read" in reading_time_badge(body)

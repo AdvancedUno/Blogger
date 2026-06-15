@@ -35,7 +35,7 @@ def test_no_format_body_contains_tldr():
 
 def test_every_format_has_required_structure():
     # Load-bearing invariants every layout must keep so the parser + SEO
-    # (FAQPage extraction, references soft-check, summary callout) keep working.
+    # (FAQPage extraction, summary callout) keep working.
     # Note: a <table> and the literal "Bottom Line" are intentionally NOT
     # universal — that's part of the structural diversity across formats.
     for name, fmt in FORMATS.items():
@@ -43,7 +43,11 @@ def test_every_format_has_required_structure():
         assert "<h2" in b, name
         assert b.count("<blockquote") >= 2, name          # summary + closing callout
         assert "frequently asked questions" in b, name    # powers FAQPage schema
-        assert "references" in b, name                     # references soft-check
+        # The body must NOT carry its own references/sources section — the real
+        # linked "Sources" list is appended downstream by seo.build_references_html
+        # (two stacked reference blocks per post otherwise).
+        assert "references" not in b, name
+        assert "<h2>sources" not in b, name
         # FAQ Q&A must be <h3>question</h3><p>answer</p> for seo.extract_faqs.
         assert "<h3>" in fmt.body, name
 

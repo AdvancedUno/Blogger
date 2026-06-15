@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from blogkit.core.charts import CHART_INSTRUCTION, render_charts
+from blogkit.core.charts import CHART_INSTRUCTION, render_charts, strip_chart_blocks
 
 
 def _marker(spec: dict) -> str:
@@ -105,4 +105,28 @@ def test_enclosing_paragraph_is_consumed():
 def test_chart_instruction_states_marker_and_honesty_rule():
     assert "[[CHART]]" in CHART_INSTRUCTION
     assert "illustrative" in CHART_INSTRUCTION.lower()
+
+
+def test_negative_bar_value_is_dropped_not_broken():
+    # A negative value would emit an invalid negative-width <rect>; the whole
+    # marker is dropped instead so no broken SVG ships.
+    out = render_charts(_marker({
+        "kind": "bar", "data": [{"label": "Up", "value": 8}, {"label": "Down", "value": -5}],
+    }))
+    assert out == ""
+    assert 'width="-' not in out
+
+
+def test_strip_chart_blocks_removes_rendered_chart_text():
+    # Stat-card text + caption live OUTSIDE the <svg>; the whole bk-chart block
+    # must be removed so word counts measure prose only.
+    rendered = render_charts(_marker({
+        "kind": "stats", "title": "Latency budget",
+        "data": [{"label": "p95 latency", "value": "6.2s"}],
+    }))
+    prose = "<p>Real prose here.</p>" + rendered + "<p>More prose.</p>"
+    stripped = strip_chart_blocks(prose)
+    assert "bk-chart" not in stripped
+    assert "Latency budget" not in stripped and "p95 latency" not in stripped
+    assert "Real prose here." in stripped and "More prose." in stripped
     assert "never" in CHART_INSTRUCTION.lower()   # never label invented data "real"

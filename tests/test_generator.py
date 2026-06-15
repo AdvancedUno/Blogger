@@ -79,3 +79,16 @@ def test_parse_response_strips_code_fence():
     fenced = "```html\n" + SAMPLE + "```"
     post = _parse_response(fenced)
     assert post.title == "Why CFOs Must Rethink RTP Integration"
+
+
+def test_parse_response_trims_overlong_title_on_word_boundary():
+    long_title = (
+        "Enterprise Real-Time Payment Rails Are Quietly Rewiring "
+        "Corporate Treasury Operations Worldwide"
+    )
+    raw = f"TITLE: {long_title}\nTAGS: A, B\n---\n<h2>Section</h2>\n<p>x</p>\n"
+    post = _parse_response(raw)
+    assert len(post.title) <= 65                 # never ships a SERP-truncated title
+    assert not post.title.endswith("…")          # an H1 must not look truncated
+    assert long_title.startswith(post.title)     # a clean leading prefix
+    assert not post.title.endswith(" ")          # trimmed at a word boundary

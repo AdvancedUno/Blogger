@@ -309,12 +309,14 @@ def _generate_png(prompt: str, seed: int) -> bytes | None:
     return png
 
 
-def build_featured_image_html(
+def build_featured_image(
     title: str,
     styles: list[str] | None = None,
-) -> str | None:
-    """Generate a creative on-theme image, host it, and return a JetTheme <div>
-    with a jsDelivr CDN <img src>. Best-effort: None on any failure.
+) -> tuple[str, str] | None:
+    """Generate a creative on-theme image, host it, and return
+    ``(div_html, cdn_url)`` — the JetTheme <div> with a jsDelivr CDN <img src>,
+    plus the raw CDN URL (so callers can also feed it into JSON-LD ``image``).
+    Best-effort: None on any failure.
 
     The generation engine is chosen by the IMAGE_PROVIDER env var (hf default,
     or vertex). Hosting (GitHub -> jsDelivr) is identical either way.
@@ -338,18 +340,29 @@ def build_featured_image_html(
         logger.info("Featured image hosted -> %s", cdn_url)
 
         alt = title.replace('"', "&quot;")
-        return (
+        div = (
             '<div class="mb-5">'
             f'<img src="{cdn_url}" '
             f'class="img-fluid rounded shadow-sm w-100" alt="{alt}" />'
             '</div>'
         )
+        return div, cdn_url
     except Exception as e:
         logger.warning(
             "Featured image generation/upload failed (%s) — publishing "
             "text-only", e,
         )
         return None
+
+
+def build_featured_image_html(
+    title: str,
+    styles: list[str] | None = None,
+) -> str | None:
+    """The featured-image <div> HTML only (or None). Thin wrapper over
+    ``build_featured_image`` for callers that don't need the raw CDN URL."""
+    result = build_featured_image(title, styles)
+    return result[0] if result else None
 
 
 def warm_up_image_model() -> None:

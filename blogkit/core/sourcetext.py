@@ -111,7 +111,12 @@ def _resolve_via_api(token: str) -> str:
         timeout=FETCH_TIMEOUT,
     )
     resp.raise_for_status()
-    for m in re.finditer(r'https?://[^"\\\s]+', resp.text):
+    # The publisher URL is a JSON string nested inside the batchexecute JSON, so
+    # its slashes arrive escaped ("https:\/\/host\/path"). Unescape them first or
+    # the '//'-anchored pattern below never matches and new-style tokens silently
+    # fall back to headline-only grounding.
+    text = resp.text.replace("\\/", "/")
+    for m in re.finditer(r'https?://[^"\\\s]+', text):
         u = m.group(0)
         if "google.com" not in u and "gstatic.com" not in u:
             return u
@@ -181,7 +186,9 @@ def enrich_news(items: list[dict]) -> int:
             break
         link = item.get("link") or ""
         try:
-            pub_url = resolve_publisher_url(link)
+            # Reuse a publisher URL the caller already resolved (the pipeline
+            # resolves it up front for cross-blog dedup), else resolve it now.
+            pub_url = item.get("source_url") or resolve_publisher_url(link)
             if not pub_url:
                 continue
             page = requests.get(pub_url, headers=_HEADERS, timeout=FETCH_TIMEOUT)

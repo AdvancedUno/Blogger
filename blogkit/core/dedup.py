@@ -204,7 +204,10 @@ class GitHubLedgerStore:
                 timeout=GITHUB_UPLOAD_TIMEOUT,
             )
             r.raise_for_status()
-            self._sha = r.json().get("commit", {}).get("sha") or self._sha
+            # The next PUT to this path needs the file's NEW blob sha
+            # (response.content.sha), not the commit sha — using the commit sha
+            # would 409 on a second save in the same process.
+            self._sha = (r.json().get("content") or {}).get("sha") or self._sha
             logger.info("Dedup ledger saved — %d entries", len(ledger.entries))
         except Exception as e:
             logger.warning("Dedup ledger save failed (%s) — continuing", e)

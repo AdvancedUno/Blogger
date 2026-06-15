@@ -87,6 +87,23 @@ AI_TELL_PHRASES: tuple[str, ...] = (
     "double-edged sword",
     "uncharted territory",
     "in the digital age",
+    # 2026 additions — vetted for collision safety under naive substring
+    # matching (e.g. "serves as a", not bare "serves as", which "deserves as"
+    # would trip; "underscores the", not bare "underscore"; no "set to" /
+    # "increasingly" — too prone to false positives in legitimate prose).
+    "when it comes to",
+    "a stark reminder",
+    "cannot be overstated",
+    "at the heart of",
+    "the crux of",
+    "a growing body of",
+    "speaks volumes",
+    "poised to",
+    "serves as a",
+    "underscores the",
+    "plays a pivotal role",
+    "plays a crucial role",
+    "plays a key role",
 )
 
 
@@ -170,9 +187,10 @@ CRAFT_LAWS = "\n".join([
     "any generic boilerplate heading. Write natural, magazine-style editorial "
     "subheadings that advance the story and name the specific thing — e.g. instead "
     "of \"Risks & Bottlenecks\" write something like \"The Broken Pipes in the "
-    "Utility Data Layer\". (The single \"Frequently Asked Questions\" heading and "
-    "the closing references heading are the ONLY fixed labels — keep those exactly "
-    "as given; invent every other heading yourself.)",
+    "Utility Data Layer\". (The single \"Frequently Asked Questions\" heading is "
+    "the ONLY fixed label — keep it exactly as given; invent every other heading "
+    "yourself. Do NOT write a References/Sources section; a real linked Sources "
+    "list is appended for you.)",
     "",
     "2. PAY THE BUZZWORD TAX. Write like an operator who works in plain English, "
     "not a McKinsey consultant trying to hit a word count. Trade high-level jargon "
@@ -541,9 +559,13 @@ def render_structure_plan(plan: StructurePlan) -> str:
         "STRUCTURAL PLAN FOR THIS PIECE — deliberately shaped so no two posts "
         "share the same skeleton (this is what defeats programmatic / "
         "scaled-content pattern detection). It OVERRIDES the layout template's "
-        "optional furniture. The Frequently Asked Questions section and the "
-        "closing References/Sources list ALWAYS stay; everything else here is for "
-        "THIS post only:",
+        "optional furniture. The Frequently Asked Questions section ALWAYS stays; "
+        "do NOT write your own References/Sources list (a real linked one is "
+        "appended for you). Everything else here is for THIS post only. When this "
+        "per-piece plan or narrative mode conflicts with your style muse's usual "
+        "opening/closing arc, the plan wins on SHAPE (where the piece opens, what "
+        "it withholds, how it closes); borrow the muse only for voice, rhythm, "
+        "diction, and instinct:",
         f"- Target length: about {plan.target_words} words. Write to the ideas — "
         "never pad, restate, or repeat to hit the number.",
         f"- HEADLINE SHAPE: {headline_directive} (Still <= 60 characters with "
@@ -578,8 +600,8 @@ def render_structure_plan(plan: StructurePlan) -> str:
         ("- Give the summary callout and the closing callout (whichever appear) "
          "each an ORIGINAL short heading in your own voice for this piece — never "
          "a reused stock label like \"The Bottom Line\", \"Key Takeaways\", or "
-         "\"TL;DR\". The \"Frequently Asked Questions\" and References headings are "
-         "the ONLY fixed labels."),
+         "\"TL;DR\". The \"Frequently Asked Questions\" heading is the ONLY fixed "
+         "label."),
     ]
     # Occasional stylistic devices — only mandated when their flag is on, so they
     # stay "time to time" rather than a per-post tic. (No line when off.)

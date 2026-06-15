@@ -135,6 +135,12 @@ def _svg_open(w: int, h: int) -> str:
 
 def _render_bar(spec: dict) -> str:
     pairs = _pairs(spec, _MAX_POINTS)
+    # A negative value would produce an invalid negative-width <rect>. The bar
+    # chart only models non-negative magnitudes; reject so render_charts drops
+    # the marker gracefully (the point can still be made in prose) rather than
+    # shipping broken SVG.
+    if any(v < 0 for _, v in pairs):
+        raise ValueError("bar chart needs non-negative values")
     maxv = max(v for _, v in pairs)
     if maxv <= 0:
         raise ValueError("bar chart needs a positive value")
@@ -278,6 +284,48 @@ def _render_one(spec: dict) -> str:
     if renderer is None:
         raise ValueError(f"unknown chart kind {kind!r}")
     return renderer(spec)
+
+
+def strip_chart_blocks(html: str) -> str:
+    """Remove rendered chart containers (``<div class="bk-chart">…</div>``) from
+    HTML.
+
+    Word counts, the content fingerprint, the quality gate, and the JSON-LD
+    ``wordCount`` should all measure PROSE, not the chart's SVG ``<text>``
+    labels, title, honesty caption, or stat-card numbers. Those are rendered
+    inside (and outside the ``<svg>`` but inside) the ``bk-chart`` wrapper, so we
+    drop the whole balanced container — a simple ``<svg>`` strip would miss the
+    title/caption/stat text. Best-effort; unbalanced markup leaves the input
+    untouched from the offending point on.
+    """
+    marker = '<div class="bk-chart"'
+    if marker not in html:
+        return html
+    out: list[str] = []
+    i = 0
+    while True:
+        start = html.find(marker, i)
+        if start == -1:
+            out.append(html[i:])
+            return "".join(out)
+        out.append(html[i:start])
+        # Walk to the matching </div>, tracking <div> nesting depth.
+        depth, k = 0, start
+        while k < len(html):
+            nxt_open = html.find("<div", k)
+            nxt_close = html.find("</div>", k)
+            if nxt_close == -1:
+                k = len(html)
+                break
+            if nxt_open != -1 and nxt_open < nxt_close:
+                depth += 1
+                k = nxt_open + 4
+            else:
+                depth -= 1
+                k = nxt_close + 6
+                if depth == 0:
+                    break
+        i = k
 
 
 def render_charts(html_body: str, max_charts: int = MAX_CHARTS) -> str:

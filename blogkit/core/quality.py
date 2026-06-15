@@ -27,6 +27,7 @@ import html as _html
 import re
 from collections import Counter
 
+from blogkit.core.charts import strip_chart_blocks
 from blogkit.core.craft import (
     absolute_hits,
     ai_tell_hits,
@@ -78,8 +79,13 @@ _STOPWORDS = {
 
 
 def extract_text(html_body: str) -> str:
-    """Strip tags + unescape entities -> plain text."""
-    return _html.unescape(_TAG_RE.sub(" ", html_body or "")).strip()
+    """Strip rendered charts + tags + unescape entities -> plain prose text.
+
+    Chart blocks are removed first so SVG labels / captions / stat numbers never
+    inflate the word count (a thin-content guard) or pollute the dedup
+    fingerprint.
+    """
+    return _html.unescape(_TAG_RE.sub(" ", strip_chart_blocks(html_body or ""))).strip()
 
 
 def word_count(html_body: str) -> int:

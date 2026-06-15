@@ -26,9 +26,10 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    # 20 sites x (~15s work + 30s inter-site sleep) = ~14 min best case.
-    # 45 min absorbs multiple 65s quota retries before GitHub auto-cancels.
-    timeout-minutes: 70
+    # 20 sites x (~15s work + ~45s source-text/URL-resolve + 30s inter-site
+    # sleep) ≈ 30 min; headroom absorbs multiple 65s Gemini quota retries before
+    # GitHub auto-cancels mid-network.
+    timeout-minutes: 120
     permissions:
       contents: read       # checkout
       id-token: write      # mint the OIDC token for keyless GCP auth (Vertex)

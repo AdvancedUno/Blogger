@@ -1,32 +1,34 @@
 # =====================================================================
-# Multi-Blog Profile Config (Blogger / English market)
+# Multi-Blog Bootstrap Config (Blogger / English market)
 # =====================================================================
 #
-# Keyword Roulette:
-#   rss_queries is a list. The fetcher / fallback loop in main_blogger.py
-#   shuffles the list and tries keywords sequentially until news is found.
+# NOT READ AT RUNTIME. This file is a one-time BOOTSTRAP INPUT consumed only by
+# tools/generate_profiles.py, which seeds blogkit/profiles/<slug>.py modules
+# from the blog_id / run_group / api_key_env / rss_queries below. The live
+# pipeline reads the generated profiles, not this file.
 #
-# Multi-API Key Routing:
-#   Each site declares an api_key_env naming the Gemini API key env var.
-#   main_blogger.py reads os.environ[api_key_env] and passes it through to
-#   generate_post(api_key=...). run_group lets you batch-chunk runs via
-#   `python main_blogger.py --group N`.
+# Source of truth for actual runtime behavior:
+#   - blogkit/core/pipeline.py  — fetch -> generate -> image -> publish
+#   - blogkit/core/imager.py    — FLUX/Vertex image, hosted on GitHub + served
+#                                 as a real jsDelivr https URL (NOT base64)
+#   - blogkit/profiles/<slug>.py — per-blog persona, queries, toggles
+#
+# Multi-API Key Routing: each site's api_key_env names the Gemini key env var
+# (GEMINI_API_KEY_1..10), carried through to the generated profile.
 # =====================================================================
 
 defaults:
   max_news_items: 6
-  # Featured image: OFF by default = text-only posts (light, AdSense-friendly,
-  # no external image dependency). Set to true here to enable for ALL blogs,
-  # or add `featured_image: true` under an individual site to enable just one.
-  # When on, main_blogger.py generates a unique pollinations.ai image per post,
-  # downloads it at publish time, and inlines it as base64 (no live external
-  # image links). Any failure falls back to text-only automatically.
+  # Featured image toggle carried into each generated profile's `featured_image`.
+  # At runtime the image is generated once (FLUX/Vertex), hosted on the assets
+  # repo, and embedded as an immutable jsDelivr https URL; any failure falls
+  # back to text-only automatically. See blogkit/core/imager.py.
   featured_image: true
 
 
 # =====================================================================
-# Google Blogger (Blogspot) — English-speaking market, REST API publish.
-# main_blogger.py reads only this section.
+# Google Blogger (Blogspot) — English-speaking market.
+# Bootstrap data only; tools/generate_profiles.py reads this section.
 # =====================================================================
 blogger_sites:
   # ===== TECH & INFRASTRUCTURE (group 1, keys 1-5) =====

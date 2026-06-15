@@ -42,7 +42,7 @@ _PROMPT_PRE = (
 
 _PROMPT_MID = """You MUST follow this exact HTML structure to provide maximum clarity and visual rhythm on JetTheme v2.9. Do not skip any element — the <blockquote> and <table> wrappers carry distinct theme styling that turns a wall of text into a scannable editorial layout. This blog is text-only: do NOT emit any <img>, <figure>, or <figcaption> tags.
 
-CRITICAL — HEADINGS ARE PURPOSES, NOT TEXT TO COPY: the bracketed text in every <h2>, <h3>, and bold list label below describes what that section must accomplish. Replace each bracketed [...] with your OWN vivid, specific, magazine-style heading that advances the story and names the concrete thing (e.g. not "Risks & Bottlenecks" but "The Broken Pipes in the Utility Data Layer"). Never output the bracketed instruction itself, and never fall back on a generic, templated label. The ONLY headings you must keep verbatim are "Frequently Asked Questions" and the closing references heading.
+CRITICAL — HEADINGS ARE PURPOSES, NOT TEXT TO COPY: the bracketed text in every <h2>, <h3>, and bold list label below describes what that section must accomplish. Replace each bracketed [...] with your OWN vivid, specific, magazine-style heading that advances the story and names the concrete thing (e.g. not "Risks & Bottlenecks" but "The Broken Pipes in the Utility Data Layer"). Never output the bracketed instruction itself, and never fall back on a generic, templated label. The ONLY heading you must keep verbatim is "Frequently Asked Questions". Do NOT write a References, Sources, Further Reading, or Citations section yourself — a real, linked Sources list is appended automatically after your text, so end on your strongest final line (or the closing callout) instead.
 
 The first 3 lines below (TITLE / TAGS / ---) are required for downstream parsing. The TITLE line text MUST match the <h1> text exactly.
 
@@ -56,16 +56,20 @@ TAGS: 5-7 high-CPC B2B tags (PascalCase / compounds, no spaces inside individual
 # =====================================================================
 # Format bodies. Each opens with a summary callout (no "TL;DR"), runs a
 # distinct set of sections, and carries the structural elements the JetTheme
-# layout + SEO rules expect: a pull-quote <blockquote>, an FAQ, a closing
-# verdict callout, and a "...References & Signals" heading. (A <table> appears
-# only in buyers_guide + case_study.)
+# layout + SEO rules expect: a pull-quote <blockquote>, an FAQ, and a closing
+# verdict callout. (A <table> appears only in buyers_guide + case_study.)
+#
+# The body ends on the FAQ / closing callout — it does NOT carry a references
+# section. The real, linked "Sources" list is appended downstream by
+# core/seo.build_references_html (so the model can't fabricate citations and
+# every post cites the actual fetched articles). See core/pipeline.py.
 #
 # IMPORTANT: section <h2>/<h3> titles and bold list labels are written as
 # bracketed PURPOSES, not literal text. The shared lead-in (_PROMPT_MID) tells
 # the model to replace each bracket with its own vivid, story-driven heading —
 # this is what keeps 40 blogs from sharing the same templated subheadings
-# (Law 1 in core/craft.py). The ONLY verbatim headings are "Frequently Asked
-# Questions" (powers FAQPage schema) and the closing references heading.
+# (Law 1 in core/craft.py). The ONLY verbatim heading is "Frequently Asked
+# Questions" (powers FAQPage schema).
 # =====================================================================
 
 _BRIEFING_BODY = """<blockquote>
@@ -112,9 +116,6 @@ _BRIEFING_BODY = """<blockquote>
 <blockquote>
   <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Bottom Line" or "Key Takeaways"]:</strong> [Final analyst takeaway in 2-3 sentences, including the one caveat or dependency that could break the thesis. Crystallize the implication for an executive who reads only this paragraph. End with the move, not the warning.]</p>
 </blockquote>
-
-<h2>Industry References & Signals</h2>
-<p>This macro analysis is synthesized directly from active operational signals and the reporting within the Source Data above.</p>
 """
 
 
@@ -172,9 +173,6 @@ _PLAYBOOK_BODY = """<blockquote>
 <blockquote>
   <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Bottom Line" or "Key Takeaways"]:</strong> [2-3 sentence engineer's verdict: what to do first thing Monday, plus the one dependency or human factor that has to be true for it to work. End with the action.]</p>
 </blockquote>
-
-<h2>Engineering References & Signals</h2>
-<p>This guide is synthesized directly from active engineering signals and the reporting within the Source Data above.</p>
 """
 
 
@@ -227,9 +225,6 @@ _DEEP_DIVE_BODY = """<blockquote>
 <blockquote>
   <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Bottom Line" or "Key Takeaways"]:</strong> [2-3 sentence verdict for a decision-maker who reads only this, including the dependency or friction that complicates it. End with the move.]</p>
 </blockquote>
-
-<h2>Industry References & Signals</h2>
-<p>This analysis is synthesized directly from active operational signals and the reporting within the Source Data above.</p>
 """
 
 
@@ -283,9 +278,6 @@ _BUYERS_GUIDE_BODY = """<blockquote>
 <blockquote>
   <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Bottom Line" or "Key Takeaways"]:</strong> [2-3 sentence buying verdict that still names the one condition under which you'd walk away. End with the move.]</p>
 </blockquote>
-
-<h2>Market References & Signals</h2>
-<p>This guide is synthesized directly from active market signals and the reporting within the Source Data above.</p>
 """
 
 
@@ -337,9 +329,6 @@ _MARKET_OUTLOOK_BODY = """<blockquote>
 <blockquote>
   <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Bottom Line" or "Key Takeaways"]:</strong> [2-3 sentence outlook that names the assumption your call depends on. End with the opportunity, not the warning.]</p>
 </blockquote>
-
-<h2>Sector References & Signals</h2>
-<p>This outlook is synthesized directly from active sector signals and the reporting within the Source Data above.</p>
 """
 
 
@@ -389,9 +378,6 @@ _EXPLAINER_BODY = """<blockquote>
 <blockquote>
   <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Takeaway" or "Key Takeaways"]:</strong> [2-3 sentences that leave the reader genuinely understanding the idea, including the caveat that keeps it honest, not merely informed of it.]</p>
 </blockquote>
-
-<h2>References & Further Reading</h2>
-<p>This explainer is synthesized directly from active reporting and the Source Data above.</p>
 """
 
 
@@ -448,9 +434,6 @@ _CASE_STUDY_BODY = """<blockquote>
 <blockquote>
   <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "The Bottom Line" or "Key Takeaways"]:</strong> [2-3 sentence takeaway: what a peer should copy, and what they should avoid.]</p>
 </blockquote>
-
-<h2>References & Signals</h2>
-<p>This case study is synthesized directly from active reporting and the Source Data above.</p>
 """
 
 
@@ -495,9 +478,6 @@ _OP_ED_BODY = """<blockquote>
 <blockquote>
   <p><strong>[A short, original closing-verdict label in your own voice for THIS piece — never a reused stock phrase like "Where I Land" or "The Bottom Line"]:</strong> [2-3 sentences restating the position with conviction. End on the line you want remembered.]</p>
 </blockquote>
-
-<h2>References & Signals</h2>
-<p>This argument is grounded in active reporting and the Source Data above.</p>
 """
 
 

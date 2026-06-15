@@ -16,11 +16,10 @@ logger = logging.getLogger(__name__)
 WEBHOOK_TIMEOUT = 15.0
 
 
-def format_digest(results: list[tuple[str, bool, str]], *, dry_run: bool = False) -> str:
+def format_digest(results: list[tuple[str, bool, str]]) -> str:
     """results: list of (slug, ok, info)."""
     ok = sum(1 for _, k, _ in results if k)
-    tag = "(dry-run) " if dry_run else ""
-    lines = [f"blogkit run {tag}— {ok}/{len(results)} OK"]
+    lines = [f"blogkit run — {ok}/{len(results)} OK"]
     for slug, k, info in results:
         lines.append(f"{'✅' if k else '❌'} {slug}: {info}")
     return "\n".join(lines)

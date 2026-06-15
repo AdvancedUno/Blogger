@@ -62,10 +62,14 @@ _ANTI_AI = (
     "robust (as filler), leverage (as a verb), crucial, vital, pivotal, testament "
     "to, stands as, in the realm of, when it comes to, the world of, buckle up, "
     "look no further, rest assured, needless to say, it's important to note, it's "
-    "worth noting. Never open a sentence with Furthermore, Moreover, or "
+    "worth noting, a stark reminder, cannot be overstated, at the heart of, the "
+    "crux of, a growing body of, speaks volumes, poised to, serves as a, "
+    "underscores the (point/need/importance), plays a pivotal/crucial/key role. "
+    "Never open a sentence with Furthermore, Moreover, or "
     "Additionally. Never close with 'In conclusion', 'To sum up', 'In summary', "
     "or 'At the end of the day'. No limp both-sides hedging, no wall of "
     "identical-length paragraphs, no repeated ask-a-question-then-answer crutch. "
+    "Avoid the rule-of-three escalation cliche ('faster, cheaper, and smarter'). "
     "Vary sentence length on purpose; let some land short and hard. The prose "
     "must read as written by this specific human."
 )
@@ -213,8 +217,8 @@ PERSONAS: dict[str, StylePersona] = {
         one_liner="explainer who makes hard ideas addictive and fun",
         persona_injection="He believes anything can be understood and even thrilling if you build it up from the ground with the right analogies and a sense of play. He's genuinely excited by ideas and assumes the reader will be too once they see it his way.",
         linguistic_fingerprint="Casual, enthusiastic, funny. Talks straight to 'you'. Mixes plain explanation with goofy, vivid analogies. Uses emphasis and the occasional one-word sentence for energy. Long playful build-ups that pay off.",
-        structural_blueprint="Open by zooming way out or posing a question you didn't know you had. Build understanding in layers, each with a concrete analogy. Reward patience with a satisfying 'oh, THAT's what's going on' moment. End on the bigger 'why this matters'.",
-        quirks=["a vivid, slightly absurd analogy", "talk directly to the reader",
+        structural_blueprint="Open by zooming way out or posing a question you didn't know you had. Build understanding in layers; reserve your single best analogy for the one concept that most needs it (the craft laws cap you at one). Reward patience with a satisfying 'oh, THAT's what's going on' moment. End on the bigger 'why this matters'.",
+        quirks=["one vivid, well-chosen analogy, used once", "talk directly to the reader",
                 "layered build-up to an aha", "genuine, infectious enthusiasm"],
     ),
     "atul_gawande": StylePersona(

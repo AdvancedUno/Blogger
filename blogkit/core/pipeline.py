@@ -16,7 +16,7 @@ from blogkit.core.enrich import add_toc, reading_time_badge, related_posts_html
 from blogkit.core.fetcher import FetchError, fetch_top_news
 from blogkit.core.formats import resolve_format_name
 from blogkit.core.generator import GenerationError, Voice, generate_post
-from blogkit.core.imager import build_featured_image_html
+from blogkit.core.imager import build_featured_image
 from blogkit.core.personas import resolve_persona_name
 from blogkit.core.publisher import (
     BloggerPublishError,
@@ -26,13 +26,19 @@ from blogkit.core.publisher import (
 )
 from blogkit.core.quality import check_quality, content_fingerprint
 from blogkit.core.seo import build_jsonld, build_references_html, make_description
-from blogkit.core.sourcetext import enrich_news
+from blogkit.core.sourcetext import enrich_news, resolve_publisher_url
 from blogkit.profiles.base import BlogProfile
 
 logger = logging.getLogger(__name__)
 
 INTER_SITE_SLEEP_SECONDS = 30   # Gemini free-tier RPM safeguard between blogs
 DEFAULT_MAX_NEWS_ITEMS = 6
+
+
+def _dedup_key(item: dict) -> str:
+    """The cross-blog dedup key for a news item: its stable resolved publisher
+    URL when known, else the raw (Google News) link as a fallback."""
+    return item.get("source_url") or item.get("link", "")
 
 
 def run_profile(
@@ -84,11 +90,24 @@ def run_profile(
             continue
         if not fetched:
             continue
-        # Drop source articles already used network-wide recently.
+        # Resolve each candidate's STABLE publisher URL so the cross-blog dedup
+        # keys on the real article — not the Google News redirect token, which
+        # Google re-mints per query and over time (so hashing it dedups almost
+        # nothing). Cheap for old-style tokens (pure base64 decode, no network);
+        # best-effort for the rest. enrich_news reuses this `source_url`, so the
+        # chosen set is never resolved twice.
+        for n in fetched:
+            try:
+                resolved = resolve_publisher_url(n.get("link", ""))
+            except Exception:
+                resolved = ""
+            if resolved:
+                n["source_url"] = resolved
+        # Drop source articles already used network-wide recently (by publisher URL).
         if ledger is not None:
-            urls = [n.get("link", "") for n in fetched if n.get("link")]
+            urls = [_dedup_key(n) for n in fetched if _dedup_key(n)]
             fresh = set(ledger.fresh_links(urls))
-            kept = [n for n in fetched if not n.get("link") or n["link"] in fresh]
+            kept = [n for n in fetched if not _dedup_key(n) or _dedup_key(n) in fresh]
             if len(kept) < len(fetched):
                 logger.info("[%s] De-dup dropped %d/%d used articles for %r",
                             name, len(fetched) - len(kept), len(fetched), kw)
@@ -177,11 +196,27 @@ def run_profile(
         if ledger is not None:
             ledger.record(
                 slug=profile.slug, keyword=chosen_keyword, title=post.title,
-                links=[n["link"] for n in news if n.get("link")], url=url,
+                # Record the SAME stable publisher-URL keys the filter checks, so
+                # the next run actually collides on a re-used source article.
+                links=[_dedup_key(n) for n in news if _dedup_key(n)], url=url,
                 fingerprint=post_fingerprint,
             )
 
-    # ----- 2.5 Engagement + SEO enrichment ----------------------------
+    # ----- 2.5 Featured image FIRST (per-blog style pool; skipped in dry-run) --
+    # Built before the SEO block so its hosted CDN URL can flow into the Article
+    # JSON-LD `image` (required for Article rich results / Discover). Runs AFTER
+    # the quality gate so a rejected post never pays for an image.
+    featured_div = ""
+    image_url = ""
+    if not dry_run and profile.featured_image:
+        result = build_featured_image(post.title, styles=profile.style_pool())
+        if result:
+            featured_div, image_url = result
+            logger.info("[%s] Featured image hosted", name)
+        else:
+            logger.info("[%s] No featured image — text-only", name)
+
+    # ----- 2.6 Engagement + SEO enrichment ----------------------------
     # reading-time + clickable ToC (with heading anchors) at the top; internal
     # related-posts links + real source citations + JSON-LD at the bottom.
     body = reading_time_badge(post.html) + "\n" + add_toc(post.html)
@@ -196,24 +231,16 @@ def run_profile(
         title=post.title, html_body=post.html, blog_name=name, news_items=news,
         tags=list(post.tags or profile.tags), section=profile.niche_keyword,
         site_url=(profile.site_url or profile.analytics_site),
+        image_url=image_url or None,
     )
 
-    # ----- 2.6 Featured image (per-blog style pool; skipped in dry-run) ---
-    html_content = body
+    html_content = (featured_div + "\n" + body) if featured_div else body
     if dry_run:
         logger.info(
             "[%s] DRY-RUN — would publish %d-char post titled %r (image skipped). "
             "Not published, ledger untouched.", name, len(html_content), post.title,
         )
         return True, f"dry-run:{len(html_content)} chars"
-
-    if profile.featured_image:
-        featured = build_featured_image_html(post.title, styles=profile.style_pool())
-        if featured:
-            html_content = featured + "\n" + body
-            logger.info("[%s] Prepended hosted featured image", name)
-        else:
-            logger.info("[%s] No featured image — text-only", name)
 
     # ----- 3. Publish -------------------------------------------------
     if publish_method == "email":

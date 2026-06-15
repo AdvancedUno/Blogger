@@ -34,12 +34,19 @@ import argparse
 import logging
 import sys
 import time
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
-try:
+if TYPE_CHECKING:
+    # mypy always sees the real exception type for annotations / except clauses.
     from googleapiclient.errors import HttpError
-except ImportError:  # the --ads-txt path and import don't need the Google libs
-    HttpError = Exception  # type: ignore[assignment,misc]
+else:
+    # At runtime the --ads-txt path doesn't need the Google libs; fall back to a
+    # base class so `except HttpError` still works when they're absent.
+    try:
+        from googleapiclient.errors import HttpError
+    except ImportError:
+        HttpError = Exception
 
 # Reuse the OAuth helper + the blog registry the daily pipeline uses.
 from blogkit.core.publisher import _build_service

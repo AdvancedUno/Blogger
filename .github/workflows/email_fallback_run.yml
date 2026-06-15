@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       group:
-        description: 'run_group to publish (matches config.yaml run_group)'
+        description: 'run_group to publish (matches a profile run_group)'
         required: true
         default: '1'
 
@@ -18,7 +18,7 @@ concurrency:
 jobs:
   publish-email:
     runs-on: ubuntu-latest
-    timeout-minutes: 70
+    timeout-minutes: 120
     permissions:
       contents: read
       id-token: write      # keyless GCP auth (Vertex image provider)
@@ -56,12 +56,28 @@ jobs:
           GCP_SA_KEY:           ${{ secrets.GCP_SA_KEY }}
           # PAT (contents:write on advancedunolee/blog-assets) for hosting images.
           ASSETS_REPO_PAT:      ${{ secrets.ASSETS_REPO_PAT }}
-          # --- AI text generation ---
+          # --- AI text generation (multi-key routing; GEMINI_API_KEY is the
+          #     universal fallback). Any run_group spans 5 distinct per-blog keys,
+          #     so all of them must be present or non-KEY_1 blogs fail generation. ---
+          GEMINI_API_KEY:       ${{ secrets.GEMINI_API_KEY }}
           GEMINI_API_KEY_1:     ${{ secrets.GEMINI_API_KEY_1 }}
+          GEMINI_API_KEY_2:     ${{ secrets.GEMINI_API_KEY_2 }}
+          GEMINI_API_KEY_3:     ${{ secrets.GEMINI_API_KEY_3 }}
+          GEMINI_API_KEY_4:     ${{ secrets.GEMINI_API_KEY_4 }}
+          GEMINI_API_KEY_5:     ${{ secrets.GEMINI_API_KEY_5 }}
+          GEMINI_API_KEY_6:     ${{ secrets.GEMINI_API_KEY_6 }}
+          GEMINI_API_KEY_7:     ${{ secrets.GEMINI_API_KEY_7 }}
+          GEMINI_API_KEY_8:     ${{ secrets.GEMINI_API_KEY_8 }}
+          GEMINI_API_KEY_9:     ${{ secrets.GEMINI_API_KEY_9 }}
+          GEMINI_API_KEY_10:    ${{ secrets.GEMINI_API_KEY_10 }}
+          GEMINI_MODEL:         ${{ secrets.GEMINI_MODEL }}
           # --- Mail2Blogger SMTP publishing ---
           BLOGGER_SECRET_EMAIL: ${{ secrets.BLOGGER_SECRET_EMAIL }}
           SMTP_USER:            ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD:        ${{ secrets.SMTP_PASSWORD }}
           # --- Run digest webhook (Discord/Slack-compatible; optional) ---
           RUN_WEBHOOK_URL:      ${{ secrets.RUN_WEBHOOK_URL }}
-        run: python -m blogkit run --group ${{ github.event.inputs.group }} --publish-method email
+        # Preflight first (fail fast on missing secrets), then the email run.
+        run: |
+          python -m blogkit doctor --publish-method email
+          python -m blogkit run --group ${{ github.event.inputs.group }} --publish-method email

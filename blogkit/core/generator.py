@@ -16,7 +16,12 @@ from dataclasses import dataclass, field
 
 from blogkit.core.archetypes import build_archetype_directive, get_archetype
 from blogkit.core.charts import CHART_INSTRUCTION, render_charts
-from blogkit.core.craft import pick_narrative_mode, plan_structure, render_structure_plan
+from blogkit.core.craft import (
+    NARRATIVE_MODES,
+    pick_narrative_mode,
+    plan_structure,
+    render_structure_plan,
+)
 from blogkit.core.formats import build_user_prompt, get_format
 from blogkit.core.personas import build_persona_directive, get_persona
 
@@ -39,9 +44,19 @@ EDITORIAL_ANGLES = [
 ]
 
 
-def _pick_angle(seed_text: str) -> str:
+# Index of the forward-looking lens in EDITORIAL_ANGLES. A prospective angle
+# must not be paired with the retrospective "autopsy" narrative mode (which
+# reconstructs a PAST incident) — see generate_post.
+_PROSPECTIVE_ANGLE_IDX = 1
+
+
+def _angle_index(seed_text: str) -> int:
     h = int(hashlib.sha256(seed_text.encode("utf-8")).hexdigest(), 16)
-    return EDITORIAL_ANGLES[h % len(EDITORIAL_ANGLES)]
+    return h % len(EDITORIAL_ANGLES)
+
+
+def _pick_angle(seed_text: str) -> str:
+    return EDITORIAL_ANGLES[_angle_index(seed_text)]
 
 # Model name can be overridden via the GEMINI_MODEL env var (e.g.,
 # gemini-2.5-flash). Default is gemini-3.5-flash per project preference.
@@ -72,7 +87,7 @@ CRITICAL WRITING LAWS FOR ELITE QUALITY & SEO:
 8. SNIPPET-WORTHY OPENING & KEYWORD PLACEMENT: The first <p> after the <h1>/summary callout must work as a standalone ~150-character meta description — compelling, specific, and self-contained (it becomes the SERP snippet). Use the primary topic phrase naturally within the first 100 words and in at least one <h2>. Never keyword-stuff.
 9. E-E-A-T & SPECIFICITY: Demonstrate first-hand operator experience and judgment. Always prefer a specific named entity, real figure, or date from the Source Data over a vague generality. Concrete beats comprehensive.
 10. RAW HTML ONLY (theme-aware tag set): Output clean HTML paragraphs (max 3-4 sentences each). Allowed elements: <h1>, <h2>, <h3>, <h4>, <p>, <strong>, <b>, <em>, <ul>, <ol>, <li>, <blockquote>, <table>, <thead>, <tbody>, <tr>, <th>, <td>. Do NOT emit any <img>, <figure>, or <figcaption> tags — this blog is text-only. Use <strong> liberally on real data, regulator names, and corporate entities so the reader's eye finds anchors.
-11. LAYOUT BACKBONE, HUMAN VOICE (JetTheme v2.9): The template is your structural backbone, not a script to parrot. Two elements are ALWAYS fixed: the "<h2>Frequently Asked Questions</h2>" heading verbatim with each Q&A as <h3>question</h3><p>answer</p>, and the "...References..." <h2> at the end. Every OTHER structural element — the opening <blockquote> summary callout (and its heading label, NEVER the word "TL;DR"), any mid-article <blockquote> pull quote, any comparison <table>, the body length, the number of sections, and the closing <blockquote> callout — is governed by the per-piece STRUCTURAL PLAN in the user prompt: include each one only when that plan says to, so no two posts share the same shape. WITHIN that backbone, write every <h2>/<h3> subhead in your own author's voice (not the bracketed placeholder labels), vary paragraph length deliberately, and let your archetype shape the prose so it reads like a specific human — not a uniform, templated page.
+11. LAYOUT BACKBONE, HUMAN VOICE (JetTheme v2.9): The template is your structural backbone, not a script to parrot. One element is ALWAYS fixed: the "<h2>Frequently Asked Questions</h2>" heading verbatim with each Q&A as <h3>question</h3><p>answer</p>. Do NOT write a References, Sources, Further Reading, or Citations section yourself — a real, linked Sources list is appended automatically after your text. Every OTHER structural element — the opening <blockquote> summary callout (and its heading label, NEVER the word "TL;DR"), any mid-article <blockquote> pull quote, any comparison <table>, the body length, the number of sections, and the closing <blockquote> callout — is governed by the per-piece STRUCTURAL PLAN in the user prompt: include each one only when that plan says to, so no two posts share the same shape. WITHIN that backbone, write every <h2>/<h3> subhead in your own author's voice (not the bracketed placeholder labels), vary paragraph length deliberately, and let your archetype shape the prose so it reads like a specific human — not a uniform, templated page.
 """.strip()
 
 
@@ -298,10 +313,20 @@ def _parse_response(text: str) -> GeneratedPost:
         )
     title = _strip_emoji(m_title.group(1).strip())
     if len(title) > 65:
+        # The title is the single biggest SERP-click lever and Google truncates
+        # it past ~60-65 chars. The model regularly overshoots a soft cap, and
+        # because the in-body <h1> is stripped (Blogger renders post.title
+        # verbatim) there's no second chance — so trim to <=65 on a word
+        # boundary. No ellipsis: an H1 must not look truncated.
+        cut = title[:65]
+        if " " in cut:
+            cut = cut.rsplit(" ", 1)[0]
+        trimmed = cut.rstrip(" ,.;:-–—")
         logger.warning(
-            "Title is %d chars (>65) — may truncate in Google SERPs: %r",
-            len(title), title,
+            "Title was %d chars (>65) — trimmed to %r (would truncate in SERPs)",
+            len(title), trimmed,
         )
+        title = trimmed
 
     # 2) TAGS (when missing, fall back to config tags downstream)
     tags: list[str] = []
@@ -335,16 +360,13 @@ def _parse_response(text: str) -> GeneratedPost:
         raise GenerationError("<h2> heading missing from generated HTML")
 
     # Soft-checks (warnings only — do not block publish). Format-agnostic so
-    # they hold across every layout in core/formats.py.
-    # References section: any h2/h3 whose text contains "references".
-    refs_pattern = r"<h[23][^>]*>[^<]*references?[^<]*</h[23]>"
+    # they hold across every layout in core/formats.py. (The post intentionally
+    # carries NO model-written references section — the real linked "Sources"
+    # list is appended downstream in core/pipeline.py, so we don't check for it.)
     # FAQ section (every format carries one) — good for long-tail + schema.
     faq_pattern = r"<h2[^>]*>[^<]*frequently\s+asked\s+questions[^<]*</h2>"
     # A summary callout near the top — every format opens with a <blockquote>.
     summary_pattern = r"<blockquote"
-
-    if not re.search(refs_pattern, body, flags=re.IGNORECASE):
-        logger.warning("'References' section missing — possible SEO rule miss")
 
     if not re.search(faq_pattern, body, flags=re.IGNORECASE):
         logger.warning("FAQ section heading not detected — possible structural rule miss")
@@ -455,7 +477,8 @@ def generate_post(
     seed = (focus_keyword or topic_label) + (
         news_items[0].get("title", "") if news_items else ""
     )
-    angle = _pick_angle(seed)
+    angle_idx = _angle_index(seed)
+    angle = EDITORIAL_ANGLES[angle_idx]
     angle_directive = (
         f"EDITORIAL ANGLE FOR THIS PIECE: Frame the entire analysis as {angle}. "
         "Commit to this angle in the headline and throughout — do not retreat "
@@ -463,7 +486,18 @@ def generate_post(
     )
     # Structural arc, rotated independently of the lens (salted seed) so the
     # network cycles through all three narrative modes instead of one template.
-    mode_directive = pick_narrative_mode(seed + "::mode") + "\n\n"
+    mode_seed = seed + "::mode"
+    mode_directive = pick_narrative_mode(mode_seed)
+    # A forward-looking angle (the next 4-8 quarters) collides with the AUTOPSY
+    # mode, which reconstructs a PAST incident. When they land together, re-pick
+    # deterministically from the non-retrospective modes so a prospective piece
+    # never gets an autopsy scaffold.
+    autopsy_directive = dict(NARRATIVE_MODES)["autopsy"]
+    if angle_idx == _PROSPECTIVE_ANGLE_IDX and mode_directive == autopsy_directive:
+        alt = [d for key, d in NARRATIVE_MODES if key != "autopsy"]
+        h_alt = int(hashlib.sha256((mode_seed + "::reroll").encode("utf-8")).hexdigest(), 16)
+        mode_directive = alt[h_alt % len(alt)]
+    mode_directive += "\n\n"
     # Per-piece shape (length, section count, which optional elements appear) so
     # no two posts share the same skeleton — defeats scaled-content detection.
     plan = plan_structure(seed)
@@ -494,6 +528,14 @@ def generate_post(
                 raise GenerationError(
                     f"Empty response from Gemini (prompt_feedback={fb})"
                 )
+            # A response cut off at max_output_tokens still has a TITLE and an
+            # <h2>, so it would sail through the parser and ship a post that
+            # ends mid-sentence (unterminated <p>/<table>, no FAQ). Treat it as
+            # a retryable error so the loop re-rolls instead of publishing it.
+            cands = getattr(response, "candidates", None) or []
+            finish = getattr(cands[0], "finish_reason", None) if cands else None
+            if finish is not None and str(finish).endswith("MAX_TOKENS"):
+                raise GenerationError("truncated output (MAX_TOKENS) — retrying")
             post = _parse_response(text)
             # Guardrail: if the model slipped a "TL;DR" label into the summary
             # box despite the per-format heading, swap it for the format's own

@@ -23,10 +23,10 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Ruff (lint + format check)
-        run: ruff check blogkit tools tests
+        run: ruff check blogkit tools tests setup_pages.py build_themes.py
 
       - name: Mypy (type check)
-        run: mypy blogkit
+        run: mypy blogkit setup_pages.py build_themes.py
 
       - name: Pytest
         run: pytest -q
