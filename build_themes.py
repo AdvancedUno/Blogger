@@ -181,6 +181,7 @@ STANDARD_LINKS: list[tuple[str, str]] = [
     ("Home", "/"),
     ("About Us", "/p/about-us.html"),
     ("Contact Us", "/p/contact-us.html"),
+    ("Editorial Standards", "/p/editorial-standards.html"),
     ("Privacy Policy", "/p/privacy-policy.html"),
     ("Terms of Service", "/p/terms-of-service.html"),
 ]

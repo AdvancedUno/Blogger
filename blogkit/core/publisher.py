@@ -162,6 +162,7 @@ def publish_to_blogger(
     is_draft: bool = False,
     search_description: str = "",
     slug: str = "",
+    published: str = "",
 ) -> str:
     """Publish a single post via the Blogger v3 API and return its URL.
 
@@ -177,6 +178,11 @@ def publish_to_blogger(
             clean category from ``CATEGORY_BY_SLUG`` (Title-Cased slug for an
             unmapped blog) — see ``category_for``.
         is_draft: When True, save as draft (default False = publish live).
+        published: Optional RFC 3339 timestamp for the post's visible publish
+            time. Used to back-date posts within a window so the network's
+            publish times are staggered rather than all identical (see
+            ``core.cadence``). Must be in the past — a future value would make
+            Blogger schedule the post as a draft instead of publishing it.
         search_description: Meta/search description for the post. Blogger's v3
             API does not officially expose this field, so it is attempted as
             ``searchDescription`` and silently dropped (with a retry) if the API
@@ -216,6 +222,8 @@ def publish_to_blogger(
         body["labels"] = list(tags)
     if search_description:
         body["searchDescription"] = search_description
+    if published:
+        body["published"] = published
 
     def _insert(post_body: dict) -> dict:
         return (
@@ -228,15 +236,19 @@ def publish_to_blogger(
         try:
             result = _insert(body)
         except HttpError as e:
-            # Blogger v3 may reject the unofficial searchDescription field with a
-            # 400. Drop it and retry once so the post still publishes.
+            # Blogger v3 can 400 on the optional fields: the unofficial
+            # searchDescription, or (on some blogs/accounts) a `published`
+            # timestamp on insert. Drop BOTH and retry once so the core
+            # title/content/labels still publish. Only retry when at least one
+            # optional field was actually present (otherwise the 400 is real).
             status = getattr(e.resp, "status", None)
-            if search_description and str(status) == "400":
+            if (search_description or published) and str(status) == "400":
                 logger.warning(
-                    "Blogger rejected searchDescription (HTTP 400) — "
-                    "retrying without it for blog_id=%s", blog_id,
+                    "Blogger rejected an optional field (HTTP 400) — retrying "
+                    "without searchDescription/published for blog_id=%s", blog_id,
                 )
                 body.pop("searchDescription", None)
+                body.pop("published", None)
                 result = _insert(body)
             else:
                 raise

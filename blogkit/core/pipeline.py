@@ -8,9 +8,11 @@ import logging
 import os
 import random
 import traceback
+from datetime import datetime, timezone
 
 from blogkit.core.analytics import fetch_top_queries, prioritize_queries
 from blogkit.core.archetypes import resolve_archetype_name
+from blogkit.core.cadence import published_at
 from blogkit.core.dedup import Ledger
 from blogkit.core.enrich import add_toc, reading_time_badge, related_posts_html
 from blogkit.core.fetcher import FetchError, fetch_top_news
@@ -261,6 +263,10 @@ def run_profile(
             slug=profile.slug,   # -> one clean category label (no model-invented tags)
             is_draft=profile.draft,
             search_description=make_description(post.html, post.title),
+            # Back-date the visible publish time by a deterministic per-blog
+            # offset so the network's posts aren't all stamped the same minute
+            # (de-synchronizes the cadence; see core.cadence).
+            published=published_at(profile.slug, datetime.now(timezone.utc)),
         )
         logger.info("[%s] Published OK -> %s", name, url)
         _record(url)

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 import blogkit.core.publisher as publisher
 from blogkit.core.publisher import (
     CATEGORY_BY_SLUG,
@@ -109,3 +111,70 @@ def test_no_slug_falls_back_to_caller_tags(monkeypatch):
         tags=["Manual"],
     )
     assert captured["body"]["labels"] == ["Manual"]
+
+
+def test_published_timestamp_is_forwarded(monkeypatch):
+    captured = _patch_service(monkeypatch)
+    publish_to_blogger(
+        blog_id="123", title="T", html_content="<p>x</p>", slug="finops_cloud_cost",
+        published="2026-06-16T05:30:00+00:00",
+    )
+    assert captured["body"]["published"] == "2026-06-16T05:30:00+00:00"
+
+
+def test_no_published_field_when_unset(monkeypatch):
+    captured = _patch_service(monkeypatch)
+    publish_to_blogger(blog_id="123", title="T", html_content="<p>x</p>", slug="x")
+    assert "published" not in captured["body"]
+
+
+# --- 400-salvage retry: drop the optional fields (searchDescription/published)
+#     and retry once so the core post still publishes. ---
+class _FakeResp:
+    def __init__(self, status: int):
+        self.status = status
+        self.reason = "Bad Request"
+
+
+class _FakePostsFailFirst:
+    """Raises HTTP 400 on the first insert, then succeeds — capturing the body
+    of EACH attempt so the test can assert the optional fields were dropped."""
+
+    def __init__(self, captured: dict):
+        self._captured = captured
+        self._calls = 0
+
+    def insert(self, blogId: str, body: dict, isDraft: bool = False):  # noqa: N803
+        from googleapiclient.errors import HttpError
+        self._calls += 1
+        self._captured.setdefault("bodies", []).append(dict(body))
+        self._captured["calls"] = self._calls
+        if self._calls == 1:
+            raise HttpError(_FakeResp(400), b"rejected optional field")
+
+        class _Ok:
+            def execute(self_inner) -> dict:  # noqa: N805
+                return {"url": "https://blog.example/post", "id": "42"}
+        return _Ok()
+
+
+def test_400_on_optional_field_retries_without_it(monkeypatch):
+    pytest.importorskip("googleapiclient")
+    captured: dict = {}
+    # One shared posts instance so the call counter persists across attempts.
+    posts = _FakePostsFailFirst(captured)
+    service = type("S", (), {"posts": lambda self: posts})()
+    monkeypatch.setattr(publisher, "_build_service", lambda: service)
+
+    url = publish_to_blogger(
+        blog_id="123", title="T", html_content="<p>x</p>", slug="finops_cloud_cost",
+        search_description="meta", published="2026-06-16T05:30:00+00:00",
+    )
+    assert url == "https://blog.example/post"
+    assert captured["calls"] == 2                       # retried exactly once
+    first, second = captured["bodies"]
+    assert "published" in first and "searchDescription" in first
+    assert "published" not in second                    # both optional fields dropped
+    assert "searchDescription" not in second
+    assert second["title"] == "T"                       # core fields preserved
+    assert second["labels"] == ["FinOps"]

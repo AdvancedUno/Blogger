@@ -62,6 +62,10 @@ def test_api_publish_includes_seo_and_records_ledger(patched):
     # Labels come from the slug-category mapping, NOT the model's tags.
     assert patched["api"]["slug"] == "t_blog"
     assert "tags" not in patched["api"]
+    # Cadence jitter: a back-dated publish timestamp is forwarded, in the past.
+    from datetime import datetime, timezone
+    published = datetime.fromisoformat(patched["api"]["published"])
+    assert published <= datetime.now(timezone.utc)
 
 
 def test_dry_run_does_not_publish_or_record(patched):

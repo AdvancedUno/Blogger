@@ -60,17 +60,15 @@ enrichment collapse = quality regression with no alarm.
 summary to `format_digest`, e.g. `grounding 14/20 blogs ≥3 sources; gate
 rejected 1 (em-dash overuse)`.
 
-### 5. Break the metronomic publishing cadence
-All 20 blogs publish at exactly 14:00 UTC, every day, forever. A perfectly
-periodic archive across a 20-blog network is a programmatic signature visible
-to anyone (or any classifier) that sorts by timestamp — and post-per-day-
-forever is the textbook profile of scaled content.
-**Step:** deterministic per-blog jitter, seeded from `slug + date`:
-(a) each blog *skips* ~1-2 days per week (`hash(slug+date) % 7 < 2 → skip`),
-(b) per-blog sleep offset spreads publishes over a ~2-hour window instead of a
-burst. Both are ~15 lines in `cli.py`/`pipeline.py`, no infra change. Bonus:
-fewer posts/day also eases daily Blogger write quotas and Gemini free-tier
-pressure.
+### 5. Break the metronomic publishing cadence — ✅ DONE
+~~All 20 blogs publish at exactly 14:00 UTC, every day, forever.~~ Implemented
+in `blogkit/core/cadence.py` (deterministic, re-run-safe, `slug + date`-seeded):
+(a) `is_rest_day` skips each blog ~1 day in 7 on irregular, network-
+desynchronized days (wired into `cli.py`, scheduled multi-blog runs only);
+(b) `published_at` back-dates each post's visible timestamp by a per-(blog, day)
+offset up to ~9h (wired into `pipeline.py` → `publisher.py` `published` field),
+so posts no longer all carry the same run minute. Part of the AdSense
+remediation — see `ADSENSE_REMEDIATION.md`.
 
 ### 6. Numeric-claim cross-check (anti-hallucination backstop)
 Grounded source text reduced hallucination pressure, but nothing *verifies*

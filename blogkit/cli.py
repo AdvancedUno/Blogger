@@ -76,9 +76,28 @@ def cmd_run(args: argparse.Namespace) -> int:
     profiles = _select(args)
     if not profiles:
         return 0
-    logger.info("Publish method: %s | %d blog(s)", args.publish_method, len(profiles))
 
     dry_run = getattr(args, "dry_run", False)
+
+    # Cadence jitter: in scheduled multi-blog runs, let each blog skip ~1 day a
+    # week on irregular, network-desynchronized days so the cadence stops reading
+    # as a machine metronome (a Google scaled-content / "low value content"
+    # trigger). An explicit single --blog run and any dry-run always proceed.
+    if not dry_run and not getattr(args, "blog", None):
+        from datetime import datetime, timezone
+
+        from blogkit.core.cadence import is_rest_day
+        today = datetime.now(timezone.utc).date()
+        rested = sorted(p.slug for p in profiles if is_rest_day(p.slug, today))
+        if rested:
+            profiles = [p for p in profiles if p.slug not in rested]
+            logger.info("Cadence jitter — %d blog(s) resting today (%s): %s",
+                        len(rested), today.isoformat(), ", ".join(rested))
+        if not profiles:
+            logger.info("All selected blogs rest today (cadence jitter) — nothing to publish.")
+            return 0
+
+    logger.info("Publish method: %s | %d blog(s)", args.publish_method, len(profiles))
 
     # Cross-blog de-dup ledger (best-effort; empty if no ASSETS_REPO_PAT).
     store = GitHubLedgerStore()
